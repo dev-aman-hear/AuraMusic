@@ -1,72 +1,100 @@
-# 🎵 Aura Music
+# 🎵 AuraMusic V2.0
 
-**Aura Music** is a premium, lightweight, and modern offline music player for Android, built entirely with **Jetpack Compose** and **Material 3**. Designed for audiophiles and lovers of clean UI, it brings an immersive listening experience to your local music library.
+A modern Android music player built with Kotlin and Jetpack Compose, featuring a clean Apple Music-inspired design, powerful local audio playback, beautiful artwork display, playlists, favorites, and notification controls.
 
----
+## ✨ Features
 
-## ✨ Key Features
+### 🎧 Music Playback
 
-- 🎭 **Dynamic Backgrounds**: The UI automatically extracts vibrant colors from the current album artwork and creates a smooth, blurred gradient background.
-- 📱 **Fluid Pager Navigation**: Seamlessly swipe between **Lyrics ↔ Now Playing ↔ Queue** with a high-performance horizontal pager.
-- 🎤 **Synced Lyrics**: Immersive, auto-scrolling lyrics with "tap-to-seek" functionality, inspired by Apple Music.
-- 🎶 **Smart Library Scan**: Fast local music scanning with automatic exclusion of voice recordings and call logs.
-- ❤️ **Persistent Favorites**: Save your favorite tracks to your local device storage with a single tap.
-- 🎧 **Audiophile Badges**: Real-time display of audio quality, including **Hi-Res** and **Lossless** badges based on file metadata.
-- 🧊 **Glassmorphic Design**: Modern, translucent UI elements and a sleek floating mini-player for quick control.
-- ⚡ **Performance Optimized**: Asynchronous data loading ensures a smooth 60fps experience without UI jank.
+* Play local music stored on your device
+* Support for MP3, FLAC, WAV, M4A, ALAC and more
+* VLC-powered audio engine
+* Background playback support
+* Seamless playback controls
 
----
+### 🎨 Modern UI
+
+* Apple Music-inspired design
+* Smooth animations and transitions
+* Beautiful album artwork display
+* Dynamic mini player
+* Responsive layouts for different screen sizes
+* Material 3 design
+
+### ❤️ Library Management
+
+* Favorites system
+* Playlist creation and management
+* Recently played songs
+* Artist and Album browsing
+* Fast music library scanning
+
+### 🔔 Notification Controls
+
+* Play / Pause
+* Previous / Next
+* Lock screen controls
+* Background playback support
+
+### ⚙️ Personalization
+
+* Custom user name support
+* Time-based greetings
+
+   * Good Morning
+   * Good Afternoon
+   * Good Evening
+   * Good Night
+* Persistent app settings
+
+## 📱 Screens
+
+* Home
+* Now Playing
+* Albums
+* Artists
+* Favorites
+* Playlists
+* Queue
+
+## 🛠️ Built With
+
+* Kotlin
+* Jetpack Compose
+* Android Media APIs
+* VLC Android SDK
+* Material 3
+* Coroutines
+* StateFlow
+* DataStore
+
+## 📦 Installation
+
+Download the latest APK from the Releases section and install it on your Android device.
+
+## 🚀 Roadmap
+
+* Lyrics support
+* Sleep timer
+* Equalizer
+* Theme customization
+* Folder browsing
+* Smart playlists
+* Android Auto support
+* Wear OS support
 
 ## 📸 Screenshots
 
-| Now Playing | Synced Lyrics | Music Library |
-| :---: | :---: | :---: |
-| *(Add Screenshot)* | *(Add Screenshot)* | *(Add Screenshot)* |
+Add screenshots here.
 
----
+## 🤝 Contributing
 
-## 🛠️ Tech Stack
-
-- **UI**: Jetpack Compose (Material 3)
-- **Architecture**: MVVM (ViewModel, StateFlow)
-- **Engine**: LibVLC (VLC) for high-performance audio playback
-- **Images**: Coil for asynchronous artwork loading and caching
-- **Colors**: Android Palette API for dynamic theme extraction
-- **Data**: MediaStore API for local library access
-- **Language**: 100% Kotlin
-
----
-
-## 🚀 Installation & Build
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/AuraMusic.git
-   ```
-2. **Open in Android Studio**:
-   - Use the latest version of Android Studio (Koala or newer).
-   - Java 11 or higher required.
-3. **Build & Run**:
-   - Sync Gradle and click **Run** to install on your device or emulator.
-
----
-
-## 📝 Roadmap (Planned)
-
-- [ ] Folder-based browsing
-- [ ] Custom Playlist creation
-- [ ] Equalizer support
-- [ ] Sleep Timer customization
-- [ ] Multi-select for queue management
-
----
-
-## 👨‍💻 Developed By
-
-**Aman** - *Passionate Android Developer*
-
----
+Contributions, suggestions, and bug reports are welcome.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is open-source and available under the MIT License.
+
+---
+
+Made with ❤️ by Aman
