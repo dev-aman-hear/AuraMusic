@@ -15,32 +15,35 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.shadow
 import coil.compose.AsyncImage
 import com.aman.auramusic.data.model.Song
 
 @Composable
 fun SongArtwork(
-    song: Song,
+    song: Song?,
     size: Int,
     modifier: Modifier = Modifier,
-    shape: RoundedCornerShape = RoundedCornerShape(8.dp)
+    shape: RoundedCornerShape = RoundedCornerShape(8.dp),
+    elevation: androidx.compose.ui.unit.Dp = 4.dp
 ) {
     Box(
         modifier = modifier
             .size(size.dp)
+            .shadow(elevation, shape)
             .clip(shape)
             .background(MaterialTheme.colorScheme.secondaryContainer),
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(
-            model = song.artworkUri,
+            model = song?.artworkUri,
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
         
         // Fallback icon if no artwork
-        if (song.artworkUri == null) {
+        if (song?.artworkUri == null) {
             Icon(
                 imageVector = Icons.Default.MusicNote,
                 contentDescription = null,

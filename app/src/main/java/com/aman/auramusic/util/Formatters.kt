@@ -11,20 +11,12 @@ fun formatDuration(ms: Long): String {
     return "%d:%02d".format(minutes, seconds)
 }
 
-fun audioBadge(filePath: String, mimeType: String): String {
-    return audioQuality(filePath, mimeType).badge
-}
-
 fun audioQuality(song: Song): AudioQuality {
     return audioQuality(
         filePath = song.filePath,
         mimeType = song.mimeType,
-        metadata = readAudioQualityMetadata(song.filePath)
+        metadata = readAudioQualityMetadata(song.filePath),
     )
-}
-
-fun audioQuality(filePath: String, mimeType: String): AudioQuality {
-    return audioQuality(filePath, mimeType, readAudioQualityMetadata(filePath))
 }
 
 private fun audioQuality(
@@ -34,22 +26,27 @@ private fun audioQuality(
 ): AudioQuality {
     val bitDepthValue = metadata.bitDepth ?: inferBitDepth(filePath)
     val sampleRateValue = metadata.sampleRateHz ?: inferSampleRate(filePath)
-    val isLossless = filePath.endsWith(".flac", true) ||
-        filePath.endsWith(".wav", true) ||
-        filePath.endsWith(".alac", true)
-    val isAppleLosslessCandidate = filePath.endsWith(".m4a", true)
+    val isLossless = filePath.endsWith(suffix = ".flac", ignoreCase = true) ||
+        filePath.endsWith(suffix = ".wav", ignoreCase = true) ||
+        filePath.endsWith(suffix = ".alac", ignoreCase = true)
+    val isAppleLosslessCandidate = filePath.endsWith(suffix = ".m4a", ignoreCase = true)
     val isHiRes = isLossless &&
         ((bitDepthValue ?: 0) >= 24 || (sampleRateValue ?: 0) >= 88_200)
 
     val badge = when {
         isHiRes -> "Hi-Res Lossless"
         isLossless || isAppleLosslessCandidate -> "Lossless"
-        mimeType.contains("mpeg", true) -> "High Quality"
+        mimeType.contains("mpeg", ignoreCase = true) -> "High Quality"
         else -> mimeType.substringAfter("/").uppercase()
     }
 
-    val bitDepth = bitDepthValue?.let { "$it-bit" } ?: if (isLossless) "24-bit" else "16-bit"
-    val sampleRate = sampleRateValue?.let(::formatSampleRate) ?: defaultSampleRate(filePath)
+    val safeBitDepthValue = bitDepthValue?.takeIf { it > 0 } ?: if (isLossless) 24 else 16
+    val bitDepth = "$safeBitDepthValue-bit"
+    
+    val sampleRate = sampleRateValue?.takeIf { it > 0 }?.let(::formatSampleRate) ?: defaultSampleRate(filePath)
+    
+    val safeBitrate = metadata.bitrate?.let { if (it <= 0) null else it }
+    val bitrateStr = safeBitrate?.let { "${it / 1000} kbps" } ?: "Unknown"
 
     return AudioQuality(
         badge = badge,
@@ -57,7 +54,7 @@ private fun audioQuality(
         compact = bitDepth,
         bitDepth = bitDepth,
         sampleRate = sampleRate,
-        bitrate = metadata.bitrate?.let { "${it / 1000} kbps" } ?: "Unknown",
+        bitrate = bitrateStr,
         format = formatName(filePath, mimeType)
     )
 }
@@ -93,11 +90,14 @@ private fun MediaMetadataRetriever.extractOptionalMetadata(fieldName: String): I
 
 private fun inferBitDepth(filePath: String): Int? {
     val normalized = filePath.lowercase()
+    val isLossless = normalized.endsWith(".flac") || normalized.endsWith(".wav") || normalized.endsWith(".alac")
+    
     return when {
         normalized.contains("24bit") || normalized.contains("24 bit") -> 24
+        normalized.contains("32bit") || normalized.contains("32 bit") -> 32
         normalized.contains("16bit") || normalized.contains("16 bit") -> 16
-        normalized.endsWith(".flac") || normalized.endsWith(".wav") -> 24
-        normalized.endsWith(".m4a") -> 16
+        isLossless -> 24 // Reasonable default for lossless if metadata fails
+        normalized.endsWith(".m4a") || normalized.endsWith(".mp3") -> 16
         else -> null
     }
 }

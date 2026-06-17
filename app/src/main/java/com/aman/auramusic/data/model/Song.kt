@@ -6,6 +6,7 @@ data class Song(
     val artist: String,
     val album: String,
     val duration: Long,
+    val dateAdded: Long = 0L,
     val uri: String,
     val filePath: String,
     val artworkUri: String?,

@@ -39,10 +39,29 @@ android {
     }
 }
 
+android {
+
+    splits {
+        abi {
+            isEnable = true
+            reset()
+
+            include(
+                "arm64-v8a",
+                "armeabi-v7a",
+                "x86",
+                "x86_64"
+            )
+
+            isUniversalApk = true
+        }
+    }
+}
+
 dependencies {
 
     implementation("androidx.compose.material:material-icons-extended")
-    implementation("io.coil-kt:coil-compose:2.7.0")
+
     implementation(libs.androidx.ui)
     implementation("org.videolan.android:libvlc-all:3.6.0-eap14")
     implementation(libs.androidx.core.ktx)
@@ -64,6 +83,8 @@ dependencies {
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.9.0")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.media:media:1.7.0")
 
 // Album Art
     implementation("io.coil-kt:coil-compose:2.7.0")

@@ -19,6 +19,7 @@ class MusicRepository(private val context: Context) {
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.ALBUM_ID,
             MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.DATE_ADDED,
             MediaStore.Audio.Media.MIME_TYPE,
             MediaStore.Audio.Media.DATA
         )
@@ -55,6 +56,9 @@ class MusicRepository(private val context: Context) {
 
             val durationColumn =
                 it.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+
+            val dateAddedColumn =
+                it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
 
             val mimeTypeColumn =
                 it.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
@@ -103,6 +107,7 @@ class MusicRepository(private val context: Context) {
                         artist = artist,
                         album = album,
                         duration = it.getLong(durationColumn),
+                        dateAdded = it.getLong(dateAddedColumn),
                         uri = uri.toString(),
                         filePath = path,
                         artworkUri = artworkUri,
@@ -130,19 +135,16 @@ class MusicRepository(private val context: Context) {
         album: String,
         filePath: String?
     ): Boolean {
-        val searchableText = listOfNotNull(title, artist, album, filePath)
-            .joinToString(" ")
-            .lowercase()
-            .replace("_", " ")
-            .replace("-", " ")
-
-        val isRecorderFolder = filePath?.lowercase()?.let { path ->
-            folderExclusionMarkers.any { marker -> path.contains(marker) }
-        } ?: false
-
-        return isRecorderFolder || callRecordingMarkers.any { marker ->
-            searchableText.contains(marker)
+        // Quick folder check first
+        if (filePath != null) {
+            val lowerPath = filePath.lowercase()
+            if (folderExclusionMarkers.any { lowerPath.contains(it) }) return true
         }
+
+        // Then check searchable text
+        val searchableText = (title + artist + album + (filePath ?: "")).lowercase()
+
+        return callRecordingMarkers.any { searchableText.contains(it) }
     }
 
     private companion object {
