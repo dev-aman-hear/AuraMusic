@@ -10,8 +10,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -83,13 +86,24 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -107,6 +121,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
@@ -122,6 +140,17 @@ fun MusicScreen() {
     val context = LocalContext.current
     val musicViewModel: MusicViewModel = viewModel()
     val playerViewModel: PlayerViewModel = viewModel()
+    
+    // Extracted colors for global use
+    val dominantColor by remember(playerViewModel.dominantColor) { 
+        mutableStateOf(Color(playerViewModel.dominantColor)) 
+    }
+
+    val animatedDominantColor by animateColorAsState(
+        targetValue = dominantColor,
+        animationSpec = tween(1000),
+        label = "globalDynamicColor"
+    )
 
     val songs by musicViewModel.songs.collectAsStateWithLifecycle()
     val username by musicViewModel.username.collectAsStateWithLifecycle()
@@ -147,6 +176,9 @@ fun MusicScreen() {
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var playlistToRename by remember { mutableStateOf<Playlist?>(null) }
     var showAboutDialog by remember { mutableStateOf(false) }
+
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     // Handle system back button with priority
     BackHandler(enabled = showPlayer || showSettings || selectedPlaylistId != null || selectedAlbumName != null || selectedArtistName != null) {
@@ -178,24 +210,24 @@ fun MusicScreen() {
         playlists.find { it.id == selectedPlaylistId }
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasPermission = granted
-    }
-
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasNotificationPermission = granted
+    val multiplePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        hasPermission = permissions[permission] ?: hasPermission
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            hasNotificationPermission = permissions[notificationPermission] ?: hasNotificationPermission
+        }
     }
 
     LaunchedEffect(Unit) {
-        if (!hasPermission) {
-            permissionLauncher.launch(permission)
+        val permissionsToRequest = mutableListOf<String>()
+        if (!hasPermission) permissionsToRequest.add(permission)
+        if (!hasNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissionsToRequest.add(notificationPermission)
         }
-        if (!hasNotificationPermission) {
-            notificationPermissionLauncher.launch(notificationPermission)
+        
+        if (permissionsToRequest.isNotEmpty()) {
+            multiplePermissionLauncher.launch(permissionsToRequest.toTypedArray())
         }
     }
 
@@ -258,206 +290,253 @@ fun MusicScreen() {
         songs.filter { it.id in favoriteIds }
     }
 
-    playerViewModel.currentSong?.takeIf { showPlayer }?.let { song ->
-        val queue by playerViewModel.queue.collectAsStateWithLifecycle()
-        PlayerScreen(
-            song = song,
-            isPlaying = playerViewModel.isPlaying,
-            position = playerViewModel.currentPosition,
-            duration = playerViewModel.duration,
-            lyrics = lyrics,
-            queue = queue,
-            onBack = { showPlayer = false },
-            onPlayPause = { playerViewModel.togglePlayPause() },
-            onSeek = { playerViewModel.seekTo(it) },
-            onPrevious = { playerViewModel.playPrevious() },
-            onNext = { playerViewModel.playNext() },
-            onSongSelected = { playerViewModel.play(it) },
-            onQueueRemove = { playerViewModel.removeQueueItem(it.id) },
-            onQueueClear = { playerViewModel.clearQueueExceptCurrent() },
-            onQueueSave = { playerViewModel.saveQueueAsPlaylist("Queue") },
-            onAddToPlaylist = { songToAddToPlaylist = song }
-        )
-        return
+    val sortedPlaylists = remember(playlists) {
+        playlists.sortedBy { it.name }
     }
 
-    Scaffold(
-        bottomBar = {
-            AppBottomBar(
-                selectedTab = selectedTab,
-                currentSong = playerViewModel.currentSong,
-                isPlaying = playerViewModel.isPlaying,
-                position = playerViewModel.currentPosition,
-                duration = playerViewModel.duration,
-                onTabSelected = { 
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.65f), // Dark top for status bar visibility
+                            animatedDominantColor.copy(alpha = 0.35f),
+                            animatedDominantColor.copy(alpha = 0.12f),
+                            animatedDominantColor.copy(alpha = 0.02f),
+                            MaterialTheme.colorScheme.background
+                        )
+                    )
+                )
+        ) {
+            Scaffold(
+                containerColor = Color.Transparent,
+            bottomBar = {
+                AppBottomBar(
+                    selectedTab = selectedTab,
+                    currentSong = playerViewModel.currentSong,
+                    isPlaying = playerViewModel.isPlaying,
+                    position = playerViewModel.currentPosition,
+                    duration = playerViewModel.duration,
+                    onTabSelected = { 
                     selectedTab = it 
                     selectedPlaylistId = null
                     selectedAlbumName = null
                     selectedArtistName = null
                     showSettings = false
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
                 },
-                onOpenPlayer = { showPlayer = true },
-                onPlayPause = { playerViewModel.togglePlayPause() },
-                onNext = { playerViewModel.playNext() }
-            )
-        }
-    ) { padding ->
-        if (!hasPermission) {
-            PermissionScreen(
-                modifier = Modifier.padding(padding),
-                onGrant = { permissionLauncher.launch(permission) }
-            )
-        } else {
-            if (showSettings) {
-                SettingsScreen(
-                    songCount = songs.size,
-                    albumCount = songs.distinctBy { it.album }.size,
-                    artistCount = songs.distinctBy { it.artist }.size,
-                    username = username,
-                    appSettings = appSettings,
-                    onUsernameChange = { musicViewModel.updateUsername(it) },
-                    onDynamicColorsChange = { musicViewModel.setDynamicColors(it) },
-                    onAmoledChange = { musicViewModel.setAmoledMode(it) },
-                    onBlurIntensityChange = { musicViewModel.setBlurIntensity(it) },
-                    onKaraokeChange = { musicViewModel.setKaraokeMode(it) },
-                    onLyricFontScaleChange = { musicViewModel.setLyricFontScale(it) },
-                    onCrossfadeChange = { musicViewModel.setCrossfadeEnabled(it) },
-                    onGaplessChange = { musicViewModel.setGaplessEnabled(it) },
-                    onPlaybackSpeedChange = { musicViewModel.setPlaybackSpeed(it) },
-                    onPlaylistGridColumnsChange = { musicViewModel.setPlaylistGridColumns(it) },
-                    onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
-                    onBack = { showSettings = false },
-                    onShowAbout = { showAboutDialog = true },
-                    modifier = Modifier.padding(padding)
+                    dominantColor = dominantColor,
+                    onOpenPlayer = { showPlayer = true },
+                    onPlayPause = { playerViewModel.togglePlayPause() },
+                    onNext = { playerViewModel.playNext() }
+                )
+            }
+        ) { padding ->
+            if (!hasPermission) {
+                PermissionScreen(
+                    modifier = Modifier.padding(padding),
+                    onGrant = { 
+                        val perms = mutableListOf(permission)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            perms.add(notificationPermission)
+                        }
+                        multiplePermissionLauncher.launch(perms.toTypedArray())
+                    }
                 )
             } else {
-                when {
-                            selectedPlaylist != null -> {
-                                val playlistSongs = remember(songs, selectedPlaylist) {
-                                    songs.filter { it.id in selectedPlaylist.songIds }
-                                }
-                                PlaylistDetailScreen(
-                                    playlist = selectedPlaylist,
-                                    songs = playlistSongs,
-                                    currentSongId = playerViewModel.currentSongId,
-                                    favoriteIds = favoriteIds,
-                                    onBack = { selectedPlaylistId = null },
-                                    onSongSelected = { song -> playSong(song, playlistSongs) },
-                                    onRemoveSong = { song -> musicViewModel.removeFromPlaylist(selectedPlaylist.id, song.id) },
-                                    onDeletePlaylist = {
-                                        musicViewModel.deletePlaylist(selectedPlaylist.id)
-                                        selectedPlaylistId = null
-                                    },
-                                    onRenamePlaylist = { playlistToRename = selectedPlaylist },
-                                    onToggleFavorite = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
-                                    onShufflePlay = {
-                                        val shuffled = playlistSongs.shuffled()
-                                        playerViewModel.setQueue(shuffled)
-                                        shuffled.firstOrNull()?.let { playerViewModel.play(it) }
-                                        showPlayer = true
-                                    },
-                                    modifier = Modifier.padding(padding)
-                                )
+                if (showSettings) {
+                    SettingsScreen(
+                        songCount = songs.size,
+                        albumCount = songs.distinctBy { it.album }.size,
+                        artistCount = songs.distinctBy { it.artist }.size,
+                        username = username,
+                        appSettings = appSettings,
+                        onUsernameChange = { musicViewModel.updateUsername(it) },
+                        onDynamicColorsChange = { musicViewModel.setDynamicColors(it) },
+                        onAmoledChange = { musicViewModel.setAmoledMode(it) },
+                        onBlurIntensityChange = { musicViewModel.setBlurIntensity(it) },
+                        onKaraokeChange = { musicViewModel.setKaraokeMode(it) },
+                        onLyricFontScaleChange = { musicViewModel.setLyricFontScale(it) },
+                        onCrossfadeChange = { musicViewModel.setCrossfadeEnabled(it) },
+                        onGaplessChange = { musicViewModel.setGaplessEnabled(it) },
+                        onPlaybackSpeedChange = { musicViewModel.setPlaybackSpeed(it) },
+                        onPlaylistGridColumnsChange = { musicViewModel.setPlaylistGridColumns(it) },
+                        onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
+                        onBack = { showSettings = false },
+                        onShowAbout = { showAboutDialog = true },
+                        modifier = Modifier.padding(bottom = padding.calculateBottomPadding())
+                    )
+                } else {
+                    when {
+                        selectedPlaylist != null -> {
+                            val playlistSongs = remember(songs, selectedPlaylist) {
+                                songs.filter { it.id in selectedPlaylist.songIds }
                             }
-                    selectedAlbumName != null -> {
-                        val albumSongs = remember(songs, selectedAlbumName) {
-                            songs.filter { it.album == selectedAlbumName }
-                        }
-                        CollectionDetailScreen(
-                            title = selectedAlbumName!!,
-                            subtitle = "Album • ${albumSongs.firstOrNull()?.artist ?: "Unknown"}",
-                            songs = albumSongs,
-                            currentSongId = playerViewModel.currentSongId,
-                            favoriteIds = favoriteIds,
-                            onBack = { selectedAlbumName = null },
-                            onSongSelected = { song -> playSong(song, albumSongs) },
-                            onAddToPlaylist = { songToAddToPlaylist = it },
-                            onToggleFavorite = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
-                            onShufflePlay = {
-                                val shuffled = albumSongs.shuffled()
-                                playerViewModel.setQueue(shuffled)
-                                shuffled.firstOrNull()?.let { playerViewModel.play(it) }
-                                showPlayer = true
-                            },
-                            modifier = Modifier.padding(padding)
-                        )
-                    }
-                    selectedArtistName != null -> {
-                        val artistSongs = remember(songs, selectedArtistName) {
-                            songs.filter { it.artist == selectedArtistName }
-                        }
-                        CollectionDetailScreen(
-                            title = selectedArtistName!!,
-                            subtitle = "Artist • ${artistSongs.size} songs",
-                            songs = artistSongs,
-                            currentSongId = playerViewModel.currentSongId,
-                            favoriteIds = favoriteIds,
-                            onBack = { selectedArtistName = null },
-                            onSongSelected = { song -> playSong(song, artistSongs) },
-                            onAddToPlaylist = { songToAddToPlaylist = it },
-                            onToggleFavorite = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
-                            onShufflePlay = {
-                                val shuffled = artistSongs.shuffled()
-                                playerViewModel.setQueue(shuffled)
-                                shuffled.firstOrNull()?.let { playerViewModel.play(it) }
-                                showPlayer = true
-                            },
-                            modifier = Modifier.padding(padding)
-                        )
-                    }
-                    else -> {
-                        when (selectedTab) {
-                            AppTab.Home -> HomeScreen(
-                                songs = songs,
-                                username = username,
-                                history = playbackHistory,
-                                favorites = favoriteSongs,
-                                onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
-                                onSongSelected = { song, queue -> playSong(song, queue) },
-                                onAlbumSelected = { selectedAlbumName = it },
-                                onArtistSelected = { selectedArtistName = it },
-                                onOpenSettings = { showSettings = true },
-                                modifier = Modifier.padding(padding)
+                            PlaylistDetailScreen(
+                                playlist = selectedPlaylist,
+                                songs = playlistSongs,
+                                currentSongId = playerViewModel.currentSongId,
+                                favoriteIds = favoriteIds,
+                                onBack = { selectedPlaylistId = null },
+                                onSongSelected = { song -> playSong(song, playlistSongs) },
+                                onRemoveSong = { song -> musicViewModel.removeFromPlaylist(selectedPlaylist.id, song.id) },
+                                onDeletePlaylist = {
+                                    musicViewModel.deletePlaylist(selectedPlaylist.id)
+                                    selectedPlaylistId = null
+                                },
+                                onRenamePlaylist = { playlistToRename = selectedPlaylist },
+                                onToggleFavorite = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
+                                onShufflePlay = {
+                                    val shuffled = playlistSongs.shuffled()
+                                    playerViewModel.setQueue(shuffled)
+                                    shuffled.firstOrNull()?.let { playerViewModel.play(it) }
+                                    showPlayer = true
+                                },
+                                modifier = Modifier.padding(bottom = padding.calculateBottomPadding())
                             )
-
-                            AppTab.Library -> {
-                                LibraryScreen(
-                                    songs = filteredSongs,
-                                    allSongs = songs,
-                                    favoriteSongs = favoriteSongs,
-                                    favoriteIds = favoriteIds,
-                                    playlists = playlists,
-                                    playbackHistory = playbackHistory,
-                                    selectedTab = selectedLibraryTab,
-                                    query = query,
-                                    currentSongId = playerViewModel.currentSongId,
-                                    playlistGridColumns = appSettings.playlistGridColumns,
-                                    onQueryChange = { query = it },
-                                    onTabSelected = { 
-                                        selectedLibraryTab = it 
-                                        selectedPlaylistId = null
-                                        selectedAlbumName = null
-                                        selectedArtistName = null
-                                    },
+                        }
+                        selectedAlbumName != null -> {
+                            val albumSongs = remember(songs, selectedAlbumName) {
+                                songs.filter { it.album == selectedAlbumName }
+                            }
+                            CollectionDetailScreen(
+                                title = selectedAlbumName!!,
+                                subtitle = "Album • ${albumSongs.firstOrNull()?.artist ?: "Unknown"}",
+                                songs = albumSongs,
+                                currentSongId = playerViewModel.currentSongId,
+                                favoriteIds = favoriteIds,
+                                onBack = { selectedAlbumName = null },
+                                onSongSelected = { song -> playSong(song, albumSongs) },
+                                onAddToPlaylist = { songToAddToPlaylist = it },
+                                onToggleFavorite = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
+                                onShufflePlay = {
+                                    val shuffled = albumSongs.shuffled()
+                                    playerViewModel.setQueue(shuffled)
+                                    shuffled.firstOrNull()?.let { playerViewModel.play(it) }
+                                    showPlayer = true
+                                },
+                                modifier = Modifier.padding(bottom = padding.calculateBottomPadding())
+                            )
+                        }
+                        selectedArtistName != null -> {
+                            val artistSongs = remember(songs, selectedArtistName) {
+                                songs.filter { it.artist == selectedArtistName }
+                            }
+                            CollectionDetailScreen(
+                                title = selectedArtistName!!,
+                                subtitle = "Artist • ${artistSongs.size} songs",
+                                songs = artistSongs,
+                                currentSongId = playerViewModel.currentSongId,
+                                favoriteIds = favoriteIds,
+                                onBack = { selectedArtistName = null },
+                                onSongSelected = { song -> playSong(song, artistSongs) },
+                                onAddToPlaylist = { songToAddToPlaylist = it },
+                                onToggleFavorite = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
+                                onShufflePlay = {
+                                    val shuffled = artistSongs.shuffled()
+                                    playerViewModel.setQueue(shuffled)
+                                    shuffled.firstOrNull()?.let { playerViewModel.play(it) }
+                                    showPlayer = true
+                                },
+                                modifier = Modifier.padding(bottom = padding.calculateBottomPadding())
+                            )
+                        }
+                        else -> {
+                            when (selectedTab) {
+                                AppTab.Home -> HomeScreen(
+                                    songs = songs,
+                                    username = username,
+                                    history = playbackHistory,
+                                    favorites = favoriteSongs,
+                                    dominantColor = animatedDominantColor,
                                     onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
-                                    onFavoriteToggle = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
                                     onSongSelected = { song, queue -> playSong(song, queue) },
-                                    onOpenSettings = { showSettings = true },
-                                    onAddToPlaylist = { songToAddToPlaylist = it },
-                                    onPlaylistDeleted = { playlist -> musicViewModel.deletePlaylist(playlist.id) },
-                                    onPlaylistSelected = { selectedPlaylistId = it.id },
-                                    onPlaylistRenamed = { playlistToRename = it },
                                     onAlbumSelected = { selectedAlbumName = it },
                                     onArtistSelected = { selectedArtistName = it },
-                                    modifier = Modifier.padding(padding)
+                                    onOpenSettings = { showSettings = true },
+                                    modifier = Modifier.padding(bottom = padding.calculateBottomPadding())
                                 )
+
+                                AppTab.Library -> {
+                                    LibraryScreen(
+                                        songs = filteredSongs,
+                                        allSongs = songs,
+                                        favoriteSongs = favoriteSongs,
+                                        favoriteIds = favoriteIds,
+                                        playlists = sortedPlaylists,
+                                        playbackHistory = playbackHistory,
+                                        selectedTab = selectedLibraryTab,
+                                        query = query,
+                                        currentSongId = playerViewModel.currentSongId,
+                                        playlistGridColumns = appSettings.playlistGridColumns,
+                                        onQueryChange = { query = it },
+                                        onTabSelected = { 
+                                            selectedLibraryTab = it 
+                                            selectedPlaylistId = null
+                                            selectedAlbumName = null
+                                            selectedArtistName = null
+                                        },
+                                        onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
+                                        onFavoriteToggle = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
+                                        onSongSelected = { song, queue -> playSong(song, queue) },
+                                        onOpenSettings = { showSettings = true },
+                                        onAddToPlaylist = { songToAddToPlaylist = it },
+                                        onPlaylistDeleted = { playlist -> musicViewModel.deletePlaylist(playlist.id) },
+                                        onPlaylistSelected = { selectedPlaylistId = it.id },
+                                        onPlaylistRenamed = { playlistToRename = it },
+                                        onAlbumSelected = { selectedAlbumName = it },
+                                        onArtistSelected = { selectedArtistName = it },
+                                        modifier = Modifier.padding(bottom = padding.calculateBottomPadding())
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
         }
+
+        playerViewModel.currentSong?.takeIf { showPlayer }?.let { song ->
+            val queue by playerViewModel.queue.collectAsStateWithLifecycle()
+            val historySongs = remember(songs, playbackHistory, song.id) {
+                playbackHistory
+                    .sortedByDescending { it.playedAt }
+                    .filter { it.songId != song.id } // Don't show current song in history
+                    .mapNotNull { entry -> songs.firstOrNull { it.id == entry.songId } }
+                    .distinctBy { it.id }
+                    .take(10)
+            }
+            
+            PlayerScreen(
+                song = song,
+                isPlaying = playerViewModel.isPlaying,
+                position = playerViewModel.currentPosition,
+                duration = playerViewModel.duration,
+                lyrics = lyrics,
+                queue = queue,
+                history = historySongs,
+                onBack = { showPlayer = false },
+                onPlayPause = { playerViewModel.togglePlayPause() },
+                onSeek = { playerViewModel.seekTo(it) },
+                onPrevious = { playerViewModel.playPrevious() },
+                onNext = { playerViewModel.playNext() },
+                onSongSelected = { playerViewModel.play(it) },
+                onQueueRemove = { playerViewModel.removeQueueItem(it.id) },
+                onQueueClear = { playerViewModel.clearQueueExceptCurrent() },
+                onQueueSave = { playerViewModel.saveQueueAsPlaylist("Queue") },
+                onHistoryClear = { musicViewModel.clearHistory() },
+                onAddToPlaylist = { songToAddToPlaylist = song },
+                playerViewModel = playerViewModel
+            )
+        }
     }
+}
 }
 
 @Composable
@@ -466,6 +545,7 @@ private fun HomeScreen(
     username: String,
     history: List<com.aman.auramusic.data.model.PlaybackHistoryEntry>,
     favorites: List<Song>,
+    dominantColor: Color,
     onRefresh: () -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
     onAlbumSelected: (String) -> Unit,
@@ -492,13 +572,13 @@ private fun HomeScreen(
 
     LazyColumn(
         modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         item {
             HomeHero(
                 username = username,
+                dominantColor = dominantColor,
                 onRefresh = onRefresh,
                 onOpenSettings = onOpenSettings
             )
@@ -556,6 +636,7 @@ private fun HomeScreen(
 @Composable
 private fun HomeHero(
     username: String,
+    dominantColor: Color,
     onRefresh: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
@@ -570,15 +651,8 @@ private fun HomeHero(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.28f),
-                        MaterialTheme.colorScheme.background
-                    )
-                )
-            )
-            .padding(horizontal = 20.dp, vertical = 28.dp)
+            .statusBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 32.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -589,12 +663,13 @@ private fun HomeHero(
                 Text(
                     text = greeting,
                     style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.78f)
+                    color = if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f)
                 )
                 Text(
                     text = username,
                     style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = if (isSystemInDarkTheme()) Color.White else Color.Black
                 )
             }
             Row {
@@ -604,7 +679,11 @@ private fun HomeHero(
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
                 ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Scan local music")
+                    Icon(
+                        imageVector = Icons.Default.Refresh, 
+                        contentDescription = "Scan local music",
+                        tint = if (isSystemInDarkTheme()) Color.White else Color.Black
+                    )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
@@ -613,7 +692,11 @@ private fun HomeHero(
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
                 ) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    Icon(
+                        imageVector = Icons.Default.Settings, 
+                        contentDescription = "Settings",
+                        tint = if (isSystemInDarkTheme()) Color.White else Color.Black
+                    )
                 }
             }
         }
@@ -735,14 +818,14 @@ private fun PlaylistPreviewCard(
                         text = playlistName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "$songCount songs",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.74f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -807,6 +890,7 @@ private fun <T> HorizontalCollectionRail(
                         overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(horizontal = 4.dp)
                     )
 
@@ -852,6 +936,7 @@ private fun RecentSongCard(
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
             Text(
@@ -914,7 +999,8 @@ private fun MadeForYouCard(
                 Text(
                     text = "Aura Mix",
                     style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = if (songs.isEmpty()) {
@@ -949,8 +1035,7 @@ private fun PlaylistDetailScreen(
 
     LazyColumn(
         modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         item {
@@ -958,6 +1043,7 @@ private fun PlaylistDetailScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .statusBarsPadding()
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -1027,6 +1113,7 @@ private fun PlaylistDetailScreen(
                     text = playlist.name,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center
                 )
                 
@@ -1121,8 +1208,7 @@ private fun CollectionDetailScreen(
 ) {
     LazyColumn(
         modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         item {
@@ -1130,6 +1216,7 @@ private fun CollectionDetailScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .statusBarsPadding()
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
@@ -1240,6 +1327,7 @@ private fun LibraryScreen(
     selectedTab: LibraryTab,
     query: String,
     currentSongId: Long?,
+    playlistGridColumns: Int,
     onQueryChange: (String) -> Unit,
     onTabSelected: (LibraryTab) -> Unit,
     onRefresh: () -> Unit,
@@ -1252,9 +1340,11 @@ private fun LibraryScreen(
     onPlaylistRenamed: (Playlist) -> Unit,
     onAlbumSelected: (String) -> Unit,
     onArtistSelected: (String) -> Unit,
-    playlistGridColumns: Int,
     modifier: Modifier = Modifier
 ) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 18.dp)
@@ -1284,10 +1374,18 @@ private fun LibraryScreen(
                         SongRow(
                             song = song,
                             isPlaying = song.id == currentSongId,
-                            onPlayNow = { onSongSelected(song, songs) },
+                            onPlayNow = { 
+                                onSongSelected(song, songs)
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            },
                             onToggleFavorite = { onFavoriteToggle(song) },
                             onAddToPlaylist = { onAddToPlaylist(song) },
-                            onClick = { onSongSelected(song, songs) }
+                            onClick = { 
+                                onSongSelected(song, songs)
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            }
                         )
                     }
                 }
@@ -1303,7 +1401,11 @@ private fun LibraryScreen(
                             title = album.key,
                             subtitle = "${album.value.size} songs / ${album.value.first().artist}",
                             song = album.value.first(),
-                            onClick = { onAlbumSelected(album.key) }
+                            onClick = { 
+                                onAlbumSelected(album.key)
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            }
                         )
                     }
                 }
@@ -1319,7 +1421,11 @@ private fun LibraryScreen(
                             title = artist.key,
                             subtitle = "${artist.value.size} songs",
                             song = artist.value.first(),
-                            onClick = { onArtistSelected(artist.key) }
+                            onClick = { 
+                                onArtistSelected(artist.key)
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            }
                         )
                     }
                 }
@@ -1353,10 +1459,18 @@ private fun LibraryScreen(
                         SongRow(
                             song = song,
                             isPlaying = song.id == currentSongId,
-                            onPlayNow = { onSongSelected(song, favoriteSongs) },
+                            onPlayNow = { 
+                                onSongSelected(song, favoriteSongs)
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            },
                             onToggleFavorite = { onFavoriteToggle(song) },
                             onAddToPlaylist = { onAddToPlaylist(song) },
-                            onClick = { onSongSelected(song, favoriteSongs) }
+                            onClick = { 
+                                onSongSelected(song, favoriteSongs)
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            }
                         )
                     }
                 }
@@ -1372,7 +1486,14 @@ private fun LibraryHeader(
     onRefresh: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
-    Column(modifier = Modifier.padding(20.dp)) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    Column(
+        modifier = Modifier
+            .statusBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 20.dp)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1381,7 +1502,8 @@ private fun LibraryHeader(
             Text(
                 text = "Library",
                 style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
             )
             IconButton(onClick = onOpenSettings) {
                 Icon(Icons.Default.Settings, contentDescription = "Settings")
@@ -1397,7 +1519,12 @@ private fun LibraryHeader(
             placeholder = { Text("Search songs, albums, artists") },
             singleLine = true,
             shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { 
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            })
         )
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -1430,7 +1557,7 @@ private fun StatCard(
                 tint = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = value, style = MaterialTheme.typography.titleLarge)
+            Text(text = value, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
@@ -1566,14 +1693,17 @@ private fun SettingsScreen(
     ) {
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Settings",
                     style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 IconButton(onClick = onBack) {
                     Icon(Icons.Default.Close, contentDescription = "Close")
@@ -1584,10 +1714,16 @@ private fun SettingsScreen(
         item {
             Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.66f)) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Personalization", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Personalization", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    
+                    var localUsername by remember { mutableStateOf(username) }
+                    
                     OutlinedTextField(
-                        value = username,
-                        onValueChange = onUsernameChange,
+                        value = localUsername,
+                        onValueChange = { 
+                            localUsername = it
+                            onUsernameChange(it) 
+                        },
                         label = { Text("Username") },
                         singleLine = true,
                         shape = RoundedCornerShape(18.dp),
@@ -1602,15 +1738,15 @@ private fun SettingsScreen(
         item {
             Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.66f)) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Appearance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Blur intensity", style = MaterialTheme.typography.bodyMedium)
+                    Text("Appearance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Blur intensity", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     Slider(
                         value = appSettings.blurIntensity.toFloat(),
                         onValueChange = { onBlurIntensityChange(it.toInt()) },
                         valueRange = 0f..100f,
                         steps = 9
                     )
-                    Text("Lyric font size", style = MaterialTheme.typography.bodyMedium)
+                    Text("Lyric font size", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     Slider(
                         value = appSettings.lyricFontScale,
                         onValueChange = onLyricFontScaleChange,
@@ -1625,17 +1761,17 @@ private fun SettingsScreen(
         item {
             Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.66f)) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Playback", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Playback", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     ToggleRow(title = "Crossfade", checked = appSettings.crossfadeEnabled, onCheckedChange = onCrossfadeChange)
                     ToggleRow(title = "Gapless playback", checked = appSettings.gaplessEnabled, onCheckedChange = onGaplessChange)
-                    Text("Playback speed", style = MaterialTheme.typography.bodyMedium)
+                    Text("Playback speed", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     Slider(
                         value = appSettings.playbackSpeed,
                         onValueChange = onPlaybackSpeedChange,
                         valueRange = 0.5f..2.0f,
                         steps = 6
                     )
-                    Text("Playlist view columns: ${appSettings.playlistGridColumns}", style = MaterialTheme.typography.bodyMedium)
+                    Text("Playlist view columns: ${appSettings.playlistGridColumns}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     Slider(
                         value = appSettings.playlistGridColumns.toFloat(),
                         onValueChange = { onPlaylistGridColumnsChange(it.toInt()) },
@@ -1659,7 +1795,7 @@ private fun SettingsScreen(
             SettingsRow(
                 icon = Icons.Default.Info,
                 title = "About Aura Music",
-                subtitle = "Version 1.0",
+                subtitle = "Version 2.2.0",
                 onClick = onShowAbout
             )
         }
@@ -1695,7 +1831,8 @@ private fun SettingsRow(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = subtitle,
@@ -1714,6 +1851,7 @@ private fun AppBottomBar(
     isPlaying: Boolean,
     position: Long,
     duration: Long,
+    dominantColor: Color,
     onTabSelected: (AppTab) -> Unit,
     onOpenPlayer: () -> Unit,
     onPlayPause: () -> Unit,
@@ -1726,6 +1864,7 @@ private fun AppBottomBar(
                 isPlaying = isPlaying,
                 position = position,
                 duration = duration,
+                dominantColor = dominantColor,
                 onOpen = onOpenPlayer,
                 onPlayPause = onPlayPause,
                 onNext = onNext
@@ -1762,6 +1901,7 @@ private fun SectionTitle(
         text = title,
         style = MaterialTheme.typography.headlineSmall,
         fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier.padding(horizontal = horizontalPadding, vertical = 10.dp)
     )
 }
@@ -1817,19 +1957,21 @@ private fun PermissionScreen(
             )
             Spacer(modifier = Modifier.height(18.dp))
             Text(
-                text = "Let Aura Music read your audio library",
+                text = "Let Aura Music access your library",
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "The app only scans local audio files so it can play your offline music.",
+                text = "The app needs access to your local music and notifications to provide a seamless playback experience.",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(20.dp))
             Button(onClick = onGrant) {
-                Text("Allow audio access")
+                Text("Allow access")
             }
         }
     }

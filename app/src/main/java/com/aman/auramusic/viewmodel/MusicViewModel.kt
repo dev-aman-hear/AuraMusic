@@ -31,7 +31,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val username = userRepository.usernameFlow.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
-        "Aman"
+        "Master"
     )
 
     val favoriteIds = userRepository.favoriteIdsFlow.stateIn(
@@ -98,6 +98,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun recordPlayback(songId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.recordPlayback(songId)
+        }
+    }
+
+    fun clearHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.clearHistory()
         }
     }
 

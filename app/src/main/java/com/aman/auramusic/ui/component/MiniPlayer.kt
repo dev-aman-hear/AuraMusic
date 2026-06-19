@@ -1,5 +1,6 @@
 package com.aman.auramusic.ui.component
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,6 +42,7 @@ fun MiniPlayer(
     isPlaying: Boolean,
     position: Long,
     duration: Long,
+    dominantColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     onOpen: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
@@ -75,8 +78,9 @@ fun MiniPlayer(
             }
             .clickable { onOpen() },
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 18.dp, bottomEnd = 18.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
-        tonalElevation = 10.dp,
+        color = lerp(MaterialTheme.colorScheme.surfaceVariant, dominantColor, 0.12f).copy(alpha = 0.96f),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+        tonalElevation = 12.dp,
         shadowElevation = 8.dp
     ) {
         Column {
@@ -108,6 +112,7 @@ fun MiniPlayer(
                         text = song.title,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -123,14 +128,16 @@ fun MiniPlayer(
                 IconButton(onClick = onPlayPause) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Play/Pause"
+                        contentDescription = "Play/Pause",
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
                 IconButton(onClick = onNext) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next"
+                        contentDescription = "Next",
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }

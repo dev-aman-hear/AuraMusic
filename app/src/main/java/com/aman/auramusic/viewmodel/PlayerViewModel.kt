@@ -53,6 +53,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var dominantColor by mutableIntStateOf(0xFF1E1E1E.toInt())
         private set
 
+    var accentColor by mutableIntStateOf(0xFF1E1E1E.toInt())
+        private set
+
     var isShuffled by mutableStateOf(false)
         private set
 
@@ -184,6 +187,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                         
                         extractColor(song)
                         checkIsFavorite(song)
+                        loadLyrics(song)
                     }
                 }
             }
@@ -350,7 +354,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     val bitmap = BitmapFactory.decodeStream(inputStream)
                     if (bitmap != null) {
                         val palette = Palette.from(bitmap).generate()
-                        dominantColor = palette.getDominantColor(0xFF1E1E1E.toInt())
+                        dominantColor = palette.getVibrantColor(
+                            palette.getDominantColor(0xFF1E1E1E.toInt())
+                        )
+                        accentColor = palette.getMutedColor(
+                            palette.getDarkVibrantColor(0xFF1E1E1E.toInt())
+                        )
                     }
                 }
             } catch (e: Exception) {

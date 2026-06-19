@@ -26,7 +26,8 @@ class UserPreferencesRepository(private val context: Context) {
     private val dataStore = context.appDataStore
 
     val usernameFlow: Flow<String> = dataStore.data.map { prefs ->
-        prefs[Keys.username] ?: "Aman"
+        val name = prefs[Keys.username]
+        if (name.isNullOrBlank()) "Master" else name
     }.distinctUntilChanged()
 
     val settingsFlow: Flow<AppSettings> = dataStore.data.map { prefs ->
@@ -61,7 +62,7 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setUsername(name: String) {
         dataStore.edit { prefs ->
-            prefs[Keys.username] = name.trim().ifBlank { "Aman" }
+            prefs[Keys.username] = name
         }
     }
 
@@ -126,6 +127,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun clearRecentSearches() {
         dataStore.edit { it[Keys.recentSearches] = "[]" }
+    }
+
+    suspend fun clearHistory() {
+        dataStore.edit { it[Keys.playbackHistory] = "[]" }
     }
 
     suspend fun recordPlayback(songId: Long, playedAt: Long = System.currentTimeMillis()) {

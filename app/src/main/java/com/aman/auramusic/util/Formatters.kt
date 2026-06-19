@@ -28,16 +28,19 @@ private fun audioQuality(
     val sampleRateValue = metadata.sampleRateHz ?: inferSampleRate(filePath)
     val isLossless = filePath.endsWith(suffix = ".flac", ignoreCase = true) ||
         filePath.endsWith(suffix = ".wav", ignoreCase = true) ||
-        filePath.endsWith(suffix = ".alac", ignoreCase = true)
+        filePath.endsWith(suffix = ".alac", ignoreCase = true) ||
+        (filePath.endsWith(suffix = ".m4a", ignoreCase = true) && mimeType.contains("alac", ignoreCase = true))
+    
     val isAppleLosslessCandidate = filePath.endsWith(suffix = ".m4a", ignoreCase = true)
+    
     val isHiRes = isLossless &&
         ((bitDepthValue ?: 0) >= 24 || (sampleRateValue ?: 0) >= 88_200)
 
     val badge = when {
         isHiRes -> "Hi-Res Lossless"
         isLossless || isAppleLosslessCandidate -> "Lossless"
-        mimeType.contains("mpeg", ignoreCase = true) -> "High Quality"
-        else -> mimeType.substringAfter("/").uppercase()
+        mimeType.contains("mpeg", ignoreCase = true) || mimeType.contains("mp3", ignoreCase = true) -> "High Quality"
+        else -> mimeType.substringAfter("/").uppercase().ifBlank { "High Quality" }
     }
 
     val safeBitDepthValue = bitDepthValue?.takeIf { it > 0 } ?: if (isLossless) 24 else 16
