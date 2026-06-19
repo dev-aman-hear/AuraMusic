@@ -128,17 +128,22 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
-            AuraMusicTheme {
-                MusicScreen()
+            val musicViewModel: MusicViewModel = viewModel()
+            val appSettings by musicViewModel.settings.collectAsStateWithLifecycle()
+            
+            AuraMusicTheme(
+                dynamicColor = appSettings.dynamicColors,
+                amoledMode = appSettings.amoledMode
+            ) {
+                MusicScreen(musicViewModel)
             }
         }
     }
 }
 
 @Composable
-fun MusicScreen() {
+fun MusicScreen(musicViewModel: MusicViewModel) {
     val context = LocalContext.current
-    val musicViewModel: MusicViewModel = viewModel()
     val playerViewModel: PlayerViewModel = viewModel()
     
     // Extracted colors for global use
@@ -146,18 +151,18 @@ fun MusicScreen() {
         mutableStateOf(Color(playerViewModel.dominantColor)) 
     }
 
-    val animatedDominantColor by animateColorAsState(
-        targetValue = dominantColor,
-        animationSpec = tween(1000),
-        label = "globalDynamicColor"
-    )
-
+    val appSettings by musicViewModel.settings.collectAsStateWithLifecycle()
     val songs by musicViewModel.songs.collectAsStateWithLifecycle()
     val username by musicViewModel.username.collectAsStateWithLifecycle()
     val favoriteIds by musicViewModel.favoriteIds.collectAsStateWithLifecycle()
     val playbackHistory by musicViewModel.playbackHistory.collectAsStateWithLifecycle()
     val playlists by musicViewModel.playlists.collectAsStateWithLifecycle()
-    val appSettings by musicViewModel.settings.collectAsStateWithLifecycle()
+
+    val animatedDominantColor by animateColorAsState(
+        targetValue = if (appSettings.dynamicColors) dominantColor else Color.Transparent,
+        animationSpec = tween(1000),
+        label = "globalDynamicColor"
+    )
     val lyrics by playerViewModel.lyrics.collectAsStateWithLifecycle()
 
     val permission = rememberAudioPermission()
@@ -365,7 +370,7 @@ fun MusicScreen() {
                         onLyricFontScaleChange = { musicViewModel.setLyricFontScale(it) },
                         onCrossfadeChange = { musicViewModel.setCrossfadeEnabled(it) },
                         onGaplessChange = { musicViewModel.setGaplessEnabled(it) },
-                        onPlaybackSpeedChange = { musicViewModel.setPlaybackSpeed(it) },
+                        onSkipSilenceChange = { musicViewModel.setSkipSilence(it) },
                         onPlaylistGridColumnsChange = { musicViewModel.setPlaylistGridColumns(it) },
                         onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
                         onBack = { showSettings = false },
@@ -511,6 +516,7 @@ fun MusicScreen() {
                     .mapNotNull { entry -> songs.firstOrNull { it.id == entry.songId } }
                     .distinctBy { it.id }
                     .take(10)
+                    .reversed() // Show in chronological order (oldest at top of history section)
             }
             
             PlayerScreen(
@@ -532,6 +538,7 @@ fun MusicScreen() {
                 onQueueSave = { playerViewModel.saveQueueAsPlaylist("Queue") },
                 onHistoryClear = { musicViewModel.clearHistory() },
                 onAddToPlaylist = { songToAddToPlaylist = song },
+                appSettings = appSettings,
                 playerViewModel = playerViewModel
             )
         }
@@ -1679,7 +1686,7 @@ private fun SettingsScreen(
     onLyricFontScaleChange: (Float) -> Unit,
     onCrossfadeChange: (Boolean) -> Unit,
     onGaplessChange: (Boolean) -> Unit,
-    onPlaybackSpeedChange: (Float) -> Unit,
+    onSkipSilenceChange: (Boolean) -> Unit,
     onPlaylistGridColumnsChange: (Int) -> Unit,
     onRefresh: () -> Unit,
     onBack: () -> Unit,
@@ -1764,13 +1771,7 @@ private fun SettingsScreen(
                     Text("Playback", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     ToggleRow(title = "Crossfade", checked = appSettings.crossfadeEnabled, onCheckedChange = onCrossfadeChange)
                     ToggleRow(title = "Gapless playback", checked = appSettings.gaplessEnabled, onCheckedChange = onGaplessChange)
-                    Text("Playback speed", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                    Slider(
-                        value = appSettings.playbackSpeed,
-                        onValueChange = onPlaybackSpeedChange,
-                        valueRange = 0.5f..2.0f,
-                        steps = 6
-                    )
+                    ToggleRow(title = "Skip silence", checked = appSettings.skipSilence, onCheckedChange = onSkipSilenceChange)
                     Text("Playlist view columns: ${appSettings.playlistGridColumns}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     Slider(
                         value = appSettings.playlistGridColumns.toFloat(),

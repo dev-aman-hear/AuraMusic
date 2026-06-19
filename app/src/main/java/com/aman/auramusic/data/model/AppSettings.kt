@@ -8,6 +8,6 @@ data class AppSettings(
     val lyricFontScale: Float = 1.0f,
     val crossfadeEnabled: Boolean = false,
     val gaplessEnabled: Boolean = true,
-    val playbackSpeed: Float = 1.0f,
+    val skipSilence: Boolean = false,
     val playlistGridColumns: Int = 2
 )

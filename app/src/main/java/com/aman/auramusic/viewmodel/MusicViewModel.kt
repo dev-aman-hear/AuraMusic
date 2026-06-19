@@ -185,9 +185,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setPlaybackSpeed(speed: Float) {
+    fun setSkipSilence(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
-            userRepository.setPlaybackSpeed(speed)
+            userRepository.setSkipSilence(enabled)
         }
     }
 

@@ -56,6 +56,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var accentColor by mutableIntStateOf(0xFF1E1E1E.toInt())
         private set
 
+    var appSettings by mutableStateOf(com.aman.auramusic.data.model.AppSettings())
+        private set
+
     var isShuffled by mutableStateOf(false)
         private set
 
@@ -87,6 +90,23 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             onProgress = { pos, dur ->
                 currentPosition = pos
                 duration = dur
+                
+                // Crossfade/Gapless/Skip Silence logic
+                if (dur > 0) {
+                    val remaining = dur - pos
+                    
+                    // Skip silence at the end (Smart skip)
+                    if (appSettings.skipSilence && remaining in 1..800L) {
+                        playNext()
+                        return@setListeners
+                    }
+
+                    if (appSettings.crossfadeEnabled && remaining in 1..3000L) {
+                        playNext()
+                        return@setListeners
+                    }
+                }
+
                 if (pos > 0 && pos % 5000 < 1000) { // Save every ~5 seconds
                     currentSong?.let { saveLastSong(it, pos) }
                 }
@@ -101,6 +121,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 handlePlaybackEnd()
             }
         )
+
+        viewModelScope.launch {
+            userRepository.settingsFlow.collect { settings ->
+                appSettings = settings
+            }
+        }
     }
 
     fun setQueue(songs: List<Song>) {
@@ -118,8 +144,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
         playerManager.play(song.filePath)
 
-        if (startPosition > 0) {
-            playerManager.seekTo(startPosition)
+        val finalStartPosition = if (startPosition == 0L && appSettings.skipSilence) 500L else startPosition
+
+        if (finalStartPosition > 0) {
+            playerManager.seekTo(finalStartPosition)
         }
         loadLyrics(song)
         extractColor(song)

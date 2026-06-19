@@ -39,7 +39,7 @@ class UserPreferencesRepository(private val context: Context) {
             lyricFontScale = prefs[Keys.lyricFontScale] ?: 1.0f,
             crossfadeEnabled = prefs[Keys.crossfadeEnabled] ?: false,
             gaplessEnabled = prefs[Keys.gaplessEnabled] ?: true,
-            playbackSpeed = prefs[Keys.playbackSpeed] ?: 1.0f,
+            skipSilence = prefs[Keys.skipSilence] ?: false,
             playlistGridColumns = prefs[Keys.playlistGridColumns] ?: 2
         )
     }.distinctUntilChanged()
@@ -94,8 +94,8 @@ class UserPreferencesRepository(private val context: Context) {
         dataStore.edit { it[Keys.gaplessEnabled] = enabled }
     }
 
-    suspend fun setPlaybackSpeed(speed: Float) {
-        dataStore.edit { it[Keys.playbackSpeed] = speed.coerceIn(0.5f, 2.0f) }
+    suspend fun setSkipSilence(enabled: Boolean) {
+        dataStore.edit { it[Keys.skipSilence] = enabled }
     }
 
     suspend fun setPlaylistGridColumns(columns: Int) {
@@ -245,7 +245,7 @@ class UserPreferencesRepository(private val context: Context) {
             val lyricFontScale = floatPreferencesKey("lyric_font_scale")
             val crossfadeEnabled = booleanPreferencesKey("crossfade_enabled")
             val gaplessEnabled = booleanPreferencesKey("gapless_enabled")
-            val playbackSpeed = floatPreferencesKey("playback_speed")
+            val skipSilence = booleanPreferencesKey("skip_silence")
             val playlistGridColumns = intPreferencesKey("playlist_grid_columns")
             val favoriteIds = stringPreferencesKey("favorite_ids")
             val recentSearches = stringPreferencesKey("recent_searches")

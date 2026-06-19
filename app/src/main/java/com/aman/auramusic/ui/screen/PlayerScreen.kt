@@ -112,6 +112,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.LyricLine
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.ui.component.SongArtwork
@@ -141,9 +142,10 @@ fun PlayerScreen(
     onQueueSave: () -> Unit,
     onHistoryClear: () -> Unit,
     onAddToPlaylist: () -> Unit,
+    appSettings: AppSettings,
     playerViewModel: PlayerViewModel = viewModel()
 ) {
-    val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
+    val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 }) // Initialized to Now Playing (page 1)
     val scope = rememberCoroutineScope()
     val dominantColorInt = playerViewModel.dominantColor
     val accentColorInt = playerViewModel.accentColor
@@ -159,6 +161,7 @@ fun PlayerScreen(
     // Auto-hide controls state
     var showControls by remember { mutableStateOf(true) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
+    var dragStartedInHeader by remember { mutableStateOf(false) }
     
     // Smooth color transition
     val animatedColor by animateColorAsState(
@@ -186,15 +189,11 @@ fun PlayerScreen(
             .scale(scaleFactor)
             .clip(RoundedCornerShape(cornerRadius))
             .offset { IntOffset(0, offsetY.value.roundToInt()) }
-            .pointerInput(pagerState.currentPage) {
-                detectTapGestures(
-                    onTap = { 
-                        if (pagerState.currentPage != 1) showControls = true
-                    }
-                )
-            }
             .pointerInput(Unit) {
                 detectVerticalDragGestures(
+                    onDragStart = { offset ->
+                        dragStartedInHeader = offset.y < with(density) { 120.dp.toPx() }
+                    },
                     onDragEnd = {
                         scope.launch {
                             if (offsetY.value > 400f) {
@@ -210,13 +209,15 @@ fun PlayerScreen(
                                 )
                             }
                         }
+                        dragStartedInHeader = false
                     },
                     onDragCancel = {
                         scope.launch { offsetY.animateTo(0f, tween(300)) }
+                        dragStartedInHeader = false
                     },
                     onVerticalDrag = { change, dragAmount ->
-                        // Only intercept drag if at the main artwork page or already dragging down
-                        if (pagerState.currentPage == 1 || offsetY.value > 0f) {
+                        // Allow dragging down from header on any page, or anywhere on Artwork page
+                        if (pagerState.currentPage == 1 || offsetY.value > 0f || dragStartedInHeader) {
                             change.consume()
                             scope.launch {
                                 val newOffset = (offsetY.value + dragAmount).coerceAtLeast(0f)
@@ -228,7 +229,12 @@ fun PlayerScreen(
             }
     ) {
         // Dynamic Background
-        PlayerBackground(song = song, dominantColor = animatedColor, accentColor = animatedAccentColor)
+        PlayerBackground(
+            song = song, 
+            dominantColor = animatedColor, 
+            accentColor = animatedAccentColor,
+            blurIntensity = appSettings.blurIntensity
+        )
 
         if (showSleepTimerDialog) {
             SleepTimerDialog(
@@ -268,7 +274,9 @@ fun PlayerScreen(
                         lyrics = lyrics, 
                         position = position, 
                         onSeek = onSeek,
-                        onToggleControls = { showControls = it }
+                        onToggleControls = { showControls = it },
+                        fontScale = appSettings.lyricFontScale,
+                        karaokeMode = appSettings.karaokeMode
                     )
                     1 -> NowPlayingPage(
                         song = song,
@@ -336,14 +344,14 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun PlayerBackground(song: Song, dominantColor: Color, accentColor: Color) {
+private fun PlayerBackground(song: Song, dominantColor: Color, accentColor: Color, blurIntensity: Int) {
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AsyncImage(
             model = song.artworkUri,
             contentDescription = null,
             modifier = Modifier
                 .fillMaxSize()
-                .blur(100.dp)
+                .blur(blurIntensity.dp)
                 .scale(2.5f),
             contentScale = ContentScale.Crop,
             alpha = 0.45f
@@ -528,7 +536,11 @@ private fun NowPlayingPage(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 16.dp) // Extra padding to avoid Star button overlap
+            ) {
                 Text(
                     text = song.title,
                     style = MaterialTheme.typography.headlineSmall,
@@ -538,14 +550,14 @@ private fun NowPlayingPage(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.basicMarquee()
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = song.artist,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
-                    color = Color.White,
+                    color = Color.White.copy(alpha = 0.85f), // Slightly brighter for physical devices
                     maxLines = 1,
-                    modifier = Modifier.basicMarquee() // Added marquee
+                    modifier = Modifier.basicMarquee()
                 )
             }
             
@@ -619,11 +631,14 @@ private fun LyricsPage(
     lyrics: List<LyricLine>,
     position: Long,
     onSeek: (Long) -> Unit,
-    onToggleControls: (Boolean) -> Unit
+    onToggleControls: (Boolean) -> Unit,
+    fontScale: Float,
+    karaokeMode: Boolean
 ) {
     val activeIndex = lyrics.indexOfLast { it.timeMs <= position }.coerceAtLeast(0)
     val listState = rememberLazyListState()
     val view = LocalView.current
+    val density = LocalDensity.current
 
     val controlScrollConnection = remember {
         object : NestedScrollConnection {
@@ -646,7 +661,11 @@ private fun LyricsPage(
 
     LaunchedEffect(activeIndex) {
         if (lyrics.isNotEmpty()) {
-            listState.animateScrollToItem(activeIndex)
+            // Scroll to center the active lyric line
+            listState.animateScrollToItem(
+                index = activeIndex,
+                scrollOffset = -with(density) { 200.dp.roundToPx() }
+            )
         }
     }
 
@@ -673,11 +692,18 @@ private fun LyricsPage(
                 item { Spacer(modifier = Modifier.height(100.dp)) }
                 itemsIndexed(lyrics) { index, line ->
                     val active = index == activeIndex
+                    val opacity by animateFloatAsState(
+                        targetValue = if (active) 1f else if (karaokeMode) 0.08f else 0.25f,
+                        label = "lyricOpacity"
+                    )
+                    
                     Text(
                         text = line.text,
-                        style = MaterialTheme.typography.headlineLarge,
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontSize = MaterialTheme.typography.headlineLarge.fontSize * fontScale
+                        ),
                         fontWeight = FontWeight.Bold,
-                        color = if (active) Color.White else Color.White.copy(alpha = 0.25f),
+                        color = Color.White.copy(alpha = opacity),
                         modifier = Modifier
                             .fillMaxWidth()
                             .pointerInput(line.timeMs) {
@@ -736,14 +762,19 @@ private fun QueuePage(
         }
     }
 
-    LaunchedEffect(activeIndex, queue.size, isCurrentPage) {
+    LaunchedEffect(activeIndex, queue.size, isCurrentPage, history.size) {
         if (queue.isNotEmpty() && draggingIndex == null && isCurrentPage) {
-            // Find the "Now Playing" section start
-            // Index logic: History Header(1) + History Items(H) + History Spacer(1) + Now Playing Header(1) = H + 3
-            val historyCount = if (history.isNotEmpty()) history.size + 1 else 0
-            val targetScrollIndex = if (history.isNotEmpty()) historyCount + 2 else 1
+            // Find the index of the "Now Playing" header
+            var targetIndex = 0
+            if (history.isNotEmpty()) {
+                targetIndex += history.size + 2 // History Header + Items + Spacer
+            }
+            if (activeIndex > 0) {
+                targetIndex += activeIndex + 1 // Previous items + Spacer
+            }
             
-            listState.animateScrollToItem(targetScrollIndex)
+            // Scroll so Now Playing is exactly at the top
+            listState.scrollToItem(targetIndex)
         }
     }
 
@@ -837,6 +868,24 @@ private fun QueuePage(
                     HistoryItem(song = song, onClick = { onSongSelected(song) })
                 }
                 item { Spacer(modifier = Modifier.height(16.dp)) }
+            }
+
+            // Section for songs previously in the queue (won't "vanish" now)
+            if (activeIndex > 0) {
+                itemsIndexed(
+                    items = queue.subList(0, activeIndex),
+                    key = { index, song -> "prev_${index}_${song.id}" }
+                ) { index, song ->
+                    QueueItem(
+                        song = song,
+                        active = false,
+                        isDragging = false,
+                        elevation = 0.dp,
+                        onSongSelected = { onSongSelected(song) },
+                        onMove = { _, _ -> }
+                    )
+                }
+                item { Spacer(modifier = Modifier.height(8.dp)) }
             }
 
             item {
@@ -1261,28 +1310,38 @@ private fun PlayerControls(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onPrevious, modifier = Modifier.size(64.dp)) {
-                Icon(Icons.Default.SkipPrevious, contentDescription = "Prev", tint = Color.White, modifier = Modifier.size(44.dp))
+                Icon(
+                    imageVector = Icons.Default.SkipPrevious, 
+                    contentDescription = "Prev", 
+                    tint = Color.White, 
+                    modifier = Modifier.size(48.dp)
+                )
             }
             
             Surface(
                 modifier = Modifier
-                    .size(88.dp)
+                    .size(92.dp)
                     .clickable { onPlayPause() },
                 shape = CircleShape,
-                color = Color.White.copy(alpha = 0.15f)
+                color = Color.White.copy(alpha = 0.18f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = "Play/Pause",
                         tint = Color.White,
-                        modifier = Modifier.size(52.dp)
+                        modifier = Modifier.size(56.dp)
                     )
                 }
             }
             
             IconButton(onClick = onNext, modifier = Modifier.size(64.dp)) {
-                Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(44.dp))
+                Icon(
+                    imageVector = Icons.Default.SkipNext, 
+                    contentDescription = "Next", 
+                    tint = Color.White, 
+                    modifier = Modifier.size(48.dp)
+                )
             }
         }
         

@@ -43,14 +43,21 @@ private val LightColorScheme = lightColorScheme(
 fun AuraMusicTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    amoledMode: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            val base = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (darkTheme && amoledMode) {
+                base.copy(background = Color.Black, surface = Color.Black)
+            } else base
         }
-        darkTheme -> DarkColorScheme
+        darkTheme -> {
+            if (amoledMode) DarkColorScheme.copy(background = Color.Black, surface = Color.Black)
+            else DarkColorScheme
+        }
         else -> LightColorScheme
     }
 

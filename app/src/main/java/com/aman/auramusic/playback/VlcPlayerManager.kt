@@ -136,6 +136,10 @@ class VlcPlayerManager(context: Context) {
         mediaPlayer.time = positionMs.coerceAtLeast(0L)
     }
 
+    fun setVolume(volume: Int) {
+        mediaPlayer.volume = volume.coerceIn(0, 100)
+    }
+
     fun release() {
         mediaSession.release()
         mediaPlayer.release()
