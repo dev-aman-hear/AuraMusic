@@ -9,5 +9,7 @@ data class AppSettings(
     val crossfadeEnabled: Boolean = false,
     val gaplessEnabled: Boolean = true,
     val skipSilence: Boolean = false,
+    val smartAudioFocus: Boolean = true,
+    val keepPlayingOnClose: Boolean = true,
     val playlistGridColumns: Int = 2
 )

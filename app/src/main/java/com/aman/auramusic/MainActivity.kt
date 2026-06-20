@@ -242,10 +242,20 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
         }
     }
 
+    var hasAttemptedRestore by remember { mutableStateOf(false) }
+
     LaunchedEffect(songs) {
-        if (songs.isNotEmpty()) {
+        if (songs.isNotEmpty() && !hasAttemptedRestore) {
             playerViewModel.setQueue(songs)
             playerViewModel.restoreLastState(songs)
+            hasAttemptedRestore = true
+        }
+    }
+    
+    // Ensure queue is kept in sync if songs change after restore
+    LaunchedEffect(songs) {
+        if (songs.isNotEmpty() && hasAttemptedRestore) {
+            playerViewModel.setQueue(songs)
         }
     }
 
@@ -371,6 +381,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         onCrossfadeChange = { musicViewModel.setCrossfadeEnabled(it) },
                         onGaplessChange = { musicViewModel.setGaplessEnabled(it) },
                         onSkipSilenceChange = { musicViewModel.setSkipSilence(it) },
+                        onSmartAudioFocusChange = { musicViewModel.setSmartAudioFocus(it) },
+                        onKeepPlayingOnCloseChange = { musicViewModel.setKeepPlayingOnClose(it) },
                         onPlaylistGridColumnsChange = { musicViewModel.setPlaylistGridColumns(it) },
                         onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
                         onBack = { showSettings = false },
@@ -1687,6 +1699,8 @@ private fun SettingsScreen(
     onCrossfadeChange: (Boolean) -> Unit,
     onGaplessChange: (Boolean) -> Unit,
     onSkipSilenceChange: (Boolean) -> Unit,
+    onSmartAudioFocusChange: (Boolean) -> Unit,
+    onKeepPlayingOnCloseChange: (Boolean) -> Unit,
     onPlaylistGridColumnsChange: (Int) -> Unit,
     onRefresh: () -> Unit,
     onBack: () -> Unit,
@@ -1772,6 +1786,8 @@ private fun SettingsScreen(
                     ToggleRow(title = "Crossfade", checked = appSettings.crossfadeEnabled, onCheckedChange = onCrossfadeChange)
                     ToggleRow(title = "Gapless playback", checked = appSettings.gaplessEnabled, onCheckedChange = onGaplessChange)
                     ToggleRow(title = "Skip silence", checked = appSettings.skipSilence, onCheckedChange = onSkipSilenceChange)
+                    ToggleRow(title = "Smart audio focus", checked = appSettings.smartAudioFocus, onCheckedChange = onSmartAudioFocusChange)
+                    ToggleRow(title = "Keep playing on app close", checked = appSettings.keepPlayingOnClose, onCheckedChange = onKeepPlayingOnCloseChange)
                     Text("Playlist view columns: ${appSettings.playlistGridColumns}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     Slider(
                         value = appSettings.playlistGridColumns.toFloat(),
@@ -1796,7 +1812,7 @@ private fun SettingsScreen(
             SettingsRow(
                 icon = Icons.Default.Info,
                 title = "About Aura Music",
-                subtitle = "Version 2.2.0",
+                subtitle = "Version 2.3.0",
                 onClick = onShowAbout
             )
         }

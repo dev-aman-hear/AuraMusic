@@ -36,6 +36,16 @@ class PlaybackNotificationManager(private val context: Context) {
         isPlaying: Boolean,
         sessionToken: MediaSession.Token
     ) {
+        if (androidx.core.app.ActivityCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            notificationManager.notify(NOTIFICATION_ID, createNotification(song, isPlaying, sessionToken))
+        }
+    }
+
+    fun createNotification(
+        song: Song,
+        isPlaying: Boolean,
+        sessionToken: MediaSession.Token
+    ): android.app.Notification {
         ensureChannel()
         val artwork = loadArtwork(song.artworkUri)
         val contentIntent = PendingIntent.getActivity(
@@ -79,9 +89,7 @@ class PlaybackNotificationManager(private val context: Context) {
                     .setShowActionsInCompactView(0, 1, 2)
             )
 
-        if (androidx.core.app.ActivityCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            notificationManager.notify(NOTIFICATION_ID, builder.build())
-        }
+        return builder.build()
     }
 
     fun clear() {

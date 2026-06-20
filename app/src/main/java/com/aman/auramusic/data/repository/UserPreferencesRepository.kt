@@ -40,6 +40,8 @@ class UserPreferencesRepository(private val context: Context) {
             crossfadeEnabled = prefs[Keys.crossfadeEnabled] ?: false,
             gaplessEnabled = prefs[Keys.gaplessEnabled] ?: true,
             skipSilence = prefs[Keys.skipSilence] ?: false,
+            smartAudioFocus = prefs[Keys.smartAudioFocus] ?: true,
+            keepPlayingOnClose = prefs[Keys.keepPlayingOnClose] ?: true,
             playlistGridColumns = prefs[Keys.playlistGridColumns] ?: 2
         )
     }.distinctUntilChanged()
@@ -96,6 +98,14 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setSkipSilence(enabled: Boolean) {
         dataStore.edit { it[Keys.skipSilence] = enabled }
+    }
+
+    suspend fun setSmartAudioFocus(enabled: Boolean) {
+        dataStore.edit { it[Keys.smartAudioFocus] = enabled }
+    }
+
+    suspend fun setKeepPlayingOnClose(enabled: Boolean) {
+        dataStore.edit { it[Keys.keepPlayingOnClose] = enabled }
     }
 
     suspend fun setPlaylistGridColumns(columns: Int) {
@@ -246,6 +256,8 @@ class UserPreferencesRepository(private val context: Context) {
             val crossfadeEnabled = booleanPreferencesKey("crossfade_enabled")
             val gaplessEnabled = booleanPreferencesKey("gapless_enabled")
             val skipSilence = booleanPreferencesKey("skip_silence")
+            val smartAudioFocus = booleanPreferencesKey("smart_audio_focus")
+            val keepPlayingOnClose = booleanPreferencesKey("keep_playing_on_close")
             val playlistGridColumns = intPreferencesKey("playlist_grid_columns")
             val favoriteIds = stringPreferencesKey("favorite_ids")
             val recentSearches = stringPreferencesKey("recent_searches")

@@ -191,6 +191,18 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setSmartAudioFocus(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setSmartAudioFocus(enabled)
+        }
+    }
+
+    fun setKeepPlayingOnClose(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setKeepPlayingOnClose(enabled)
+        }
+    }
+
     fun setPlaylistGridColumns(columns: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setPlaylistGridColumns(columns)
