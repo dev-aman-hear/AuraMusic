@@ -22,7 +22,7 @@ class MusicRepository(private val context: Context) {
             MediaStore.Audio.Media.DATA
         )
 
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= 15000"
 
         context.contentResolver.query(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
@@ -109,15 +109,9 @@ class MusicRepository(private val context: Context) {
         val callRecordingMarkers = listOf(
             "call recording",
             "call recordings",
-            "callrecording",
-            "callrecordings",
-            "call recorder",
             "callrecorder",
             "phone recording",
-            "voice call",
-            "recorded call",
-            "recordings/call",
-            "recordings\\call"
+            "recorded call"
         )
     }
 

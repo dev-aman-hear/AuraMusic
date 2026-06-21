@@ -1,47 +1,45 @@
 package com.aman.auramusic.data.repository
 
 import android.content.Context
+import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.PlaybackHistoryEntry
 import com.aman.auramusic.data.model.Playlist
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
 
-private val Context.appDataStore by preferencesDataStore(name = "aura_music_state")
+val Context.appDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class UserPreferencesRepository(private val context: Context) {
 
     private val dataStore = context.appDataStore
 
     val usernameFlow: Flow<String> = dataStore.data.map { prefs ->
-        val name = prefs[Keys.username]
-        if (name.isNullOrBlank()) "Master" else name
+        prefs[Keys.username] ?: "Master"
     }.distinctUntilChanged()
 
     val settingsFlow: Flow<AppSettings> = dataStore.data.map { prefs ->
         AppSettings(
             dynamicColors = prefs[Keys.dynamicColors] ?: true,
-            amoledMode = prefs[Keys.amoledMode] ?: true,
-            blurIntensity = prefs[Keys.blurIntensity] ?: 42,
-            karaokeMode = prefs[Keys.karaokeMode] ?: true,
+            amoledMode = prefs[Keys.amoledMode] ?: false,
+            blurIntensity = prefs[Keys.blurIntensity] ?: 40,
+            karaokeMode = prefs[Keys.karaokeMode] ?: false,
             lyricFontScale = prefs[Keys.lyricFontScale] ?: 1.0f,
             crossfadeEnabled = prefs[Keys.crossfadeEnabled] ?: false,
             gaplessEnabled = prefs[Keys.gaplessEnabled] ?: true,
             skipSilence = prefs[Keys.skipSilence] ?: false,
             smartAudioFocus = prefs[Keys.smartAudioFocus] ?: true,
-            keepPlayingOnClose = prefs[Keys.keepPlayingOnClose] ?: true,
+            keepPlayingOnClose = prefs[Keys.keepPlayingOnClose] ?: false,
             playlistGridColumns = prefs[Keys.playlistGridColumns] ?: 2
         )
     }.distinctUntilChanged()
@@ -63,9 +61,7 @@ class UserPreferencesRepository(private val context: Context) {
     }.distinctUntilChanged()
 
     suspend fun setUsername(name: String) {
-        dataStore.edit { prefs ->
-            prefs[Keys.username] = name
-        }
+        dataStore.edit { it[Keys.username] = name }
     }
 
     suspend fun setDynamicColors(enabled: Boolean) {
@@ -76,8 +72,8 @@ class UserPreferencesRepository(private val context: Context) {
         dataStore.edit { it[Keys.amoledMode] = enabled }
     }
 
-    suspend fun setBlurIntensity(value: Int) {
-        dataStore.edit { it[Keys.blurIntensity] = value.coerceIn(0, 100) }
+    suspend fun setBlurIntensity(intensity: Int) {
+        dataStore.edit { it[Keys.blurIntensity] = intensity }
     }
 
     suspend fun setKaraokeMode(enabled: Boolean) {
@@ -85,7 +81,7 @@ class UserPreferencesRepository(private val context: Context) {
     }
 
     suspend fun setLyricFontScale(scale: Float) {
-        dataStore.edit { it[Keys.lyricFontScale] = scale.coerceIn(0.8f, 1.4f) }
+        dataStore.edit { it[Keys.lyricFontScale] = scale }
     }
 
     suspend fun setCrossfadeEnabled(enabled: Boolean) {
@@ -112,58 +108,54 @@ class UserPreferencesRepository(private val context: Context) {
         dataStore.edit { it[Keys.playlistGridColumns] = columns.coerceIn(1, 2) }
     }
 
-    suspend fun setFavorite(songId: Long, favorite: Boolean) {
+    suspend fun setFavorite(songId: Long, isFavorite: Boolean) {
         dataStore.edit { prefs ->
-            val updated = prefs[Keys.favoriteIds].decodeLongSet().toMutableSet()
-            if (favorite) {
-                updated += songId
-            } else {
-                updated -= songId
-            }
-            prefs[Keys.favoriteIds] = updated.encodeLongSet()
+            val ids = prefs[Keys.favoriteIds].decodeLongSet().toMutableSet()
+            if (isFavorite) ids.add(songId) else ids.remove(songId)
+            prefs[Keys.favoriteIds] = ids.encodeLongSet()
         }
     }
 
     suspend fun recordRecentSearch(query: String) {
-        val normalized = query.trim()
-        if (normalized.isBlank()) return
+        if (query.isBlank()) return
         dataStore.edit { prefs ->
-            val items = prefs[Keys.recentSearches].decodeStringList().toMutableList()
-            items.removeAll { it.equals(normalized, ignoreCase = true) }
-            items.add(0, normalized)
-            prefs[Keys.recentSearches] = items.take(10).encodeStringList()
+            val searches = prefs[Keys.recentSearches].decodeStringList().toMutableList()
+            searches.remove(query)
+            searches.add(0, query)
+            prefs[Keys.recentSearches] = searches.take(10).encodeStringList()
         }
     }
 
     suspend fun clearRecentSearches() {
-        dataStore.edit { it[Keys.recentSearches] = "[]" }
+        dataStore.edit { it.remove(Keys.recentSearches) }
     }
 
     suspend fun clearHistory() {
-        dataStore.edit { it[Keys.playbackHistory] = "[]" }
+        dataStore.edit { it.remove(Keys.playbackHistory) }
     }
 
-    suspend fun recordPlayback(songId: Long, playedAt: Long = System.currentTimeMillis()) {
+    suspend fun recordPlayback(songId: Long, playedAt: Long) {
         dataStore.edit { prefs ->
-            val entries = prefs[Keys.playbackHistory].decodeHistory().toMutableList()
-            val index = entries.indexOfFirst { it.songId == songId }
-            if (index >= 0) {
-                val existing = entries[index]
-                entries[index] = existing.copy(
-                    playedAt = playedAt,
-                    playCount = existing.playCount + 1
-                )
+            val history = prefs[Keys.playbackHistory].decodeHistory().toMutableList()
+            val existing = history.find { it.songId == songId }
+            if (existing != null) {
+                history.remove(existing)
+                history.add(0, existing.copy(playedAt = playedAt, playCount = existing.playCount + 1))
             } else {
-                entries.add(0, PlaybackHistoryEntry(songId = songId, playedAt = playedAt, playCount = 1))
+                history.add(0, PlaybackHistoryEntry(songId, playedAt))
             }
-            prefs[Keys.playbackHistory] = entries
+            prefs[Keys.playbackHistory] = history
                 .sortedByDescending { it.playedAt }
                 .take(200)
                 .encodeHistory()
         }
     }
 
-    suspend fun savePlaylist(name: String, songIds: List<Long>, artworkSongId: Long? = songIds.firstOrNull()): Playlist {
+    suspend fun savePlaylist(
+        name: String,
+        songIds: List<Long>,
+        artworkSongId: Long? = songIds.firstOrNull()
+    ): Playlist {
         val playlist = Playlist(
             id = System.currentTimeMillis(),
             name = name.trim().ifBlank { "New Playlist" },

@@ -1,7 +1,6 @@
 package com.aman.auramusic.viewmodel
 
 import android.app.Application
-import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aman.auramusic.data.model.AppSettings
@@ -57,12 +56,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         emptyList()
     )
 
-    val recentSearches = userRepository.recentSearchesFlow.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5_000),
-        emptyList()
-    )
-
     val settings = userRepository.settingsFlow.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -94,27 +87,21 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun toggleFavorite(songId: Long, favorite: Boolean) {
+    fun toggleFavorite(songId: Long, isFavorite: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
-            userRepository.setFavorite(songId, favorite)
+            userRepository.setFavorite(songId, isFavorite)
         }
     }
 
     fun recordPlayback(songId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
-            userRepository.recordPlayback(songId)
+            userRepository.recordPlayback(songId, System.currentTimeMillis())
         }
     }
 
     fun clearHistory() {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.clearHistory()
-        }
-    }
-
-    fun recordSearch(query: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.recordRecentSearch(query)
         }
     }
 
@@ -160,9 +147,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setBlurIntensity(value: Int) {
+    fun setBlurIntensity(intensity: Int) {
         viewModelScope.launch(Dispatchers.IO) {
-            userRepository.setBlurIntensity(value)
+            userRepository.setBlurIntensity(intensity)
         }
     }
 
@@ -208,18 +195,68 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    data class ImportResult(
+        val playlistName: String,
+        val matchedCount: Int,
+        val unmatchedSongs: List<String>
+    )
+
+    private val _lastImportResult = MutableStateFlow<ImportResult?>(null)
+    val lastImportResult = _lastImportResult.asStateFlow()
+
+    fun clearImportResult() {
+        _lastImportResult.value = null
+    }
+
     fun setPlaylistGridColumns(columns: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setPlaylistGridColumns(columns)
         }
     }
 
+    fun exportCurrentSongs(songs: List<Song>, outputStream: OutputStream?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val songArray = JSONArray()
+                songs.forEach { song ->
+                    songArray.put(JSONObject().apply {
+                        put("id", song.id)
+                        put("title", song.title)
+                        put("artist", song.artist)
+                        put("album", song.album)
+                    })
+                }
+
+                val json = JSONObject().apply {
+                    put("version", 1)
+                    put("name", "All Songs")
+                    put("songs", songArray)
+                }
+                outputStream?.use { it.write(json.toString().toByteArray()) }
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
     fun exportPlaylistToFile(playlist: Playlist, outputStream: OutputStream?) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val songsInPlaylist = _songs.value.filter { it.id in playlist.songIds }
+                val songArray = JSONArray()
+                songsInPlaylist.forEach { song ->
+                    songArray.put(JSONObject().apply {
+                        put("id", song.id)
+                        put("title", song.title)
+                        put("artist", song.artist)
+                        put("album", song.album)
+                    })
+                }
+
                 val json = JSONObject().apply {
+                    put("version", 1)
                     put("name", playlist.name)
-                    put("songs", JSONArray(playlist.songIds))
+                    put("songs", songArray)
                 }
                 outputStream?.use { it.write(json.toString().toByteArray()) }
             } catch (e: Exception) {
@@ -231,25 +268,76 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun importPlaylistFromFile(inputStream: InputStream?) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                if (_songs.value.isEmpty()) {
+                    _songs.value = repository.getAllSongs()
+                }
+
                 val content = inputStream?.bufferedReader()?.use { it.readText() } ?: return@launch
                 val json = JSONObject(content)
-                val name = json.optString("name", "Imported Playlist")
-                val songArray = json.optJSONArray("songs") ?: JSONArray()
-                val songIds = mutableListOf<Long>()
-                for (i in 0 until songArray.length()) {
-                    songIds.add(songArray.optLong(i))
-                }
-                
-                // Filter to only include songs that exist in our library
-                val allSongIds = _songs.value.map { it.id }.toSet()
-                val validSongIds = songIds.filter { it in allSongIds }
-                
-                if (validSongIds.isNotEmpty()) {
-                    userRepository.savePlaylist(name, validSongIds)
+
+                if (json.has("playlists")) {
+                    val playlistsArray = json.getJSONArray("playlists")
+                    for (i in 0 until playlistsArray.length()) {
+                        processPlaylistObject(playlistsArray.getJSONObject(i))
+                    }
+                } else {
+                    processPlaylistObject(json)
                 }
             } catch (e: Exception) {
                 // Handle error
             }
         }
+    }
+
+    private suspend fun processPlaylistObject(json: JSONObject) {
+        val name = json.optString("name", json.optString("playlistName", "Imported Playlist"))
+        val songArray = json.optJSONArray("songs") ?: json.optJSONArray("tracks") ?: JSONArray()
+        
+        val validSongIds = mutableListOf<Long>()
+        val unmatchedSongs = mutableListOf<String>()
+        val currentSongs = _songs.value
+
+        for (i in 0 until songArray.length()) {
+            val songJson = songArray.opt(i)
+            if (songJson is JSONObject) {
+                val title = songJson.optString("title").trim()
+                val artist = songJson.optString("artist").trim()
+                val originalId = songJson.optLong("id", -1L)
+
+                if (title.isBlank()) continue
+
+                val match = currentSongs.find {
+                    it.title.trim().equals(title, ignoreCase = true) &&
+                    it.artist.trim().equals(artist, ignoreCase = true)
+                } ?: currentSongs.find {
+                    // Try matching by title exactly, but artist partially (e.g. "Artist A & Artist B" matching "Artist A")
+                    val itArtist = it.artist.trim().lowercase()
+                    val targetArtist = artist.lowercase()
+                    it.title.trim().equals(title, ignoreCase = true) &&
+                    (targetArtist.isBlank() || itArtist.contains(targetArtist) || targetArtist.contains(itArtist))
+                } ?: if (originalId != -1L) currentSongs.find { it.id == originalId } else null
+
+                if (match != null) {
+                    validSongIds.add(match.id)
+                } else {
+                    unmatchedSongs.add("$title - $artist")
+                }
+            } else if (songJson is Long) {
+                val match = currentSongs.find { it.id == songJson }
+                if (match != null) {
+                    validSongIds.add(match.id)
+                }
+            }
+        }
+        
+        if (validSongIds.isNotEmpty()) {
+            userRepository.savePlaylist(name, validSongIds)
+        }
+
+        _lastImportResult.value = ImportResult(
+            playlistName = name,
+            matchedCount = validSongIds.size,
+            unmatchedSongs = unmatchedSongs
+        )
     }
 }

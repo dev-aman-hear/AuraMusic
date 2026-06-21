@@ -239,7 +239,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun recordPlayback(song: Song) {
         viewModelScope.launch(Dispatchers.IO) {
-            userRepository.recordPlayback(song.id)
+            userRepository.recordPlayback(song.id, System.currentTimeMillis())
         }
     }
 

@@ -1,6 +1,7 @@
 package com.aman.auramusic
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -65,6 +66,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material.icons.filled.MoreVert
@@ -139,35 +141,43 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     val context = LocalContext.current
     val playerViewModel: PlayerViewModel = viewModel()
     
-    val importFileLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri?.let {
-            val inputStream = context.contentResolver.openInputStream(it)
-            musicViewModel.importPlaylistFromFile(inputStream)
-            Toast.makeText(context, "Playlist imported!", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    var playlistToExport by remember { mutableStateOf<Playlist?>(null) }
-    val exportFileLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri: Uri? ->
-        uri?.let { exportUri ->
-            playlistToExport?.let { playlist ->
-                val outputStream = context.contentResolver.openOutputStream(exportUri)
-                musicViewModel.exportPlaylistToFile(playlist, outputStream)
-                Toast.makeText(context, "Playlist exported!", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
     val appSettings by musicViewModel.settings.collectAsStateWithLifecycle()
     val songs by musicViewModel.songs.collectAsStateWithLifecycle()
     val username by musicViewModel.username.collectAsStateWithLifecycle()
     val favoriteIds by musicViewModel.favoriteIds.collectAsStateWithLifecycle()
     val playbackHistory by musicViewModel.playbackHistory.collectAsStateWithLifecycle()
     val playlists by musicViewModel.playlists.collectAsStateWithLifecycle()
+    val lastImportResult by musicViewModel.lastImportResult.collectAsStateWithLifecycle()
+    
+    val importFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            val inputStream = context.contentResolver.openInputStream(it)
+            musicViewModel.importPlaylistFromFile(inputStream)
+        }
+    }
+
+    var playlistToExport by remember { mutableStateOf<Playlist?>(null) }
+    var exportAllSongsMode by remember { mutableStateOf(false) }
+
+    val exportFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let { exportUri ->
+            val outputStream = context.contentResolver.openOutputStream(exportUri)
+            if (exportAllSongsMode) {
+                musicViewModel.exportCurrentSongs(songs, outputStream)
+                Toast.makeText(context, "All songs exported!", Toast.LENGTH_SHORT).show()
+                exportAllSongsMode = false
+            } else {
+                playlistToExport?.let { playlist ->
+                    musicViewModel.exportPlaylistToFile(playlist, outputStream)
+                    Toast.makeText(context, "Playlist exported!", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     val animatedDominantColor by animateColorAsState(
         targetValue = if (appSettings.dynamicColors) Color(playerViewModel.dominantColor) else Color.Transparent,
@@ -329,6 +339,10 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 onImportPlaylistFile = {
                                     importFileLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*"))
                                 },
+                                onExportAllSongs = {
+                                    exportAllSongsMode = true
+                                    exportFileLauncher.launch("AuraMusic_AllSongs.json")
+                                },
                                 onExportPlaylist = { showExportPlaylistDialog = true },
                                 onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
                                 onBack = { showSettings = false },
@@ -421,6 +435,10 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                         selectedArtistName = null
                                     },
                                     onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
+                                    onExportAllSongs = {
+                                        exportAllSongsMode = true
+                                        exportFileLauncher.launch("AuraMusic_AllSongs.json")
+                                    },
                                     onFavoriteToggle = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
                                     onSongSelected = { song, queue -> playSong(song, queue) },
                                     onOpenSettings = { showSettings = true },
@@ -552,6 +570,13 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                     exportFileLauncher.launch("${playlist.name}.aura")
                     showExportPlaylistDialog = false
                 }
+            )
+        }
+
+        if (lastImportResult != null) {
+            ImportResultDialog(
+                result = lastImportResult!!,
+                onDismiss = { musicViewModel.clearImportResult() }
             )
         }
     }
@@ -955,6 +980,7 @@ private fun LibraryScreen(
     onCreatePlaylist: () -> Unit,
     onPlaylistSelected: (Playlist) -> Unit,
     onPlaylistExport: (Playlist) -> Unit,
+    onExportAllSongs: () -> Unit,
     onAlbumSelected: (String) -> Unit,
     onArtistSelected: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -971,6 +997,7 @@ private fun LibraryScreen(
                 query = query,
                 onQueryChange = onQueryChange,
                 onRefresh = onRefresh,
+                onExportAllSongs = onExportAllSongs,
                 onOpenSettings = onOpenSettings
             )
         }
@@ -1084,8 +1111,7 @@ private fun LibraryScreen(
                             playlists = playlists,
                             songById = allSongs.associateBy { it.id },
                             columns = playlistGridColumns,
-                            onPlaylistSelected = onPlaylistSelected,
-                            onPlaylistExport = onPlaylistExport
+                            onPlaylistSelected = onPlaylistSelected
                         )
                     }
                 }
@@ -1125,6 +1151,7 @@ private fun LibraryHeader(
     query: String,
     onQueryChange: (String) -> Unit,
     onRefresh: () -> Unit,
+    onExportAllSongs: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     Column(
@@ -1144,6 +1171,9 @@ private fun LibraryHeader(
                 fontWeight = FontWeight.Bold
             )
             Row {
+                IconButton(onClick = onExportAllSongs) {
+                    Icon(Icons.Default.ArrowDownward, contentDescription = "Export All Songs")
+                }
                 IconButton(onClick = onRefresh) {
                     Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                 }
@@ -1256,6 +1286,7 @@ private fun CollectionDetailScreen(
     onToggleFavorite: (Song) -> Unit,
     onAddToPlaylist: (Song) -> Unit
 ) {
+    val context = LocalContext.current
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item {
             Column(
@@ -1358,17 +1389,41 @@ private fun CollectionDetailScreen(
             }
         }
 
-        items(songs, key = { it.id }) { song ->
-            SongRow(
-                song = song,
-                isPlaying = song.id == currentSongId,
-                isFavorite = song.id in favoriteIds,
-                onPlayNow = { onSongSelected(song) },
-                onToggleFavorite = { onToggleFavorite(song) },
-                onAddToPlaylist = if (onRemoveSong == null) { { onAddToPlaylist(song) } } else null,
-                onRemove = { onRemoveSong?.invoke(song) },
-                onClick = { onSongSelected(song) }
-            )
+        if (songs.isEmpty()) {
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 40.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Default.MusicNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "No local songs matched yet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            items(songs, key = { it.id }) { song ->
+                SongRow(
+                    song = song,
+                    isPlaying = song.id == currentSongId,
+                    isFavorite = song.id in favoriteIds,
+                    onPlayNow = { onSongSelected(song) },
+                    onToggleFavorite = { onToggleFavorite(song) },
+                    onAddToPlaylist = if (onRemoveSong == null) { { onAddToPlaylist(song) } } else null,
+                    onRemove = { onRemoveSong?.invoke(song) },
+                    onClick = { onSongSelected(song) }
+                )
+            }
         }
     }
 }
@@ -1378,8 +1433,7 @@ private fun PlaylistRail(
     playlists: List<Playlist>,
     songById: Map<Long, Song>,
     columns: Int,
-    onPlaylistSelected: (Playlist) -> Unit,
-    onPlaylistExport: (Playlist) -> Unit
+    onPlaylistSelected: (Playlist) -> Unit
 ) {
     if (playlists.isEmpty()) {
         Text(
@@ -1411,8 +1465,7 @@ private fun PlaylistRail(
                             playlistName = playlist.name,
                             songCount = playlist.songIds.size,
                             previewSong = previewSong,
-                            onClick = { onPlaylistSelected(playlist) },
-                            onLongClick = { onPlaylistExport(playlist) }
+                            onClick = { onPlaylistSelected(playlist) }
                         )
                     }
                 }
@@ -1433,13 +1486,12 @@ private fun PlaylistPreviewCard(
     playlistName: String,
     songCount: Int,
     previewSong: Song?,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit = {}
+    onClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .clickable(onClick = onClick)
     ) {
         Surface(
             shape = RoundedCornerShape(24.dp),
@@ -1579,6 +1631,52 @@ private fun ExportPlaylistDialog(
 }
 
 @Composable
+private fun ImportResultDialog(
+    result: MusicViewModel.ImportResult,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Import Result") },
+        text = {
+            Column {
+                Text("Playlist: ${result.playlistName}", fontWeight = FontWeight.Bold)
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Successfully matched: ${result.matchedCount} local songs")
+                
+                if (result.unmatchedSongs.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "Unmatched songs (${result.unmatchedSongs.size}):",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    LazyColumn(
+                        modifier = Modifier
+                            .heightIn(max = 200.dp)
+                            .padding(top = 8.dp)
+                    ) {
+                        items(result.unmatchedSongs) { song ->
+                            Text(
+                                text = "• $song",
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("OK")
+            }
+        }
+    )
+}
+
+@Composable
 private fun NewPlaylistDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
@@ -1684,6 +1782,7 @@ private fun SettingsScreen(
     onKeepPlayingOnCloseChange: (Boolean) -> Unit,
     onPlaylistGridColumnsChange: (Int) -> Unit,
     onImportPlaylistFile: () -> Unit,
+    onExportAllSongs: () -> Unit,
     onExportPlaylist: () -> Unit,
     onRefresh: () -> Unit,
     onBack: () -> Unit,
@@ -1799,6 +1898,13 @@ private fun SettingsScreen(
                         title = "Export playlist",
                         subtitle = "Export your playlists to a file",
                         onClick = onExportPlaylist
+                    )
+
+                    SettingsRow(
+                        icon = Icons.Default.ArrowDownward,
+                        title = "Export all songs",
+                        subtitle = "Export all songs present on device to JSON",
+                        onClick = onExportAllSongs
                     )
                 }
             }
