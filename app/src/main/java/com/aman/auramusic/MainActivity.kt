@@ -557,6 +557,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HomeScreen(
     songs: List<Song>,
