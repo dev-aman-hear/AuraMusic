@@ -9,9 +9,7 @@ import com.aman.auramusic.data.model.Song
 class MusicRepository(private val context: Context) {
 
     fun getAllSongs(): List<Song> {
-
         val songs = mutableListOf<Song>()
-
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,
@@ -24,101 +22,90 @@ class MusicRepository(private val context: Context) {
             MediaStore.Audio.Media.DATA
         )
 
-        val selection =
-            "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
 
-
-        val cursor = context.contentResolver.query(
+        context.contentResolver.query(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
             projection,
             selection,
             null,
             "${MediaStore.Audio.Media.TITLE} ASC"
-        )
+        )?.use { cursor ->
+            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+            val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+            val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+            val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+            val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+            val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+            val dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+            val mimeTypeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
+            val pathCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
 
-        cursor?.use {
+            while (cursor.moveToNext()) {
+                val path = cursor.getString(pathCol) ?: ""
+                val title = cursor.getString(titleCol).orUnknown("Untitled")
+                val artist = cursor.getString(artistCol).orUnknown("Unknown Artist")
+                val album = cursor.getString(albumCol).orUnknown("Unknown Album")
 
-            val idColumn =
-                it.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-
-            val albumIdColumn =
-                it.getColumnIndexOrThrow(
-                    MediaStore.Audio.Media.ALBUM_ID
-                )
-            val titleColumn =
-                it.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-
-            val artistColumn =
-                it.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-
-            val albumColumn =
-                it.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-
-            val durationColumn =
-                it.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-
-            val dateAddedColumn =
-                it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
-
-            val mimeTypeColumn =
-                it.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
-
-            val pathColumn =
-                it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-
-            while (it.moveToNext()) {
-
-                val path =
-                    it.getString(pathColumn)
-
-
-                val mimeType =
-                    it.getString(mimeTypeColumn)
-
-
-                val id = it.getLong(idColumn)
-
-                val albumId =
-                    it.getLong(albumIdColumn)
-
-                val uri = ContentUris.withAppendedId(
-                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                    id
-                )
-
-                // Use the standardized album art URI
-                val artworkUri = ContentUris.withAppendedId(
-                    Uri.parse("content://media/external/audio/albumart"),
-                    albumId
-                ).toString()
-
-                val title = it.getString(titleColumn).orUnknown("Untitled")
-                val artist = it.getString(artistColumn).orUnknown("Unknown Artist")
-                val album = it.getString(albumColumn).orUnknown("Unknown Album")
-
-                if (isCallRecording(title, artist, album, path)) {
-                    continue
-                }
+                if (isCallRecording(title, artist, album, path)) continue
 
                 songs.add(
                     Song(
-                        id = id,
+                        id = cursor.getLong(idCol),
                         title = title,
                         artist = artist,
                         album = album,
-                        duration = it.getLong(durationColumn),
-                        dateAdded = it.getLong(dateAddedColumn),
-                        uri = uri.toString(),
+                        duration = cursor.getLong(durationCol),
+                        dateAdded = cursor.getLong(dateAddedCol),
+                        uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idCol)).toString(),
                         filePath = path,
-                        artworkUri = artworkUri,
-                        mimeType = mimeType.orUnknownAudioType()
+                        artworkUri = ContentUris.withAppendedId(Uri.parse("content://media/external/audio/albumart"), cursor.getLong(albumIdCol)).toString(),
+                        mimeType = cursor.getString(mimeTypeCol).orUnknownAudioType()
                     )
                 )
             }
         }
-
         return songs
+    }
 
+    fun getSystemPlaylists(): List<Pair<String, List<String>>> {
+        val playlists = mutableListOf<Pair<String, List<String>>>()
+        val projection = arrayOf(MediaStore.Audio.Playlists._ID, MediaStore.Audio.Playlists.NAME)
+
+        context.contentResolver.query(
+            MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI,
+            projection,
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Playlists._ID)
+            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Playlists.NAME)
+
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idCol)
+                val name = cursor.getString(nameCol)
+                val songs = getSongsInSystemPlaylist(id)
+                if (songs.isNotEmpty()) {
+                    playlists.add(name to songs)
+                }
+            }
+        }
+        return playlists
+    }
+
+    private fun getSongsInSystemPlaylist(playlistId: Long): List<String> {
+        val titles = mutableListOf<String>()
+        val uri = MediaStore.Audio.Playlists.Members.getContentUri("external", playlistId)
+        val projection = arrayOf(MediaStore.Audio.Playlists.Members.TITLE)
+
+        context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Playlists.Members.TITLE)
+            while (cursor.moveToNext()) {
+                titles.add(cursor.getString(titleCol))
+            }
+        }
+        return titles
     }
 
     private fun String?.orUnknownAudioType(): String {

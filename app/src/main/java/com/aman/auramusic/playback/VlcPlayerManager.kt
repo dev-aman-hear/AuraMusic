@@ -106,7 +106,14 @@ class VlcPlayerManager(context: Context) {
     fun getSessionToken(): MediaSession.Token = mediaSession.sessionToken
 
     private fun updatePlaybackState() {
-        val state = if (mediaPlayer.isPlaying) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
+        val state = try {
+            if (mediaPlayer.isReleased) PlaybackState.STATE_NONE
+            else if (mediaPlayer.isPlaying) PlaybackState.STATE_PLAYING 
+            else PlaybackState.STATE_PAUSED
+        } catch (e: Exception) {
+            PlaybackState.STATE_NONE
+        }
+        
         val playbackState = PlaybackState.Builder()
             .setState(state, position(), 1f)
             .setActions(
@@ -209,15 +216,27 @@ class VlcPlayerManager(context: Context) {
     }
 
     fun isPlaying(): Boolean {
-        return mediaPlayer.isPlaying
+        return try {
+            if (mediaPlayer.isReleased) false else mediaPlayer.isPlaying
+        } catch (e: Exception) {
+            false
+        }
     }
 
     fun position(): Long {
-        return mediaPlayer.time.coerceAtLeast(0L)
+        return try {
+            if (mediaPlayer.isReleased) 0L else mediaPlayer.time.coerceAtLeast(0L)
+        } catch (e: Exception) {
+            0L
+        }
     }
 
     fun duration(): Long {
-        return mediaPlayer.length.coerceAtLeast(0L)
+        return try {
+            if (mediaPlayer.isReleased) 0L else mediaPlayer.length.coerceAtLeast(0L)
+        } catch (e: Exception) {
+            0L
+        }
     }
 
     fun seekTo(positionMs: Long) {

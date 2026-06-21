@@ -1,6 +1,7 @@
 package com.aman.auramusic.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aman.auramusic.data.model.AppSettings
@@ -16,6 +17,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.OutputStream
+import java.io.InputStream
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -206,6 +211,61 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setPlaylistGridColumns(columns: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setPlaylistGridColumns(columns)
+        }
+    }
+
+    fun importSystemPlaylists() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val systemPlaylists = repository.getSystemPlaylists()
+            val allSongs = _songs.value
+            
+            systemPlaylists.forEach { (name, titles) ->
+                val songIds = titles.mapNotNull { title ->
+                    allSongs.find { it.title.equals(title, ignoreCase = true) }?.id
+                }
+                if (songIds.isNotEmpty()) {
+                    userRepository.savePlaylist(name, songIds)
+                }
+            }
+        }
+    }
+
+    fun exportPlaylistToFile(playlist: Playlist, outputStream: OutputStream?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val json = JSONObject().apply {
+                    put("name", playlist.name)
+                    put("songs", JSONArray(playlist.songIds))
+                }
+                outputStream?.use { it.write(json.toString().toByteArray()) }
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
+    fun importPlaylistFromFile(inputStream: InputStream?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val content = inputStream?.bufferedReader()?.use { it.readText() } ?: return@launch
+                val json = JSONObject(content)
+                val name = json.optString("name", "Imported Playlist")
+                val songArray = json.optJSONArray("songs") ?: JSONArray()
+                val songIds = mutableListOf<Long>()
+                for (i in 0 until songArray.length()) {
+                    songIds.add(songArray.optLong(i))
+                }
+                
+                // Filter to only include songs that exist in our library
+                val allSongIds = _songs.value.map { it.id }.toSet()
+                val validSongIds = songIds.filter { it in allSongIds }
+                
+                if (validSongIds.isNotEmpty()) {
+                    userRepository.savePlaylist(name, validSongIds)
+                }
+            } catch (e: Exception) {
+                // Handle error
+            }
         }
     }
 }

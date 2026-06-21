@@ -1,6 +1,8 @@
 package com.aman.auramusic.ui.component
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,14 +35,17 @@ import androidx.compose.ui.unit.dp
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.util.formatDuration
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SongRow(
     song: Song,
     isPlaying: Boolean,
+    isFavorite: Boolean = false,
     onPlayNow: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
     onToggleFavorite: (() -> Unit)? = null,
     onRemove: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -55,7 +60,10 @@ fun SongRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clickable { onClick() },
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         tonalElevation = if (isPlaying) 2.dp else 0.dp
     ) {
         Row(
@@ -134,8 +142,8 @@ fun SongRow(
                         }
                         onToggleFavorite?.let {
                             DropdownMenuItem(
-                                text = { Text("Add to Favorites") },
-                                leadingIcon = { Icon(Icons.Default.Star, contentDescription = null) },
+                                text = { Text(if (isFavorite) "Remove from Favorites" else "Add to Favorites") },
+                                leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) },
                                 onClick = {
                                     it()
                                     showMenu = false

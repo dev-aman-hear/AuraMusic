@@ -22,6 +22,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -116,6 +117,9 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.LyricLine
@@ -196,7 +200,11 @@ fun PlayerScreen(
         PlayerBackground(song, animatedColor, animatedAccentColor, appSettings.blurIntensity)
 
         if (showSleepTimerDialog) {
-            SleepTimerDialog(onDismiss = { showSleepTimerDialog = false }, onSelect = { playerViewModel.setSleepTimer(it); showSleepTimerDialog = false })
+            SleepTimerDialog(
+                onDismiss = { showSleepTimerDialog = false }, 
+                onSelect = { playerViewModel.setSleepTimer(it); showSleepTimerDialog = false },
+                remainingMs = playerViewModel.sleepTimerRemaining
+            )
         }
 
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
@@ -298,7 +306,11 @@ private fun PlayerHeader(
                 Box {
                     IconButton(onClick = { showMenu = true }, modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape).size(36.dp)) { Icon(Icons.Default.MoreVert, "Menu", tint = Color.White, modifier = Modifier.size(20.dp)) }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(text = { Text("Add to Favorite") }, leadingIcon = { Icon(Icons.Default.Star, null) }, onClick = { onFavoriteToggle(); showMenu = false })
+                        DropdownMenuItem(
+                            text = { Text(if (isFavorite) "Remove from Favorite" else "Add to Favorite") },
+                            leadingIcon = { Icon(if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder, null) },
+                            onClick = { onFavoriteToggle(); showMenu = false }
+                        )
                         DropdownMenuItem(text = { Text("Add to Playlist") }, leadingIcon = { Icon(Icons.Default.LibraryMusic, null) }, onClick = { onAddToPlaylist(); showMenu = false })
                         DropdownMenuItem(text = { Text("Sleep Timer") }, leadingIcon = { Icon(Icons.Default.Bedtime, null) }, onClick = { onShowSleepTimer(); showMenu = false })
                     }
@@ -329,7 +341,11 @@ private fun NowPlayingPage(song: Song, isPlaying: Boolean, isFavorite: Boolean, 
             Box {
                 IconButton(onClick = { showMenu = true }, modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape).size(40.dp)) { Icon(Icons.Default.MoreVert, "Menu", tint = Color.White, modifier = Modifier.size(22.dp)) }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(text = { Text("Add to Favorite") }, leadingIcon = { Icon(Icons.Default.Star, null) }, onClick = { onFavoriteToggle(); showMenu = false })
+                    DropdownMenuItem(
+                        text = { Text(if (isFavorite) "Remove from Favorite" else "Add to Favorite") },
+                        leadingIcon = { Icon(if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder, null) },
+                        onClick = { onFavoriteToggle(); showMenu = false }
+                    )
                     DropdownMenuItem(text = { Text("Add to Playlist") }, leadingIcon = { Icon(Icons.Default.LibraryMusic, null) }, onClick = { onAddToPlaylist(); showMenu = false })
                     DropdownMenuItem(text = { Text("Sleep Timer") }, leadingIcon = { Icon(Icons.Default.Bedtime, null) }, onClick = { onShowSleepTimer(); showMenu = false })
                 }
@@ -343,6 +359,7 @@ private fun LyricsPage(lyrics: List<LyricLine>, position: Long, onSeek: (Long) -
     val activeIndex = lyrics.indexOfLast { it.timeMs <= position }.coerceAtLeast(0)
     val listState = rememberLazyListState()
     val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
     val view = LocalView.current
 
     DisposableEffect(Unit) {
@@ -353,7 +370,9 @@ private fun LyricsPage(lyrics: List<LyricLine>, position: Long, onSeek: (Long) -
 
     LaunchedEffect(activeIndex) {
         if (lyrics.isNotEmpty()) {
-            listState.animateScrollToItem(index = activeIndex, scrollOffset = -with(density) { 200.dp.roundToPx() })
+            val screenHeight = configuration.screenHeightDp.dp
+            val scrollOffset = with(density) { (screenHeight * 0.35f).roundToPx() }
+            listState.animateScrollToItem(index = activeIndex, scrollOffset = -scrollOffset)
         }
     }
 
@@ -481,8 +500,88 @@ private fun QueueItem(song: Song, active: Boolean, isDragging: Boolean, elevatio
 }
 
 @Composable
-private fun SleepTimerDialog(onDismiss: () -> Unit, onSelect: (Int) -> Unit) {
-    androidx.compose.material3.AlertDialog(onDismissRequest = onDismiss, title = { Text("Sleep Timer") }, text = { Column { listOf("Off" to 0, "15 minutes" to 15, "30 minutes" to 30, "45 minutes" to 45, "1 hour" to 60, "End of song" to -1).forEach { (label, value) -> androidx.compose.material3.TextButton(onClick = { onSelect(value) }, modifier = Modifier.fillMaxWidth()) { Text(label, textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth()) } } } }, confirmButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } }, shape = RoundedCornerShape(24.dp))
+private fun SleepTimerDialog(
+    onDismiss: () -> Unit, 
+    onSelect: (Int) -> Unit,
+    remainingMs: Long = 0L
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Sleep Timer",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                if (remainingMs > 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = CircleShape
+                    ) {
+                        Text(
+                            text = "Ends in ${formatDuration(remainingMs)}",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                val options = listOf(
+                    "Off" to 0,
+                    "15 minutes" to 15,
+                    "30 minutes" to 30,
+                    "45 minutes" to 45,
+                    "1 hour" to 60,
+                    "End of song" to -1
+                )
+                
+                options.forEach { (label, value) ->
+                    val isActive = if (value == -1) remainingMs == -1L else (value > 0 && remainingMs > 0)
+                    
+                    TextButton(
+                        onClick = { onSelect(value) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = if (isActive && value != 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = label,
+                                fontWeight = if (isActive && value != 0) FontWeight.Bold else FontWeight.Normal
+                            )
+                            if (isActive && value != 0) {
+                                Icon(Icons.Default.Star, null, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                    Text("Cancel")
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
