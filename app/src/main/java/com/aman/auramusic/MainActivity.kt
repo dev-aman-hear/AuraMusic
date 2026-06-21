@@ -1420,7 +1420,7 @@ private fun CollectionDetailScreen(
                     onPlayNow = { onSongSelected(song) },
                     onToggleFavorite = { onToggleFavorite(song) },
                     onAddToPlaylist = if (onRemoveSong == null) { { onAddToPlaylist(song) } } else null,
-                    onRemove = { onRemoveSong?.invoke(song) },
+                    onRemove = onRemoveSong?.let { removeFunc -> { removeFunc(song) } },
                     onClick = { onSongSelected(song) }
                 )
             }

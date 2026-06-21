@@ -322,8 +322,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     unmatchedSongs.add("$title - $artist")
                 }
-            } else if (songJson is Long) {
-                val match = currentSongs.find { it.id == songJson }
+            } else if (songJson is Number) {
+                val songId = songJson.toLong()
+                val match = currentSongs.find { it.id == songId }
                 if (match != null) {
                     validSongIds.add(match.id)
                 }
