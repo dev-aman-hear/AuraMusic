@@ -197,6 +197,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     var showSettings by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
+    var showExportPlaylistDialog by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     
     var selectedPlaylistId by remember { mutableStateOf<Long?>(null) }
@@ -317,13 +318,10 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 onSmartAudioFocusChange = { musicViewModel.setSmartAudioFocus(it) },
                                 onKeepPlayingOnCloseChange = { musicViewModel.setKeepPlayingOnClose(it) },
                                 onPlaylistGridColumnsChange = { musicViewModel.setPlaylistGridColumns(it) },
-                                onImportSystemPlaylists = { 
-                                    musicViewModel.importSystemPlaylists()
-                                    Toast.makeText(context, "Scanning system for playlists...", Toast.LENGTH_SHORT).show()
-                                },
                                 onImportPlaylistFile = {
                                     importFileLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*"))
                                 },
+                                onExportPlaylist = { showExportPlaylistDialog = true },
                                 onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
                                 onBack = { showSettings = false },
                                 onShowAbout = { showAboutDialog = true }
@@ -535,6 +533,18 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
 
         if (showAboutDialog) {
             AboutDialog(onDismiss = { showAboutDialog = false })
+        }
+
+        if (showExportPlaylistDialog) {
+            ExportPlaylistDialog(
+                playlists = playlists,
+                onDismiss = { showExportPlaylistDialog = false },
+                onPlaylistSelected = { playlist ->
+                    playlistToExport = playlist
+                    exportFileLauncher.launch("${playlist.name}.aura")
+                    showExportPlaylistDialog = false
+                }
+            )
         }
     }
 }
@@ -1530,6 +1540,36 @@ private fun AddToPlaylistDialog(
 }
 
 @Composable
+private fun ExportPlaylistDialog(
+    playlists: List<Playlist>,
+    onDismiss: () -> Unit,
+    onPlaylistSelected: (Playlist) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(text = "Export Playlist", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                if (playlists.isEmpty()) {
+                    Text(text = "No playlists to export", modifier = Modifier.padding(vertical = 16.dp))
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                        items(playlists) { playlist ->
+                            TextButton(onClick = { onPlaylistSelected(playlist) }, modifier = Modifier.fillMaxWidth()) {
+                                Text(text = playlist.name, textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth())
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("Cancel") }
+            }
+        }
+    }
+}
+
+@Composable
 private fun NewPlaylistDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
@@ -1634,8 +1674,8 @@ private fun SettingsScreen(
     onSmartAudioFocusChange: (Boolean) -> Unit,
     onKeepPlayingOnCloseChange: (Boolean) -> Unit,
     onPlaylistGridColumnsChange: (Int) -> Unit,
-    onImportSystemPlaylists: () -> Unit,
     onImportPlaylistFile: () -> Unit,
+    onExportPlaylist: () -> Unit,
     onRefresh: () -> Unit,
     onBack: () -> Unit,
     onShowAbout: () -> Unit,
@@ -1739,17 +1779,17 @@ private fun SettingsScreen(
                     Text("System & Files", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     
                     SettingsRow(
-                        icon = Icons.Default.ArrowDownward,
-                        title = "Import from system",
-                        subtitle = "Import playlists from other music apps",
-                        onClick = onImportSystemPlaylists
-                    )
-                    
-                    SettingsRow(
                         icon = Icons.Default.ArrowUpward,
                         title = "Import from file",
                         subtitle = "Import shared playlist files",
                         onClick = onImportPlaylistFile
+                    )
+
+                    SettingsRow(
+                        icon = Icons.AutoMirrored.Filled.PlaylistAdd,
+                        title = "Export playlist",
+                        subtitle = "Export your playlists to a file",
+                        onClick = onExportPlaylist
                     )
                 }
             }

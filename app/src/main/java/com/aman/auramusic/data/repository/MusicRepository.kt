@@ -68,46 +68,6 @@ class MusicRepository(private val context: Context) {
         return songs
     }
 
-    fun getSystemPlaylists(): List<Pair<String, List<String>>> {
-        val playlists = mutableListOf<Pair<String, List<String>>>()
-        val projection = arrayOf(MediaStore.Audio.Playlists._ID, MediaStore.Audio.Playlists.NAME)
-
-        context.contentResolver.query(
-            MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI,
-            projection,
-            null,
-            null,
-            null
-        )?.use { cursor ->
-            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Playlists._ID)
-            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Playlists.NAME)
-
-            while (cursor.moveToNext()) {
-                val id = cursor.getLong(idCol)
-                val name = cursor.getString(nameCol)
-                val songs = getSongsInSystemPlaylist(id)
-                if (songs.isNotEmpty()) {
-                    playlists.add(name to songs)
-                }
-            }
-        }
-        return playlists
-    }
-
-    private fun getSongsInSystemPlaylist(playlistId: Long): List<String> {
-        val titles = mutableListOf<String>()
-        val uri = MediaStore.Audio.Playlists.Members.getContentUri("external", playlistId)
-        val projection = arrayOf(MediaStore.Audio.Playlists.Members.TITLE)
-
-        context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-            val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Playlists.Members.TITLE)
-            while (cursor.moveToNext()) {
-                titles.add(cursor.getString(titleCol))
-            }
-        }
-        return titles
-    }
-
     private fun String?.orUnknownAudioType(): String {
         return this ?: "audio/*"
     }

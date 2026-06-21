@@ -214,22 +214,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun importSystemPlaylists() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val systemPlaylists = repository.getSystemPlaylists()
-            val allSongs = _songs.value
-            
-            systemPlaylists.forEach { (name, titles) ->
-                val songIds = titles.mapNotNull { title ->
-                    allSongs.find { it.title.equals(title, ignoreCase = true) }?.id
-                }
-                if (songIds.isNotEmpty()) {
-                    userRepository.savePlaylist(name, songIds)
-                }
-            }
-        }
-    }
-
     fun exportPlaylistToFile(playlist: Playlist, outputStream: OutputStream?) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
