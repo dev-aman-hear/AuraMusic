@@ -214,6 +214,30 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setDynamicPillEnabled(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setDynamicPillEnabled(enabled)
+        }
+    }
+
+    fun setPillPosition(position: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setPillPosition(position)
+        }
+    }
+
+    fun setPillVerticalOffset(offset: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setPillVerticalOffset(offset)
+        }
+    }
+
+    fun setPillSizeScale(scale: Float) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setPillSizeScale(scale)
+        }
+    }
+
     fun exportCurrentSongs(songs: List<Song>, outputStream: OutputStream?) {
         viewModelScope.launch(Dispatchers.IO) {
             try {

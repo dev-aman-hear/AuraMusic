@@ -25,8 +25,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -124,6 +122,7 @@ import coil.compose.AsyncImage
 import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.LyricLine
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.playback.RepeatMode
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.util.audioQuality
 import com.aman.auramusic.util.formatDuration
@@ -153,13 +152,12 @@ fun PlayerScreen(
     onHistoryClear: () -> Unit,
     onAddToPlaylist: () -> Unit,
     appSettings: AppSettings,
-    playerViewModel: PlayerViewModel = viewModel()
+    playerViewModel: PlayerViewModel = viewModel(),
 ) {
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val dominantColorInt = playerViewModel.dominantColor
     val accentColorInt = playerViewModel.accentColor
-    val density = LocalDensity.current
     val offsetY = remember { Animatable(0f) }
     
     val scaleFactor = remember(offsetY.value) { (1f - (offsetY.value / 3000f)).coerceIn(0.9f, 1f) }
@@ -265,7 +263,7 @@ private fun PlayerHeader(
     onAddToPlaylist: () -> Unit,
     onShowSleepTimer: () -> Unit
 ) {
-    var showMenu by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(value = false) }
 
     Row(
         modifier = Modifier
@@ -323,7 +321,7 @@ private fun PlayerHeader(
 @Composable
 private fun NowPlayingPage(song: Song, isPlaying: Boolean, isFavorite: Boolean, onFavoriteToggle: () -> Unit, onAddToPlaylist: () -> Unit, onShowSleepTimer: () -> Unit) {
     val artworkScale by animateFloatAsState(if (isPlaying) 1f else 0.85f, label = "artworkScale")
-    var showMenu by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(value = false) }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Top) {
         Spacer(modifier = Modifier.height(24.dp))
         SongArtwork(song, size = 280, modifier = Modifier.scale(artworkScale).clip(RoundedCornerShape(24.dp)))
@@ -395,7 +393,7 @@ private fun LyricsPage(lyrics: List<LyricLine>, position: Long, onSeek: (Long) -
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun QueuePage(
-    queue: List<QueueEntry>, history: List<Song>, currentSongId: Long?, isShuffled: Boolean, repeatMode: PlayerViewModel.RepeatMode, isCurrentPage: Boolean,
+    queue: List<QueueEntry>, history: List<Song>, currentSongId: Long?, isShuffled: Boolean, repeatMode: RepeatMode, isCurrentPage: Boolean,
     onShuffleToggle: () -> Unit, onRepeatToggle: () -> Unit, onSongSelected: (Song) -> Unit, onQueueRemove: (Song) -> Unit, onQueueClear: () -> Unit, onQueueSave: () -> Unit, onHistoryClear: () -> Unit, onMove: (Int, Int) -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -430,7 +428,7 @@ private fun QueuePage(
             Text("Queue", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(vertical = 12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onShuffleToggle, modifier = Modifier.padding(end = 4.dp).size(32.dp).background(if (isShuffled) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent, CircleShape)) { Icon(Icons.Default.Shuffle, "Shuffle", tint = if (isShuffled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f), modifier = Modifier.size(18.dp)) }
-                IconButton(onClick = onRepeatToggle, modifier = Modifier.padding(end = 8.dp).size(32.dp).background(if (repeatMode != PlayerViewModel.RepeatMode.NONE) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent, CircleShape)) { Icon(imageVector = when (repeatMode) { PlayerViewModel.RepeatMode.ONE -> Icons.Default.RepeatOne; else -> Icons.Default.Repeat }, contentDescription = "Repeat", tint = if (repeatMode != PlayerViewModel.RepeatMode.NONE) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f), modifier = Modifier.size(18.dp)) }
+                IconButton(onClick = onRepeatToggle, modifier = Modifier.padding(end = 8.dp).size(32.dp).background(if (repeatMode != RepeatMode.NONE) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent, CircleShape)) { Icon(imageVector = when (repeatMode) { RepeatMode.ONE -> Icons.Default.RepeatOne; else -> Icons.Default.Repeat }, contentDescription = "Repeat", tint = if (repeatMode != RepeatMode.NONE) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f), modifier = Modifier.size(18.dp)) }
             }
         }
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -448,8 +446,12 @@ private fun QueuePage(
                 val isDragging = draggingIndex == index
                 val elevation by animateDpAsState(if (isDragging) 8.dp else 0.dp)
                 QueueItem(
-                    entry.song, entry.song.id == currentSongId, isDragging, elevation, { onSongSelected(entry.song) },
-                    { change, dragAmount ->
+                    song = entry.song,
+                    active = entry.song.id == currentSongId,
+                    isDragging = isDragging,
+                    elevation = elevation,
+                    onSongSelected = { onSongSelected(entry.song) },
+                    onMove = { change, dragAmount ->
                         change.consume(); dragOffset += dragAmount.y
                         val h = with(density) { 72.dp.toPx() }
                         while (dragOffset > h * 0.4f && draggingIndex != null && draggingIndex!! < queue.size - 1) {
@@ -459,9 +461,9 @@ private fun QueuePage(
                             val c = draggingIndex!!; onMove(c, c - 1); draggingIndex = c - 1; dragOffset += h; haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         }
                     },
-                    { draggingIndex = index; dragOffset = 0f; haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
-                    { draggingIndex = null; dragOffset = 0f },
-                    Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = spring(Spring.DampingRatioLowBouncy, Spring.StiffnessLow))
+                    onDragStart = { draggingIndex = index; dragOffset = 0f; haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                    onDragEnd = { draggingIndex = null; dragOffset = 0f },
+                    modifier = Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = spring(Spring.DampingRatioLowBouncy, Spring.StiffnessLow))
                         .graphicsLayer { if (isDragging) { translationY = dragOffset; scaleX = 1.1f; scaleY = 1.1f; rotationZ = 1.5f; shadowElevation = 24f; alpha = 0.98f } }.zIndex(if (isDragging) 100f else 0f)
                 )
             }
@@ -482,7 +484,17 @@ private fun HistoryItem(song: Song, onClick: () -> Unit, modifier: Modifier = Mo
 }
 
 @Composable
-private fun QueueItem(song: Song, active: Boolean, isDragging: Boolean, elevation: androidx.compose.ui.unit.Dp, onSongSelected: () -> Unit, onMove: (androidx.compose.ui.input.pointer.PointerInputChange, androidx.compose.ui.geometry.Offset) -> Unit, onDragStart: () -> Unit = {}, onDragEnd: () -> Unit = {}, modifier: Modifier = Modifier) {
+private fun QueueItem(
+    song: Song,
+    active: Boolean,
+    isDragging: Boolean,
+    elevation: androidx.compose.ui.unit.Dp,
+    onSongSelected: () -> Unit,
+    onMove: (androidx.compose.ui.input.pointer.PointerInputChange, androidx.compose.ui.geometry.Offset) -> Unit,
+    modifier: Modifier = Modifier,
+    onDragStart: () -> Unit = {},
+    onDragEnd: () -> Unit = {},
+) {
     Surface(color = if (active) Color.White.copy(alpha = 0.12f) else if (isDragging) Color.White.copy(alpha = 0.22f) else Color.Transparent, shape = RoundedCornerShape(16.dp), tonalElevation = elevation, modifier = modifier.fillMaxWidth().height(72.dp).clickable { onSongSelected() }) {
         Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             SongArtwork(song, size = 52, shape = RoundedCornerShape(10.dp))
@@ -591,7 +603,7 @@ private fun PlayerControls(song: Song, isPlaying: Boolean, position: Long, durat
     val sv = if (rd > 0) position.toFloat() / rd.toFloat() else 0f
     val q = audioQuality(song)
     var showQ by remember { mutableStateOf(false) }
-    if (showQ) QualityDetailsDialog(q, { showQ = false })
+    if (showQ) QualityDetailsDialog(quality = q) { showQ = false }
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Slider(value = sv.coerceIn(0f, 1f), onValueChange = { onSeek((it * rd).toLong()) }, thumb = { Box(modifier = Modifier.size(width = 3.dp, height = 18.dp).background(Color.White, RoundedCornerShape(2.dp))) }, track = { sliderState -> SliderDefaults.Track(sliderState = sliderState, modifier = Modifier.height(7.dp).clip(CircleShape), colors = SliderDefaults.colors(activeTrackColor = Color.White, inactiveTrackColor = Color.White.copy(alpha = 0.22f)), thumbTrackGapSize = 0.dp) }, modifier = Modifier.fillMaxWidth())
         Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) { Text(formatDuration(position), style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.6f)); Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(18.dp), modifier = Modifier.padding(top = 4.dp).clickable { showQ = true }) { Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) { if (q.badge.contains("Lossless")) { Icon(Icons.Default.Waves, null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(12.dp)); Spacer(Modifier.width(6.dp)) }; Text(q.badge, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.85f)) } }; Text("-${formatDuration((rd - position).coerceAtLeast(0L))}", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.6f)) }
@@ -604,7 +616,7 @@ private fun PlayerControls(song: Song, isPlaying: Boolean, position: Long, durat
 
 @Composable
 private fun QualityDetailsDialog(quality: com.aman.auramusic.util.AudioQuality, onDismiss: () -> Unit) {
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss) {
         Surface(shape = RoundedCornerShape(28.dp), color = Color.White, tonalElevation = 6.dp, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
             Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Default.Waves, null, tint = Color.Black, modifier = Modifier.size(48.dp))

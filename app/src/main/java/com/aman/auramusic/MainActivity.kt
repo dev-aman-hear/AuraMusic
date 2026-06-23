@@ -15,11 +15,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,9 +44,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,7 +54,6 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LibraryMusic
@@ -64,14 +62,9 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -83,9 +76,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -95,7 +86,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -103,7 +93,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -148,7 +137,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     val playbackHistory by musicViewModel.playbackHistory.collectAsStateWithLifecycle()
     val playlists by musicViewModel.playlists.collectAsStateWithLifecycle()
     val lastImportResult by musicViewModel.lastImportResult.collectAsStateWithLifecycle()
-    
+
     val importFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -189,15 +178,10 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
 
     LaunchedEffect(songs) {
         if (songs.isNotEmpty() && !hasAttemptedRestore) {
+            // Only set default queue if we haven't attempted restore yet
             playerViewModel.setQueue(songs)
             playerViewModel.restoreLastState(songs)
             hasAttemptedRestore = true
-        }
-    }
-    
-    LaunchedEffect(songs) {
-        if (songs.isNotEmpty() && hasAttemptedRestore) {
-            playerViewModel.setQueue(songs)
         }
     }
 
@@ -225,8 +209,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
         songs.filter { it.id in favoriteIds }
     }
 
-    fun playSong(song: Song, queue: List<Song>) {
-        playerViewModel.setQueue(queue)
+    fun playSong(song: Song, queue: List<Song>, playlistId: Long? = null) {
+        playerViewModel.setQueue(queue, playlistId)
         playerViewModel.play(song)
         showPlayer = true
     }
@@ -336,6 +320,21 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 onSmartAudioFocusChange = { musicViewModel.setSmartAudioFocus(it) },
                                 onKeepPlayingOnCloseChange = { musicViewModel.setKeepPlayingOnClose(it) },
                                 onPlaylistGridColumnsChange = { musicViewModel.setPlaylistGridColumns(it) },
+                                onPillPositionChange = { musicViewModel.setPillPosition(it) },
+                                onPillVerticalOffsetChange = { musicViewModel.setPillVerticalOffset(it) },
+                                onPillSizeScaleChange = { musicViewModel.setPillSizeScale(it) },
+                                onDynamicPillChange = { enabled ->
+                                    if (enabled && !android.provider.Settings.canDrawOverlays(context)) {
+                                        val intent = android.content.Intent(
+                                            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                            Uri.parse("package:${context.packageName}")
+                                        )
+                                        context.startActivity(intent)
+                                        Toast.makeText(context, "Please enable Overlay Permission", Toast.LENGTH_LONG).show()
+                                    } else {
+                                        musicViewModel.setDynamicPillEnabled(enabled)
+                                    }
+                                },
                                 onImportPlaylistFile = {
                                     importFileLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*"))
                                 },
@@ -360,7 +359,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     favoriteIds = favoriteIds,
                                     currentSongId = playerViewModel.currentSong?.id,
                                     onBack = { selectedPlaylistId = null },
-                                    onSongSelected = { playSong(it, playlistSongs) },
+                                    onSongSelected = { playSong(it, playlistSongs, p.id) },
                                     onRemoveSong = { song -> musicViewModel.removeFromPlaylist(p.id, song.id) },
                                     onDeletePlaylist = { 
                                         musicViewModel.deletePlaylist(p.id)
@@ -410,7 +409,10 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     favoriteIds = favoriteIds,
                                     dominantColor = animatedDominantColor,
                                     onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
-                                    onSongSelected = { song, queue -> playSong(song, queue) },
+                                    onSongSelected = { song, queue -> 
+                                        val playlistId = if (selectedLibraryTab == LibraryTab.Favorites) -1L else null
+                                        playSong(song, queue, playlistId) 
+                                    },
                                     onFavoriteToggle = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
                                     onAddToPlaylist = { songToAddToPlaylist = it },
                                     onAlbumSelected = { selectedAlbumName = it },
@@ -435,12 +437,11 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                         selectedArtistName = null
                                     },
                                     onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
-                                    onExportAllSongs = {
-                                        exportAllSongsMode = true
-                                        exportFileLauncher.launch("AuraMusic_AllSongs.json")
-                                    },
                                     onFavoriteToggle = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
-                                    onSongSelected = { song, queue -> playSong(song, queue) },
+                                    onSongSelected = { song, queue -> 
+                                        val playlistId = if (selectedLibraryTab == LibraryTab.Favorites) -1L else null
+                                        playSong(song, queue, playlistId) 
+                                    },
                                     onOpenSettings = { showSettings = true },
                                     onAddToPlaylist = { songToAddToPlaylist = it },
                                     onCreatePlaylist = { showNewPlaylistDialog = true },
@@ -980,7 +981,6 @@ private fun LibraryScreen(
     onCreatePlaylist: () -> Unit,
     onPlaylistSelected: (Playlist) -> Unit,
     onPlaylistExport: (Playlist) -> Unit,
-    onExportAllSongs: () -> Unit,
     onAlbumSelected: (String) -> Unit,
     onArtistSelected: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -997,7 +997,6 @@ private fun LibraryScreen(
                 query = query,
                 onQueryChange = onQueryChange,
                 onRefresh = onRefresh,
-                onExportAllSongs = onExportAllSongs,
                 onOpenSettings = onOpenSettings
             )
         }
@@ -1151,7 +1150,6 @@ private fun LibraryHeader(
     query: String,
     onQueryChange: (String) -> Unit,
     onRefresh: () -> Unit,
-    onExportAllSongs: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     Column(
@@ -1171,9 +1169,6 @@ private fun LibraryHeader(
                 fontWeight = FontWeight.Bold
             )
             Row {
-                IconButton(onClick = onExportAllSongs) {
-                    Icon(Icons.Default.ArrowDownward, contentDescription = "Export All Songs")
-                }
                 IconButton(onClick = onRefresh) {
                     Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                 }
@@ -1781,6 +1776,10 @@ private fun SettingsScreen(
     onSmartAudioFocusChange: (Boolean) -> Unit,
     onKeepPlayingOnCloseChange: (Boolean) -> Unit,
     onPlaylistGridColumnsChange: (Int) -> Unit,
+    onPillPositionChange: (Int) -> Unit,
+    onPillVerticalOffsetChange: (Int) -> Unit,
+    onPillSizeScaleChange: (Float) -> Unit,
+    onDynamicPillChange: (Boolean) -> Unit,
     onImportPlaylistFile: () -> Unit,
     onExportAllSongs: () -> Unit,
     onExportPlaylist: () -> Unit,
@@ -1834,6 +1833,43 @@ private fun SettingsScreen(
                     )
                     ToggleRow(title = "Dynamic colors", checked = appSettings.dynamicColors, onCheckedChange = onDynamicColorsChange)
                     ToggleRow(title = "AMOLED dark mode", checked = appSettings.amoledMode, onCheckedChange = onAmoledChange)
+                    ToggleRow(title = "Dynamic Pill (Overlay)", checked = appSettings.dynamicPillEnabled, onCheckedChange = onDynamicPillChange)
+                    
+                    if (appSettings.dynamicPillEnabled) {
+                        Column(modifier = Modifier.padding(top = 8.dp)) {
+                            val posText = when(appSettings.pillPosition) {
+                                0 -> "Left"
+                                2 -> "Right"
+                                else -> "Center"
+                            }
+                            Text("Pill position: $posText", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                            Slider(
+                                value = appSettings.pillPosition.toFloat(),
+                                onValueChange = { onPillPositionChange(it.toInt()) },
+                                valueRange = 0f..2f,
+                                steps = 1
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Pill vertical offset: ${appSettings.pillVerticalOffset}dp", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                            Slider(
+                                value = appSettings.pillVerticalOffset.toFloat(),
+                                onValueChange = { onPillVerticalOffsetChange(it.toInt()) },
+                                valueRange = 0f..64f,
+                                steps = 15
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Pill size scale: ${String.format("%.1f", appSettings.pillSizeScale)}x", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                            Slider(
+                                value = appSettings.pillSizeScale,
+                                onValueChange = { onPillSizeScaleChange(it) },
+                                valueRange = 1.0f..2.0f,
+                                steps = 9
+                            )
+                        }
+                    }
+
                     ToggleRow(title = "Karaoke mode", checked = appSettings.karaokeMode, onCheckedChange = onKaraokeChange)
                 }
             }
@@ -1923,7 +1959,7 @@ private fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Info,
                     title = "About Aura Music",
-                    subtitle = "Version 2.4.0",
+                    subtitle = "Version 2.6.0",
                     onClick = onShowAbout
                 )
         }
@@ -1971,7 +2007,7 @@ private fun AboutDialog(onDismiss: () -> Unit) {
                     fontWeight = FontWeight.ExtraBold
                 )
                 Text(
-                    text = "Version 2.4.0 (Premium)",
+                    text = "Version 2.6.0 (Premium)",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

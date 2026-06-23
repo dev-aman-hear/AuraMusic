@@ -14,15 +14,28 @@ import org.videolan.libvlc.MediaPlayer
 
 class VlcPlayerManager(context: Context) {
 
+    interface PlayerListener {
+        fun onProgress(position: Long, duration: Long)
+        fun onPlaybackState(isPlaying: Boolean)
+        fun onEnd()
+    }
+
+    private val listeners = mutableListOf<PlayerListener>()
+    
+    fun addListener(listener: PlayerListener) {
+        if (!listeners.contains(listener)) listeners.add(listener)
+    }
+
+    fun removeListener(listener: PlayerListener) {
+        listeners.remove(listener)
+    }
+
     private val libVLC = LibVLC(context)
     private val mediaPlayer = MediaPlayer(libVLC)
     private val mediaSession = MediaSession(context, "AuraMusicSession")
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     
-    private var onProgressChanged: ((Long, Long) -> Unit)? = null
-    private var onPlaybackStateChanged: ((Boolean) -> Unit)? = null
-    private var onMediaEnded: (() -> Unit)? = null
     private var pendingSeekMs: Long? = null
     private var shouldResumeOnFocusGain = false
     var smartAudioFocusEnabled = true
@@ -80,11 +93,13 @@ class VlcPlayerManager(context: Context) {
         mediaPlayer.setEventListener { event ->
             when (event.type) {
                 MediaPlayer.Event.PositionChanged -> {
-                    onProgressChanged?.invoke(position(), duration())
+                    val pos = position()
+                    val dur = duration()
+                    listeners.forEach { it.onProgress(pos, dur) }
                     updatePlaybackState()
                 }
                 MediaPlayer.Event.Playing -> {
-                    onPlaybackStateChanged?.invoke(true)
+                    listeners.forEach { it.onPlaybackState(true) }
                     updatePlaybackState()
                     // Apply pending seek if any
                     pendingSeekMs?.let {
@@ -93,11 +108,11 @@ class VlcPlayerManager(context: Context) {
                     }
                 }
                 MediaPlayer.Event.Paused, MediaPlayer.Event.Stopped -> {
-                    onPlaybackStateChanged?.invoke(false)
+                    listeners.forEach { it.onPlaybackState(false) }
                     updatePlaybackState()
                 }
                 MediaPlayer.Event.EndReached -> {
-                    onMediaEnded?.invoke()
+                    listeners.forEach { it.onEnd() }
                 }
             }
         }
@@ -139,14 +154,21 @@ class VlcPlayerManager(context: Context) {
         mediaSession.setMetadata(metadata)
     }
 
+    private var managedListener: PlayerListener? = null
+
+    @Deprecated("Use addListener instead")
     fun setListeners(
         onProgress: (Long, Long) -> Unit,
         onPlaybackState: (Boolean) -> Unit,
         onEnd: () -> Unit
     ) {
-        onProgressChanged = onProgress
-        onPlaybackStateChanged = onPlaybackState
-        onMediaEnded = onEnd
+        managedListener?.let { removeListener(it) }
+        managedListener = object : PlayerListener {
+            override fun onProgress(position: Long, duration: Long) { onProgress.invoke(position, duration) }
+            override fun onPlaybackState(isPlaying: Boolean) { onPlaybackState.invoke(isPlaying) }
+            override fun onEnd() { onEnd.invoke() }
+        }
+        addListener(managedListener!!)
     }
 
     fun prepare(path: String, positionMs: Long = 0L) {
@@ -171,6 +193,7 @@ class VlcPlayerManager(context: Context) {
         media.release()
 
         mediaPlayer.play()
+        listeners.forEach { it.onPlaybackState(true) } // Notify immediately when starting new track
     }
 
     private fun requestAudioFocus(): Boolean {
@@ -209,10 +232,13 @@ class VlcPlayerManager(context: Context) {
             shouldResumeOnFocusGain = false
             mediaPlayer.pause()
             abandonAudioFocus()
+            listeners.forEach { it.onPlaybackState(false) } // Notify immediately
         } else {
             if (smartAudioFocusEnabled) requestAudioFocus()
             mediaPlayer.play()
+            listeners.forEach { it.onPlaybackState(true) } // Notify immediately
         }
+        updatePlaybackState()
     }
 
     fun isPlaying(): Boolean {
