@@ -1,100 +1,60 @@
-# 🎵 AuraMusic V2.0
+# 🎵 Aura Music V2.6
 
-A modern Android music player built with Kotlin and Jetpack Compose, featuring a clean Apple Music-inspired design, powerful local audio playback, beautiful artwork display, playlists, favorites, and notification controls.
+A premium, modern Android music player built with Kotlin and Jetpack Compose. Featuring a clean Apple Music-inspired design, powerful local audio playback, and a unique "Dynamic Pill" overlay for global music control.
 
-## ✨ Features
+## ✨ Key Features
+
+### 💊 Dynamic Pill (System Overlay)
+* **Global Access**: Controls your music from any screen, even when outside the app.
+* **Orientation Smart**: Automatically hides in landscape mode to stay out of the way during games or videos.
+* **Fully Customizable**: 
+    *   **Positioning**: Move the pill to the Left, Center, or Right.
+    *   **Vertical Offset**: Fine-tune the height (0-64dp) to tuck it perfectly into your status bar.
+    *   **Scaling**: Increase the minimized pill size from 1.0x to 2.0x.
+* **Intuitive Controls**: 
+    *   Click artwork to launch the full player.
+    *   Click song info to collapse/expand.
+    *   Full playback controls (Play/Pause, Skip, Previous).
 
 ### 🎧 Music Playback
+* **VLC Engine**: Powered by the robust VLC Android SDK for high-fidelity audio.
+* **Wide Format Support**: Play MP3, FLAC, WAV, M4A, ALAC, and more.
+* **Smart Audio Focus**: Automatically pauses when you receive calls or play other media.
+* **Background Playback**: Continuous music even when the screen is off or app is closed.
 
-* Play local music stored on your device
-* Support for MP3, FLAC, WAV, M4A, ALAC and more
-* VLC-powered audio engine
-* Background playback support
-* Seamless playback controls
+### 🎨 Modern UI/UX
+* **Apple Music Inspired**: A clean, premium aesthetic with smooth animations.
+* **Dynamic Colors**: UI accents that adapt to your current album artwork.
+* **AMOLED Mode**: Pure black theme for battery saving and stunning contrast.
+* **Karaoke Mode**: Real-time synchronized lyrics display.
+* **Visualizer**: Dynamic wave visualizer built directly into the Dynamic Pill.
 
-### 🎨 Modern UI
-
-* Apple Music-inspired design
-* Smooth animations and transitions
-* Beautiful album artwork display
-* Dynamic mini player
-* Responsive layouts for different screen sizes
-* Material 3 design
-
-### ❤️ Library Management
-
-* Favorites system
-* Playlist creation and management
-* Recently played songs
-* Artist and Album browsing
-* Fast music library scanning
-
-### 🔔 Notification Controls
-
-* Play / Pause
-* Previous / Next
-* Lock screen controls
-* Background playback support
-
-### ⚙️ Personalization
-
-* Custom user name support
-* Time-based greetings
-
-   * Good Morning
-   * Good Afternoon
-   * Good Evening
-   * Good Night
-* Persistent app settings
-
-## 📱 Screens
-
-* Home
-* Now Playing
-* Albums
-* Artists
-* Favorites
-* Playlists
-* Queue
+### ❤️ Library & Management
+* **Fast Scanning**: Quickly index all local music on your device.
+* **Smart Organization**: Browse by Songs, Albums, Artists, or Playlists.
+* **History & Favorites**: Revisit your recent tracks or heart your top songs.
+* **Playlist Sharing**: Export and import playlists as JSON for easy sharing.
 
 ## 🛠️ Built With
-
-* Kotlin
-* Jetpack Compose
-* Android Media APIs
-* VLC Android SDK
-* Material 3
-* Coroutines
-* StateFlow
-* DataStore
+* **Language**: Kotlin
+* **Framework**: Jetpack Compose (UI)
+* **Audio**: VLC Android SDK / Media3
+* **Concurrency**: Coroutines & StateFlow
+* **Storage**: DataStore (Settings) & MediaStore (Library)
+* **Visuals**: Palette API & Coil
 
 ## 📦 Installation
-
-Download the latest APK from the Releases section and install it on your Android device.
+1. Download the latest APK from the [Releases](https://github.com/yourusername/AuraMusic/releases) section.
+2. Grant "Overlay Permission" and "Usage Access" for the Dynamic Pill features.
+3. Enjoy your music!
 
 ## 🚀 Roadmap
-
-* Lyrics support
-* Sleep timer
-* Equalizer
-* Theme customization
-* Folder browsing
-* Smart playlists
-* Android Auto support
-* Wear OS support
-
-## 📸 Screenshots
-
-Add screenshots here.
-
-## 🤝 Contributing
-
-Contributions, suggestions, and bug reports are welcome.
-
-## 📄 License
-
-This project is open-source and available under the MIT License.
+- [x] Lyrics support
+- [x] Sleep timer
+- [x] Dynamic Pill customization
+- [ ] Equalizer
+- [ ] Folder browsing
+- [ ] Android Auto support
 
 ---
-
 Made with ❤️ by Aman
