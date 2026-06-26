@@ -47,7 +47,11 @@ class PlaybackNotificationManager(private val context: Context) {
         sessionToken: MediaSession.Token
     ): android.app.Notification {
         ensureChannel()
-        val artwork = loadArtwork(song.artworkUri)
+        val artwork = if (song.id == -1L) {
+            com.aman.auramusic.util.ArtworkExtractor.getArtwork(context, song.uri)
+        } else {
+            loadArtwork(song.artworkUri)
+        }
         val contentIntent = PendingIntent.getActivity(
             context,
             0,

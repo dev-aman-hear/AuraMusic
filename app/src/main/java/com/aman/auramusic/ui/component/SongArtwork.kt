@@ -16,8 +16,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.util.ArtworkExtractor
 
 @Composable
 fun SongArtwork(
@@ -27,6 +30,19 @@ fun SongArtwork(
     shape: RoundedCornerShape = RoundedCornerShape(8.dp),
     elevation: androidx.compose.ui.unit.Dp = 4.dp,
 ) {
+    val context = LocalContext.current
+    val model = if (song != null) {
+        if (song.id == -1L && song.uri.isNotBlank()) {
+            // For external songs, use our custom extractor to get the bitmap
+            ImageRequest.Builder(context)
+                .data(song.uri)
+                .crossfade(true)
+                .build()
+        } else {
+            song.artworkUri
+        }
+    } else null
+
     Box(
         modifier = modifier
             .size(size.dp)
@@ -36,14 +52,14 @@ fun SongArtwork(
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(
-            model = song?.artworkUri,
+            model = model,
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
         
-        // Fallback icon if no artwork
-        if (song?.artworkUri == null) {
+        // Fallback icon if no artwork (Coil failed or no URI)
+        if (song == null || (song.artworkUri == null && song.id != -1L)) {
             Icon(
                 imageVector = Icons.Default.MusicNote,
                 contentDescription = null,

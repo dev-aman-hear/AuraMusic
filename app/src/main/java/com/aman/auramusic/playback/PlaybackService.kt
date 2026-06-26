@@ -77,7 +77,11 @@ class PlaybackService : Service() {
                 PillStateManager.updateState(currentSong, isPlaying)
                 currentSong?.let { song ->
                     serviceScope.launch {
-                        val artwork = notificationManager.loadArtwork(song.artworkUri)
+                        val artwork = if (song.id == -1L) {
+                            com.aman.auramusic.util.ArtworkExtractor.getArtwork(this@PlaybackService, song.uri)
+                        } else {
+                            notificationManager.loadArtwork(song.artworkUri)
+                        }
                         playerManager.setMetadata(song.title, song.artist, song.album, song.duration, artwork)
                         notificationManager.show(song, isPlaying, playerManager.getSessionToken())
                     }
@@ -181,7 +185,13 @@ class PlaybackService : Service() {
         checkPillService()
 
         serviceScope.launch {
-            val artwork = with(Dispatchers.IO) { notificationManager.loadArtwork(song.artworkUri) }
+            val artwork = with(Dispatchers.IO) {
+                if (song.id == -1L) {
+                    com.aman.auramusic.util.ArtworkExtractor.getArtwork(this@PlaybackService, song.uri)
+                } else {
+                    notificationManager.loadArtwork(song.artworkUri)
+                }
+            }
             playerManager.setMetadata(song.title, song.artist, song.album, song.duration, artwork)
 
             val notification = notificationManager.createNotification(song, isPlaying, playerManager.getSessionToken())

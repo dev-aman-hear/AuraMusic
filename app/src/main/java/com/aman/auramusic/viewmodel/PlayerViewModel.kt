@@ -527,18 +527,26 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val context = getApplication<Application>()
-                val uri = android.net.Uri.parse(song.artworkUri)
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    if (bitmap != null) {
-                        val palette = Palette.from(bitmap).generate()
-                        dominantColor = palette.getVibrantColor(
-                            palette.getDominantColor(0xFF1E1E1E.toInt())
-                        )
-                        accentColor = palette.getMutedColor(
-                            palette.getDarkVibrantColor(0xFF1E1E1E.toInt())
-                        )
+                
+                val bitmap = if (song.id == -1L) {
+                    com.aman.auramusic.util.ArtworkExtractor.getArtwork(context, song.uri)
+                } else {
+                    val uri = android.net.Uri.parse(song.artworkUri ?: "")
+                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        BitmapFactory.decodeStream(inputStream)
                     }
+                }
+
+                if (bitmap != null) {
+                    val palette = Palette.from(bitmap).generate()
+                    dominantColor = palette.getVibrantColor(
+                        palette.getDominantColor(0xFF1E1E1E.toInt())
+                    )
+                    accentColor = palette.getMutedColor(
+                        palette.getDarkVibrantColor(0xFF1E1E1E.toInt())
+                    )
+                } else {
+                    dominantColor = 0xFF1E1E1E.toInt()
                 }
             } catch (e: Exception) {
                 dominantColor = 0xFF1E1E1E.toInt()
