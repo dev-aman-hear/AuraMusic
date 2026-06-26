@@ -51,7 +51,7 @@ fun AuraMusicPill(
     // Auto-collapse logic: return to minimal state after 5 seconds
     LaunchedEffect(isExpanded) {
         if (isExpanded) {
-            kotlinx.coroutines.delay(5000)
+            kotlinx.coroutines.delay(5000L)
             onExpandToggle()
         }
     }
@@ -69,7 +69,7 @@ fun AuraMusicPill(
     val animatedHeight by animateDpAsState(
         targetValue = if (isExpanded) 62.dp else 22.dp * sizeScale, // 52dp * 1.2 ≈ 62dp
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-        label = "pillHeight"
+        label = "pillHeight",
     )
 
     val animatedCorner by animateDpAsState(
@@ -281,8 +281,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawWave(
         val x = i * segmentWidth
         val progress = i.toFloat() / points
         val envelope = sin(progress * PI.toFloat())
-        val wave = sin((progress * 3.5f * PI.toFloat()) - phase) * 0.7f +
-                sin((progress * 6f * PI.toFloat()) + (phase * 0.6f)) * 0.3f
+        val wave = (sin((progress * 3.5f * PI.toFloat()) - phase) * 0.7f) +
+                (sin((progress * 6f * PI.toFloat()) + (phase * 0.6f)) * 0.3f)
 
         val y = centerY + wave * (size.height / 2f) * envelope * amplitudeMult
         path.lineTo(x, y)

@@ -1,8 +1,13 @@
-# 🎵 Aura Music V2.6
+# 🎵 Aura Music V2.7
 
 A premium, modern Android music player built with Kotlin and Jetpack Compose. Featuring a clean Apple Music-inspired design, powerful local audio playback, and a unique "Dynamic Pill" overlay for global music control.
 
 ## ✨ Key Features
+
+### 📂 File Management & Integration
+* **"Open With" Support**: Seamlessly opens audio files (MP3, WAV, M4A, etc.) directly from any file manager.
+* **External URI Support**: Automatically resolves metadata and starts playback for shared or downloaded tracks.
+* **Playlist Sharing**: Export and import playlists as JSON for easy sharing.
 
 ### 💊 Dynamic Pill (System Overlay)
 * **Global Access**: Controls your music from any screen, even when outside the app.
@@ -52,6 +57,7 @@ A premium, modern Android music player built with Kotlin and Jetpack Compose. Fe
 - [x] Lyrics support
 - [x] Sleep timer
 - [x] Dynamic Pill customization
+- [x] External "Open With" integration
 - [ ] Equalizer
 - [ ] Folder browsing
 - [ ] Android Auto support

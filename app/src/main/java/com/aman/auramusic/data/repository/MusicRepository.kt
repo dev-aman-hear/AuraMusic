@@ -2,8 +2,8 @@ package com.aman.auramusic.data.repository
 
 import android.content.ContentUris
 import android.content.Context
-import android.net.Uri
 import android.provider.MediaStore
+import androidx.core.net.toUri
 import com.aman.auramusic.data.model.Song
 
 class MusicRepository(private val context: Context) {
@@ -59,7 +59,10 @@ class MusicRepository(private val context: Context) {
                         dateAdded = cursor.getLong(dateAddedCol),
                         uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idCol)).toString(),
                         filePath = path,
-                        artworkUri = ContentUris.withAppendedId(Uri.parse("content://media/external/audio/albumart"), cursor.getLong(albumIdCol)).toString(),
+                        artworkUri = ContentUris.withAppendedId(
+                        "content://media/external/audio/albumart".toUri(),
+                        cursor.getLong(albumIdCol)
+                    ).toString(),
                         mimeType = cursor.getString(mimeTypeCol).orUnknownAudioType()
                     )
                 )
@@ -68,12 +71,95 @@ class MusicRepository(private val context: Context) {
         return songs
     }
 
+    fun getSongFromUri(uri: android.net.Uri): Song? {
+        if (uri.scheme == "content") {
+            val projection = arrayOf(
+                MediaStore.Audio.Media._ID,
+                MediaStore.Audio.Media.TITLE,
+                MediaStore.Audio.Media.ARTIST,
+                MediaStore.Audio.Media.ALBUM,
+                MediaStore.Audio.Media.ALBUM_ID,
+                MediaStore.Audio.Media.DURATION,
+                MediaStore.Audio.Media.MIME_TYPE,
+                MediaStore.Audio.Media.DATA
+            )
+
+            try {
+                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val idCol = cursor.getColumnIndex(MediaStore.Audio.Media._ID)
+                        val albumIdCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID)
+                        val titleCol = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
+                        val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+                        val albumCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM)
+                        val durationCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
+                        val mimeTypeCol = cursor.getColumnIndex(MediaStore.Audio.Media.MIME_TYPE)
+                        val pathCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+
+                        val id = if (idCol != -1) cursor.getLong(idCol) else -1L
+                        val albumId = if (albumIdCol != -1) cursor.getLong(albumIdCol) else -1L
+                        val title = if (titleCol != -1) cursor.getString(titleCol) else uri.lastPathSegment ?: "Unknown"
+                        val artist = if (artistCol != -1) cursor.getString(artistCol) else "Unknown Artist"
+                        val album = if (albumCol != -1) cursor.getString(albumCol) else "Unknown Album"
+                        val duration = if (durationCol != -1) cursor.getLong(durationCol) else 0L
+                        val mimeType = if (mimeTypeCol != -1) cursor.getString(mimeTypeCol) else "audio/*"
+                        val path = (if (pathCol != -1) cursor.getString(pathCol) else null) ?: uri.toString()
+
+                        return Song(
+                            id = id,
+                            title = title.orUnknown("Untitled"),
+                            artist = artist.orUnknown("Unknown Artist"),
+                            album = album.orUnknown("Unknown Album"),
+                            duration = duration,
+                            uri = uri.toString(),
+                            filePath = path,
+                            artworkUri = if (albumId != -1L) {
+                                ContentUris.withAppendedId(
+                                    "content://media/external/audio/albumart".toUri(),
+                                    albumId
+                                ).toString()
+                            } else null,
+                            mimeType = mimeType.orUnknownAudioType()
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore and fall through to default
+            }
+
+            return Song(
+                id = -1,
+                title = uri.lastPathSegment ?: "External Audio",
+                artist = "Unknown Artist",
+                album = "Unknown Album",
+                duration = 0,
+                uri = uri.toString(),
+                filePath = uri.toString(),
+                artworkUri = null,
+                mimeType = "audio/*"
+            )
+        } else if (uri.scheme == "file") {
+            return Song(
+                id = -1,
+                title = uri.lastPathSegment ?: "Untitled",
+                artist = "Unknown Artist",
+                album = "Unknown Album",
+                duration = 0,
+                uri = uri.toString(),
+                filePath = uri.path ?: uri.toString(),
+                artworkUri = null,
+                mimeType = "audio/*"
+            )
+        }
+        return null
+    }
+
     private fun String?.orUnknownAudioType(): String {
         return this ?: "audio/*"
     }
 
     private fun String?.orUnknown(fallback: String): String {
-        return if (this.isNullOrBlank() || this == "<unknown>") fallback else this
+        return if ((this.isNullOrBlank()) || this == "<unknown>") fallback else this
     }
 
     private fun isCallRecording(

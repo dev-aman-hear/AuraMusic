@@ -46,7 +46,7 @@ fun MiniPlayer(
     onOpen: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
-    onPrevious: () -> Unit = {}
+    onPrevious: () -> Unit = {},
 ) {
     val progress = if (duration > 0) position.toFloat() / duration.toFloat() else 0f
     var dragX by remember { mutableFloatStateOf(0f) }
@@ -60,7 +60,7 @@ fun MiniPlayer(
                 detectDragGestures(
                     onDragEnd = {
                         when {
-                            dragY < -60f && kotlin.math.abs(dragY) > kotlin.math.abs(dragX) -> onOpen()
+                            (dragY < -60f) && (kotlin.math.abs(dragY) > kotlin.math.abs(dragX)) -> onOpen()
                             dragX > 60f -> onNext()
                             dragX < -60f -> onPrevious()
                         }

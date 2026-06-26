@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.media.MediaMetadataRetriever
-import android.net.Uri
+import androidx.core.net.toUri
 
 object ArtworkExtractor {
 
@@ -21,7 +21,7 @@ object ArtworkExtractor {
 
             retriever.setDataSource(
                 context,
-                Uri.parse(songUri)
+                songUri.toUri()
             )
 
             val bytes =
@@ -29,17 +29,14 @@ object ArtworkExtractor {
 
             retriever.release()
 
-            if (bytes != null) {
+            bytes?.let {
                 BitmapFactory.decodeByteArray(
-                    bytes,
+                    it,
                     0,
-                    bytes.size
+                    it.size
                 )
-            } else {
-                null
             }
-
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }

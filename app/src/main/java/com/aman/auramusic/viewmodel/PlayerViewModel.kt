@@ -50,7 +50,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private val userRepository = UserPreferencesRepository(application)
     private val musicRepository = com.aman.auramusic.data.repository.MusicRepository(application)
     private var favoriteJob: Job? = null
-    private var isServiceBound = false
+    var isServiceBound by mutableStateOf(false)
+        private set
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -314,15 +315,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         recordPlayback(song)
         saveLastSong(song, startPosition)
         
-        viewModelScope.launch(Dispatchers.IO) {
-            val artwork = runCatching {
-                getApplication<Application>().contentResolver.openInputStream(android.net.Uri.parse(song.artworkUri))?.use { input ->
-                    BitmapFactory.decodeStream(input)
-                }
-            }.getOrNull()
-            pm.setMetadata(song.title, song.artist, song.album, song.duration, artwork)
-            notificationManager?.show(song, true, pm.getSessionToken())
-        }
+        // Notification and metadata are now handled by PlaybackService
     }
 
     private fun recordPlayback(song: Song) {

@@ -12,7 +12,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class PlaybackService : Service() {
@@ -38,7 +37,7 @@ class PlaybackService : Service() {
         get() = _repeatMode.value
         set(value) { _repeatMode.value = value }
 
-    private val _isShuffled = MutableStateFlow(false)
+    private val _isShuffled = MutableStateFlow(value = false)
     val isShuffledFlow = _isShuffled.asStateFlow()
     var isShuffled: Boolean
         get() = _isShuffled.value
@@ -72,20 +71,28 @@ class PlaybackService : Service() {
             }
         }
 
-        playerManager.setListeners(
-            onProgress = { pos, dur -> },
-            onPlaybackState = { isPlaying ->
+        playerManager.addListener(object : VlcPlayerManager.PlayerListener {
+            override fun onProgress(position: Long, duration: Long) {}
+            override fun onPlaybackState(isPlaying: Boolean) {
                 PillStateManager.updateState(currentSong, isPlaying)
+                currentSong?.let { song ->
+                    serviceScope.launch {
+                        val artwork = notificationManager.loadArtwork(song.artworkUri)
+                        playerManager.setMetadata(song.title, song.artist, song.album, song.duration, artwork)
+                        notificationManager.show(song, isPlaying, playerManager.getSessionToken())
+                    }
+                }
                 if (!isPlaying && isTaskRemoved) {
                     stopSelf()
                 } else {
                     checkPillService()
                 }
-            },
-            onEnd = {
+            }
+
+            override fun onEnd() {
                 handlePlaybackEnd()
             }
-        )
+        })
     }
 
     private fun handlePlaybackEnd() {
@@ -104,7 +111,7 @@ class PlaybackService : Service() {
         val currentIndex = queue.indexOfFirst { it.id == currentSong?.id }
         val nextIndex = (currentIndex + 1) % queue.size
         
-        if (nextIndex == 0 && repeatMode == RepeatMode.NONE && currentIndex != -1) {
+        if (nextIndex == 0 && (repeatMode == RepeatMode.NONE) && currentIndex != -1) {
             if (playerManager.isPlaying()) playerManager.togglePlayPause()
             return
         }
@@ -122,6 +129,7 @@ class PlaybackService : Service() {
     fun play(song: Song) {
         currentSong = song
         playerManager.play(song.filePath)
+        startAsForeground(song, true)
     }
 
     fun prepare(song: Song, positionMs: Long) {
@@ -171,12 +179,18 @@ class PlaybackService : Service() {
         currentSong = song
         PillStateManager.updateState(song, isPlaying)
         checkPillService()
-        val notification = notificationManager.createNotification(song, isPlaying, playerManager.getSessionToken())
-        startForeground(PlaybackNotificationManager.NOTIFICATION_ID, notification)
+
+        serviceScope.launch {
+            val artwork = with(Dispatchers.IO) { notificationManager.loadArtwork(song.artworkUri) }
+            playerManager.setMetadata(song.title, song.artist, song.album, song.duration, artwork)
+
+            val notification = notificationManager.createNotification(song, isPlaying, playerManager.getSessionToken())
+            startForeground(PlaybackNotificationManager.NOTIFICATION_ID, notification)
+        }
     }
 
     fun stopAsForeground(removeNotification: Boolean) {
-        stopForeground(removeNotification)
+        stopForeground(if (removeNotification) STOP_FOREGROUND_REMOVE else STOP_FOREGROUND_DETACH)
         PillStateManager.updateState(currentSong, false)
         checkPillService()
     }

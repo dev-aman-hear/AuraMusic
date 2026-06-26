@@ -34,7 +34,7 @@ private fun audioQuality(
     val isAppleLosslessCandidate = filePath.endsWith(suffix = ".m4a", ignoreCase = true)
     
     val isHiRes = isLossless &&
-        ((bitDepthValue ?: 0) >= 24 || (sampleRateValue ?: 0) >= 88_200)
+            ((bitDepthValue ?: 0) >= 24 || (sampleRateValue ?: 0) >= 88_200)
 
     val badge = when {
         isHiRes -> "Hi-Res Lossless"
@@ -75,7 +75,7 @@ private fun readAudioQualityMetadata(filePath: String): AudioQualityMetadata {
 
         retriever.release()
         metadata
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         AudioQualityMetadata()
     }
 }
@@ -86,7 +86,7 @@ private fun MediaMetadataRetriever.extractOptionalMetadata(fieldName: String): I
             .getField(fieldName)
             .getInt(null)
         extractMetadata(key)?.toIntOrNull()
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 }

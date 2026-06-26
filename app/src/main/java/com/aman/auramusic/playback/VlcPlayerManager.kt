@@ -6,8 +6,8 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.session.MediaSession
-import android.os.Build
 import android.media.session.PlaybackState
+import androidx.core.net.toUri
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
@@ -62,8 +62,9 @@ class VlcPlayerManager(context: Context) {
                     }
                     abandonAudioFocus()
                 }
-                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT, 
-                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK,
+                -> {
                     Log.d("AuraMusicFocus", "Focus lost transiently")
                     if (mediaPlayer.isPlaying) {
                         shouldResumeOnFocusGain = true
@@ -114,6 +115,10 @@ class VlcPlayerManager(context: Context) {
                 MediaPlayer.Event.EndReached -> {
                     listeners.forEach { it.onEnd() }
                 }
+                MediaPlayer.Event.EncounteredError -> {
+                    Log.e("VlcPlayerManager", "VLC Error encountered")
+                    listeners.forEach { it.onPlaybackState(false) }
+                }
             }
         }
     }
@@ -125,7 +130,7 @@ class VlcPlayerManager(context: Context) {
             if (mediaPlayer.isReleased) PlaybackState.STATE_NONE
             else if (mediaPlayer.isPlaying) PlaybackState.STATE_PLAYING 
             else PlaybackState.STATE_PAUSED
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             PlaybackState.STATE_NONE
         }
         
@@ -172,14 +177,18 @@ class VlcPlayerManager(context: Context) {
     }
 
     fun prepare(path: String, positionMs: Long = 0L) {
-        val media = Media(libVLC, path)
+        val media = if (path.startsWith("content://")) {
+            Media(libVLC, path.toUri())
+        } else {
+            Media(libVLC, path)
+        }
         mediaPlayer.media = media
         media.release()
         pendingSeekMs = if (positionMs > 0) positionMs else null
     }
 
     fun play(path: String) {
-
+        Log.d("VlcPlayerManager", "Playing: $path")
         pendingSeekMs = null
         shouldResumeOnFocusGain = false
 
@@ -187,7 +196,11 @@ class VlcPlayerManager(context: Context) {
             requestAudioFocus()
         }
 
-        val media = Media(libVLC, path)
+        val media = if (path.startsWith("content://")) {
+            Media(libVLC, path.toUri())
+        } else {
+            Media(libVLC, path)
+        }
 
         mediaPlayer.media = media
         media.release()
@@ -197,34 +210,20 @@ class VlcPlayerManager(context: Context) {
     }
 
     private fun requestAudioFocus(): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val playbackAttributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build()
-            audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(playbackAttributes)
-                .setAcceptsDelayedFocusGain(true)
-                .setOnAudioFocusChangeListener(audioFocusChangeListener)
-                .build()
-            return audioManager.requestAudioFocus(audioFocusRequest!!) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-        } else {
-            @Suppress("DEPRECATION")
-            return audioManager.requestAudioFocus(
-                audioFocusChangeListener,
-                AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN
-            ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-        }
+        val playbackAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+        audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(playbackAttributes)
+            .setAcceptsDelayedFocusGain(true)
+            .setOnAudioFocusChangeListener(audioFocusChangeListener)
+            .build()
+        return audioManager.requestAudioFocus(audioFocusRequest!!) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
     }
 
     private fun abandonAudioFocus() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.abandonAudioFocus(audioFocusChangeListener)
-        }
+        audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
     }
 
     fun togglePlayPause() {

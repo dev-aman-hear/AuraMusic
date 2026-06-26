@@ -8,7 +8,7 @@ object PillStateManager {
     private val _currentSong = MutableStateFlow<Song?>(null)
     val currentSong = _currentSong.asStateFlow()
 
-    private val _isPlaying = MutableStateFlow(false)
+    private val _isPlaying = MutableStateFlow(value = false)
     val isPlaying = _isPlaying.asStateFlow()
 
     private val _isPillEnabled = MutableStateFlow(false)

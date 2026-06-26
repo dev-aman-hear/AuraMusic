@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aman.auramusic.data.model.AppSettings
-import com.aman.auramusic.data.model.PlaybackHistoryEntry
 import com.aman.auramusic.data.model.Playlist
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.data.repository.MusicRepository
@@ -29,13 +28,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _songs = MutableStateFlow<List<Song>>(emptyList())
     val songs: StateFlow<List<Song>> = _songs.asStateFlow()
 
-    private val _isLoading = MutableStateFlow(false)
+    private val _externalSongToPlay = MutableStateFlow<Song?>(null)
+    val externalSongToPlay = _externalSongToPlay.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(value = false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     val username = userRepository.usernameFlow.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
-        "Master"
+        "Master",
     )
 
     val favoriteIds = userRepository.favoriteIdsFlow.stateIn(
@@ -66,6 +68,21 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         loadSongs()
     }
 
+    fun handleExternalUri(uri: android.net.Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val song = repository.getSongFromUri(uri)
+            if (song != null) {
+                _externalSongToPlay.value = song
+            } else {
+                android.util.Log.e("MusicViewModel", "Failed to resolve URI: $uri")
+            }
+        }
+    }
+
+    fun clearExternalSong() {
+        _externalSongToPlay.value = null
+    }
+
     fun loadSongs(forceRefresh: Boolean = false) {
         if (!forceRefresh && _songs.value.isNotEmpty()) return
 
@@ -73,7 +90,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             try {
                 _songs.value = repository.getAllSongs()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Handle error
             } finally {
                 _isLoading.value = false
@@ -238,17 +255,23 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun getSongFromUri(uri: android.net.Uri): Song? {
+        return repository.getSongFromUri(uri)
+    }
+
     fun exportCurrentSongs(songs: List<Song>, outputStream: OutputStream?) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val songArray = JSONArray()
                 songs.forEach { song ->
-                    songArray.put(JSONObject().apply {
-                        put("id", song.id)
-                        put("title", song.title)
-                        put("artist", song.artist)
-                        put("album", song.album)
-                    })
+                    songArray.put(
+                        JSONObject().apply {
+                            put("id", song.id)
+                            put("title", song.title)
+                            put("artist", song.artist)
+                            put("album", song.album)
+                        }
+                    )
                 }
 
                 val json = JSONObject().apply {
@@ -269,12 +292,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 val songsInPlaylist = _songs.value.filter { it.id in playlist.songIds }
                 val songArray = JSONArray()
                 songsInPlaylist.forEach { song ->
-                    songArray.put(JSONObject().apply {
-                        put("id", song.id)
-                        put("title", song.title)
-                        put("artist", song.artist)
-                        put("album", song.album)
-                    })
+                    songArray.put(
+                        JSONObject().apply {
+                            put("id", song.id)
+                            put("title", song.title)
+                            put("artist", song.artist)
+                            put("album", song.album)
+                        }
+                    )
                 }
 
                 val json = JSONObject().apply {

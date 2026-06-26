@@ -10,5 +10,5 @@ data class Song(
     val uri: String,
     val filePath: String,
     val artworkUri: String?,
-    val mimeType: String
+    val mimeType: String,
 )

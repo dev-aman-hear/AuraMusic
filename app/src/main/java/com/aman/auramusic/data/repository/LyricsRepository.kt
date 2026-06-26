@@ -19,7 +19,7 @@ class LyricsRepository {
                 .readLines()
                 .flatMap(::parseLine)
                 .sortedBy { it.timeMs }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }
@@ -42,8 +42,8 @@ class LyricsRepository {
                 ?: return@mapNotNull null
 
             LyricLine(
-                timeMs = minutes * 60_000 + seconds * 1_000 + fraction,
-                text = lyricText
+                timeMs = (minutes * 60_000) + (seconds * 1_000) + fraction,
+                text = lyricText,
             )
         }
     }

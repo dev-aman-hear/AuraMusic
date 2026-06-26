@@ -25,7 +25,7 @@ fun SongArtwork(
     size: Int,
     modifier: Modifier = Modifier,
     shape: RoundedCornerShape = RoundedCornerShape(8.dp),
-    elevation: androidx.compose.ui.unit.Dp = 4.dp
+    elevation: androidx.compose.ui.unit.Dp = 4.dp,
 ) {
     Box(
         modifier = modifier

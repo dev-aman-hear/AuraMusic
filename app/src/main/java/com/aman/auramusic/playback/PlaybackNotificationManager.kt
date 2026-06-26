@@ -8,7 +8,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.session.MediaSession
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.media.app.NotificationCompat.MediaStyle
@@ -24,7 +24,7 @@ class PlaybackNotificationManager(private val context: Context) {
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Playback",
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_LOW,
         ).apply {
             description = "Aura Music playback controls"
         }
@@ -68,21 +68,27 @@ class PlaybackNotificationManager(private val context: Context) {
             .setOngoing(isPlaying)
             .setShowWhen(false)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .addAction(NotificationCompat.Action(
-                android.R.drawable.ic_media_previous,
-                "Previous",
-                previousIntent
-            ))
-            .addAction(NotificationCompat.Action(
-                if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
-                if (isPlaying) "Pause" else "Play",
-                playPauseIntent
-            ))
-            .addAction(NotificationCompat.Action(
-                android.R.drawable.ic_media_next,
-                "Next",
-                nextIntent
-            ))
+            .addAction(
+                NotificationCompat.Action(
+                    android.R.drawable.ic_media_previous,
+                    "Previous",
+                    previousIntent
+                )
+            )
+            .addAction(
+                NotificationCompat.Action(
+                    if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
+                    if (isPlaying) "Pause" else "Play",
+                    playPauseIntent
+                )
+            )
+            .addAction(
+                NotificationCompat.Action(
+                    android.R.drawable.ic_media_next,
+                    "Next",
+                    nextIntent
+                )
+            )
             .setStyle(
                 MediaStyle()
                     .setMediaSession(android.support.v4.media.session.MediaSessionCompat.Token.fromToken(sessionToken))
@@ -106,10 +112,10 @@ class PlaybackNotificationManager(private val context: Context) {
         )
     }
 
-    private fun loadArtwork(artworkUri: String?): Bitmap? {
+    fun loadArtwork(artworkUri: String?): Bitmap? {
         if (artworkUri.isNullOrBlank()) return null
         return runCatching {
-            context.contentResolver.openInputStream(Uri.parse(artworkUri))?.use { input ->
+            context.contentResolver.openInputStream(artworkUri.toUri())?.use { input ->
                 BitmapFactory.decodeStream(input)
             }
         }.getOrNull()

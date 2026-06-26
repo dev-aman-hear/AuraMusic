@@ -18,10 +18,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -107,12 +105,19 @@ import com.aman.auramusic.ui.theme.AuraMusicTheme
 import com.aman.auramusic.viewmodel.MusicViewModel
 import com.aman.auramusic.viewmodel.PlayerViewModel
 
+import androidx.lifecycle.ViewModelProvider
+
 class MainActivity : ComponentActivity() {
+    private lateinit var musicViewModel: MusicViewModel
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        musicViewModel = ViewModelProvider(this)[MusicViewModel::class.java]
+        handleIntent(intent)
+
         setContent {
-            val musicViewModel: MusicViewModel = viewModel()
             val appSettings by musicViewModel.settings.collectAsStateWithLifecycle()
             
             AuraMusicTheme(
@@ -120,6 +125,20 @@ class MainActivity : ComponentActivity() {
                 amoledMode = appSettings.amoledMode
             ) {
                 MusicScreen(musicViewModel)
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_VIEW) {
+            intent.data?.let { uri ->
+                musicViewModel.handleExternalUri(uri)
             }
         }
     }
@@ -137,6 +156,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     val playbackHistory by musicViewModel.playbackHistory.collectAsStateWithLifecycle()
     val playlists by musicViewModel.playlists.collectAsStateWithLifecycle()
     val lastImportResult by musicViewModel.lastImportResult.collectAsStateWithLifecycle()
+    val externalSong by musicViewModel.externalSongToPlay.collectAsStateWithLifecycle()
 
     val importFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -189,6 +209,16 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     var selectedLibraryTab by remember { mutableStateOf(LibraryTab.Songs) }
     var showPlayer by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+
+    LaunchedEffect(externalSong, playerViewModel.isServiceBound) {
+        if (externalSong != null && playerViewModel.isServiceBound) {
+            playerViewModel.setQueue(listOf(externalSong!!))
+            playerViewModel.play(externalSong!!)
+            showPlayer = true
+            musicViewModel.clearExternalSong()
+        }
+    }
+
     var showAboutDialog by remember { mutableStateOf(false) }
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
     var showExportPlaylistDialog by remember { mutableStateOf(false) }
@@ -1959,7 +1989,7 @@ private fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Info,
                     title = "About Aura Music",
-                    subtitle = "Version 2.6.0",
+                    subtitle = "Version 2.7.0",
                     onClick = onShowAbout
                 )
         }
@@ -2007,7 +2037,7 @@ private fun AboutDialog(onDismiss: () -> Unit) {
                     fontWeight = FontWeight.ExtraBold
                 )
                 Text(
-                    text = "Version 2.6.0 (Premium)",
+                    text = "Version 2.7.0 (Premium)",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
