@@ -98,12 +98,20 @@ class MusicRepository(private val context: Context) {
 
                         val id = if (idCol != -1) cursor.getLong(idCol) else -1L
                         val albumId = if (albumIdCol != -1) cursor.getLong(albumIdCol) else -1L
-                        val title = if (titleCol != -1) cursor.getString(titleCol) else uri.lastPathSegment ?: "Unknown"
-                        val artist = if (artistCol != -1) cursor.getString(artistCol) else "Unknown Artist"
-                        val album = if (albumCol != -1) cursor.getString(albumCol) else "Unknown Album"
+                        var title = if (titleCol != -1) cursor.getString(titleCol) else null
+                        var artist = if (artistCol != -1) cursor.getString(artistCol) else null
+                        var album = if (albumCol != -1) cursor.getString(albumCol) else null
                         val duration = if (durationCol != -1) cursor.getLong(durationCol) else 0L
                         val mimeType = if (mimeTypeCol != -1) cursor.getString(mimeTypeCol) else "audio/*"
                         val path = (if (pathCol != -1) cursor.getString(pathCol) else null) ?: uri.toString()
+
+                        // If basic MediaStore query lacks info, try retriever
+                        if (title.isNullOrBlank() || artist.isNullOrBlank() || artist == "<unknown>") {
+                            val meta = getMetadataFromUri(uri)
+                            if (title.isNullOrBlank()) title = meta.first
+                            if (artist.isNullOrBlank() || artist == "<unknown>") artist = meta.second
+                            if (album.isNullOrBlank() || album == "<unknown>") album = meta.third
+                        }
 
                         return Song(
                             id = id,
@@ -123,15 +131,14 @@ class MusicRepository(private val context: Context) {
                         )
                     }
                 }
-            } catch (e: Exception) {
-                // Ignore and fall through to default
-            }
+            } catch (_: Exception) { }
 
+            val meta = getMetadataFromUri(uri)
             return Song(
                 id = -1,
-                title = uri.lastPathSegment ?: "External Audio",
-                artist = "Unknown Artist",
-                album = "Unknown Album",
+                title = meta.first ?: uri.lastPathSegment ?: "External Audio",
+                artist = meta.second.orUnknown("Unknown Artist"),
+                album = meta.third.orUnknown("Unknown Album"),
                 duration = 0,
                 uri = uri.toString(),
                 filePath = uri.toString(),
@@ -139,11 +146,12 @@ class MusicRepository(private val context: Context) {
                 mimeType = "audio/*"
             )
         } else if (uri.scheme == "file") {
+            val meta = getMetadataFromUri(uri)
             return Song(
                 id = -1,
-                title = uri.lastPathSegment ?: "Untitled",
-                artist = "Unknown Artist",
-                album = "Unknown Album",
+                title = meta.first ?: uri.lastPathSegment ?: "Untitled",
+                artist = meta.second.orUnknown("Unknown Artist"),
+                album = meta.third.orUnknown("Unknown Album"),
                 duration = 0,
                 uri = uri.toString(),
                 filePath = uri.path ?: uri.toString(),
@@ -152,6 +160,22 @@ class MusicRepository(private val context: Context) {
             )
         }
         return null
+    }
+
+    private fun getMetadataFromUri(uri: android.net.Uri): Triple<String?, String?, String?> {
+        val retriever = android.media.MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(context, uri)
+            val title = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)
+            val artist = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
+            val album = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)
+            Triple(title, artist, album)
+        } catch (_: Exception) {
+            Triple(null, null, null)
+        } finally {
+            try { retriever.release() } catch (_: Exception) {}
+        }
     }
 
     private fun String?.orUnknownAudioType(): String {

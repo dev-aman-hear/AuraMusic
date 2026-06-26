@@ -159,29 +159,8 @@ class VlcPlayerManager(context: Context) {
         mediaSession.setMetadata(metadata)
     }
 
-    private var managedListener: PlayerListener? = null
-
-    @Deprecated("Use addListener instead")
-    fun setListeners(
-        onProgress: (Long, Long) -> Unit,
-        onPlaybackState: (Boolean) -> Unit,
-        onEnd: () -> Unit
-    ) {
-        managedListener?.let { removeListener(it) }
-        managedListener = object : PlayerListener {
-            override fun onProgress(position: Long, duration: Long) { onProgress.invoke(position, duration) }
-            override fun onPlaybackState(isPlaying: Boolean) { onPlaybackState.invoke(isPlaying) }
-            override fun onEnd() { onEnd.invoke() }
-        }
-        addListener(managedListener!!)
-    }
-
     fun prepare(path: String, positionMs: Long = 0L) {
-        val media = if (path.startsWith("content://")) {
-            Media(libVLC, path.toUri())
-        } else {
-            Media(libVLC, path)
-        }
+        val media = createMedia(path)
         mediaPlayer.media = media
         media.release()
         pendingSeekMs = if (positionMs > 0) positionMs else null
@@ -196,17 +175,20 @@ class VlcPlayerManager(context: Context) {
             requestAudioFocus()
         }
 
-        val media = if (path.startsWith("content://")) {
-            Media(libVLC, path.toUri())
-        } else {
-            Media(libVLC, path)
-        }
-
+        val media = createMedia(path)
         mediaPlayer.media = media
         media.release()
 
         mediaPlayer.play()
         listeners.forEach { it.onPlaybackState(true) } // Notify immediately when starting new track
+    }
+
+    private fun createMedia(path: String): Media {
+        return if (path.startsWith("content://")) {
+            Media(libVLC, path.toUri())
+        } else {
+            Media(libVLC, path)
+        }
     }
 
     private fun requestAudioFocus(): Boolean {

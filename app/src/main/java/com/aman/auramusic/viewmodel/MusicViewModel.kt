@@ -255,10 +255,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun getSongFromUri(uri: android.net.Uri): Song? {
-        return repository.getSongFromUri(uri)
-    }
-
     fun exportCurrentSongs(songs: List<Song>, outputStream: OutputStream?) {
         viewModelScope.launch(Dispatchers.IO) {
             try {

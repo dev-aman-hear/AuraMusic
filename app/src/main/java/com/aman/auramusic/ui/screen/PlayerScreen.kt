@@ -119,6 +119,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.LyricLine
 import com.aman.auramusic.data.model.Song
@@ -154,6 +155,18 @@ fun PlayerScreen(
     appSettings: AppSettings,
     playerViewModel: PlayerViewModel = viewModel(),
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val artworkModel = remember(song.id, song.uri, song.artworkUri) {
+        if (song.id == -1L && song.uri.isNotBlank()) {
+            ImageRequest.Builder(context)
+                .data(song.uri)
+                .crossfade(true)
+                .build()
+        } else {
+            song.artworkUri
+        }
+    }
+
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val dominantColorInt = playerViewModel.dominantColor
@@ -195,7 +208,7 @@ fun PlayerScreen(
                 )
             }
     ) {
-        PlayerBackground(song, animatedColor, animatedAccentColor, appSettings.blurIntensity)
+        PlayerBackground(artworkModel, animatedColor, animatedAccentColor, appSettings.blurIntensity)
 
         if (showSleepTimerDialog) {
             SleepTimerDialog(
@@ -244,9 +257,9 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun PlayerBackground(song: Song, dominantColor: Color, accentColor: Color, blurIntensity: Int) {
+private fun PlayerBackground(artworkModel: Any?, dominantColor: Color, accentColor: Color, blurIntensity: Int) {
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        AsyncImage(model = song.artworkUri, contentDescription = null, modifier = Modifier.fillMaxSize().blur(blurIntensity.dp).scale(2.5f), contentScale = ContentScale.Crop, alpha = 0.45f)
+        AsyncImage(model = artworkModel, contentDescription = null, modifier = Modifier.fillMaxSize().blur(blurIntensity.dp).scale(2.5f), contentScale = ContentScale.Crop, alpha = 0.45f)
         Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(colors = listOf(dominantColor.copy(alpha = 0.4f), accentColor.copy(alpha = 0.2f), Color.Transparent, Color.Black.copy(alpha = 0.7f), Color.Black))))
     }
 }

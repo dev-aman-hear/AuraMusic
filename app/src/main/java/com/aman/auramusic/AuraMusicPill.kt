@@ -22,12 +22,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.util.ArtworkExtractor
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -47,7 +49,16 @@ fun AuraMusicPill(
     if (song == null) return
 
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val context = LocalContext.current
 
+    val artworkModel = remember(song.id, song.uri, song.artworkUri) {
+        if (song.id == -1L && song.uri.isNotBlank()) {
+            ArtworkExtractor.getArtwork(context, song.uri)
+        } else {
+            song.artworkUri
+        }
+    }
+    
     // Auto-collapse logic: return to minimal state after 5 seconds
     LaunchedEffect(isExpanded) {
         if (isExpanded) {
@@ -125,12 +136,12 @@ fun AuraMusicPill(
                             contentAlignment = Alignment.Center
                         ) {
                             AsyncImage(
-                                model = song.artworkUri,
+                                model = artworkModel,
                                 contentDescription = null,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
-                            if (song.artworkUri == null) {
+                            if (song.artworkUri == null && song.id != -1L) {
                                 Icon(Icons.Default.MusicNote, null, modifier = Modifier.size(9.dp * sizeScale), tint = Color.White.copy(0.6f))
                             }
                         }
@@ -166,11 +177,14 @@ fun AuraMusicPill(
                             contentAlignment = Alignment.Center
                         ) {
                             AsyncImage(
-                                model = song.artworkUri,
+                                model = artworkModel,
                                 contentDescription = null,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
+                            if (song.artworkUri == null && song.id != -1L) {
+                                Icon(Icons.Default.MusicNote, null, modifier = Modifier.size(20.dp), tint = Color.White.copy(0.6f))
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(10.dp)) // 8dp * 1.2

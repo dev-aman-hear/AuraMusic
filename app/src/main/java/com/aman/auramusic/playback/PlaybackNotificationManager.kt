@@ -47,11 +47,7 @@ class PlaybackNotificationManager(private val context: Context) {
         sessionToken: MediaSession.Token
     ): android.app.Notification {
         ensureChannel()
-        val artwork = if (song.id == -1L) {
-            com.aman.auramusic.util.ArtworkExtractor.getArtwork(context, song.uri)
-        } else {
-            loadArtwork(song.artworkUri)
-        }
+        val artwork = loadArtwork(song)
         val contentIntent = PendingIntent.getActivity(
             context,
             0,
@@ -114,6 +110,18 @@ class PlaybackNotificationManager(private val context: Context) {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+    }
+
+    fun loadArtwork(song: Song): Bitmap? {
+        if (song.id == -1L) {
+            return com.aman.auramusic.util.ArtworkExtractor.getArtwork(context, song.uri)
+        }
+        val uri = song.artworkUri ?: return null
+        return runCatching {
+            context.contentResolver.openInputStream(uri.toUri())?.use { input ->
+                BitmapFactory.decodeStream(input)
+            }
+        }.getOrNull()
     }
 
     fun loadArtwork(artworkUri: String?): Bitmap? {
