@@ -1,6 +1,12 @@
-# 🎵 Aura Music V2.7
+# 🎵 Aura Music V2.9
 
 A premium, modern Android music player built with Kotlin and Jetpack Compose. Featuring a clean Apple Music-inspired design, powerful local audio playback, and a unique "Dynamic Pill" overlay for global music control.
+
+## 🚀 What's New in V2.9
+* **Modular Architecture**: Refactored the UI layer into modular screen components for better maintainability.
+* **Jetpack Navigation**: Implemented a robust navigation system using the official Jetpack Navigation Compose library.
+* **Modernized UI Entry**: Streamlined the `MainActivity` as a clean navigation host.
+* **Improved Performance**: Optimized screen transitions and state management.
 
 ## ✨ Key Features
 
