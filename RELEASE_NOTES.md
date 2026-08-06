@@ -1,13 +1,13 @@
-# AuraMusic 2.3.0
+# AuraMusic 3.0.0 (Glass Edition)
 
-Release Date: June 2026
+Release Date: August 2026
 
 ## ✨ New Features
 
-* Improved home screen design
-* Enhanced artwork display and loading
-* Better media library organization
-* Smoother navigation experience
+* **Glassmorphic UI Finish**: Elegant translucent frosted glass styling across navigation bar, mini player, cards, dialogs, and popups.
+* **Complete Playlist Management**: Full 3-dot dropdown menus and "+" sign action menus to Add to Playlist, Remove Playlist, Add to Queue, and Favorite tracks/playlists.
+* **Batch Operations**: Add entire playlists or albums to queue or favorites with one tap.
+* **Upgraded Design System**: Specular glass borders, translucent surfaces, and dynamic color integration.
 
 ## 🚀 Improvements
 

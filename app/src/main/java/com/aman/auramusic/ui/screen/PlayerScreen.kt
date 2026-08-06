@@ -64,6 +64,8 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Speed
@@ -228,13 +230,14 @@ fun PlayerScreen(
                 isFavorite = playerViewModel.isFavorite,
                 onFavoriteToggle = { playerViewModel.toggleFavorite() },
                 onAddToPlaylist = onAddToPlaylist,
+                onAddToQueue = { playerViewModel.addToQueue(song) },
                 onShowSleepTimer = { showSleepTimerDialog = true }
             )
 
             HorizontalPager(state = pagerState, modifier = Modifier.weight(1f), verticalAlignment = Alignment.Top, beyondViewportPageCount = 1) { page ->
                 when (page) {
                     0 -> LyricsPage(lyrics, position, onSeek, appSettings.lyricFontScale, appSettings.karaokeMode)
-                    1 -> NowPlayingPage(song, isPlaying, playerViewModel.isFavorite, { playerViewModel.toggleFavorite() }, onAddToPlaylist, { showSleepTimerDialog = true })
+                    1 -> NowPlayingPage(song, isPlaying, playerViewModel.isFavorite, { playerViewModel.toggleFavorite() }, onAddToPlaylist, { playerViewModel.addToQueue(song) }, { showSleepTimerDialog = true })
                     2 -> QueuePage(queue, history, song.id, playerViewModel.isShuffled, playerViewModel.repeatMode, pagerState.currentPage == 2, { playerViewModel.toggleShuffle() }, { playerViewModel.toggleRepeat() }, onSongSelected, onQueueRemove, onQueueClear, onQueueSave, onHistoryClear, { from, to -> playerViewModel.moveQueueItem(from, to) })
                 }
             }
@@ -274,6 +277,7 @@ private fun PlayerHeader(
     isFavorite: Boolean,
     onFavoriteToggle: () -> Unit,
     onAddToPlaylist: () -> Unit,
+    onAddToQueue: () -> Unit,
     onShowSleepTimer: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(value = false) }
@@ -315,15 +319,71 @@ private fun PlayerHeader(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Box {
-                    IconButton(onClick = { showMenu = true }, modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape).size(36.dp)) { Icon(Icons.Default.MoreVert, "Menu", tint = Color.White, modifier = Modifier.size(20.dp)) }
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier
+                            .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreHoriz,
+                            contentDescription = "Menu",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
                         DropdownMenuItem(
-                            text = { Text(if (isFavorite) "Remove from Favorite" else "Add to Favorite") },
-                            leadingIcon = { Icon(if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder, null) },
+                            text = { Text(if (isFavorite) "Remove from Favorites" else "Add to Favorites", fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                    contentDescription = null,
+                                    tint = if (isFavorite) Color(0xFFFA2D48) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
                             onClick = { onFavoriteToggle(); showMenu = false }
                         )
-                        DropdownMenuItem(text = { Text("Add to Playlist") }, leadingIcon = { Icon(Icons.Default.LibraryMusic, null) }, onClick = { onAddToPlaylist(); showMenu = false })
-                        DropdownMenuItem(text = { Text("Sleep Timer") }, leadingIcon = { Icon(Icons.Default.Bedtime, null) }, onClick = { onShowSleepTimer(); showMenu = false })
+                        DropdownMenuItem(
+                            text = { Text("Add to Playlist", fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.PlaylistAdd,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = { onAddToPlaylist(); showMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Add to Queue", fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.QueueMusic,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = { onAddToQueue(); showMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Sleep Timer", fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Bedtime,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = { onShowSleepTimer(); showMenu = false }
+                        )
                     }
                 }
             }
@@ -332,7 +392,7 @@ private fun PlayerHeader(
 }
 
 @Composable
-private fun NowPlayingPage(song: Song, isPlaying: Boolean, isFavorite: Boolean, onFavoriteToggle: () -> Unit, onAddToPlaylist: () -> Unit, onShowSleepTimer: () -> Unit) {
+private fun NowPlayingPage(song: Song, isPlaying: Boolean, isFavorite: Boolean, onFavoriteToggle: () -> Unit, onAddToPlaylist: () -> Unit, onAddToQueue: () -> Unit, onShowSleepTimer: () -> Unit) {
     val artworkScale by animateFloatAsState(if (isPlaying) 1f else 0.85f, label = "artworkScale")
     var showMenu by remember { mutableStateOf(value = false) }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Top) {
@@ -346,19 +406,75 @@ private fun NowPlayingPage(song: Song, isPlaying: Boolean, isFavorite: Boolean, 
                 Text(song.artist, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.85f), maxLines = 1, modifier = Modifier.basicMarquee())
             }
             IconButton(onClick = onFavoriteToggle, modifier = Modifier.background(if (isFavorite) Color.White.copy(alpha = 0.95f) else Color.White.copy(alpha = 0.1f), CircleShape).size(40.dp)) {
-                Icon(if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder, "Favorite", tint = if (isFavorite) Color.Black.copy(alpha = 0.65f) else Color.White, modifier = Modifier.size(22.dp))
+                Icon(if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Favorite", tint = if (isFavorite) Color(0xFFFA2D48) else Color.White, modifier = Modifier.size(22.dp))
             }
             Spacer(modifier = Modifier.width(8.dp))
             Box {
-                IconButton(onClick = { showMenu = true }, modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape).size(40.dp)) { Icon(Icons.Default.MoreVert, "Menu", tint = Color.White, modifier = Modifier.size(22.dp)) }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier
+                        .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                        .size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreHoriz,
+                        contentDescription = "Menu",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
                     DropdownMenuItem(
-                        text = { Text(if (isFavorite) "Remove from Favorite" else "Add to Favorite") },
-                        leadingIcon = { Icon(if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder, null) },
+                        text = { Text(if (isFavorite) "Remove from Favorites" else "Add to Favorites", fontWeight = FontWeight.SemiBold) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = null,
+                                tint = if (isFavorite) Color(0xFFFA2D48) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
                         onClick = { onFavoriteToggle(); showMenu = false }
                     )
-                    DropdownMenuItem(text = { Text("Add to Playlist") }, leadingIcon = { Icon(Icons.Default.LibraryMusic, null) }, onClick = { onAddToPlaylist(); showMenu = false })
-                    DropdownMenuItem(text = { Text("Sleep Timer") }, leadingIcon = { Icon(Icons.Default.Bedtime, null) }, onClick = { onShowSleepTimer(); showMenu = false })
+                    DropdownMenuItem(
+                        text = { Text("Add to Playlist", fontWeight = FontWeight.SemiBold) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.PlaylistAdd,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        onClick = { onAddToPlaylist(); showMenu = false }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Add to Queue", fontWeight = FontWeight.SemiBold) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.QueueMusic,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        onClick = { onAddToQueue(); showMenu = false }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Sleep Timer", fontWeight = FontWeight.SemiBold) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Bedtime,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        onClick = { onShowSleepTimer(); showMenu = false }
+                    )
                 }
             }
         }
@@ -618,7 +734,7 @@ private fun PlayerControls(song: Song, isPlaying: Boolean, position: Long, durat
     var showQ by remember { mutableStateOf(false) }
     if (showQ) QualityDetailsDialog(quality = q) { showQ = false }
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Slider(value = sv.coerceIn(0f, 1f), onValueChange = { onSeek((it * rd).toLong()) }, thumb = { Box(modifier = Modifier.size(width = 3.dp, height = 18.dp).background(Color.White, RoundedCornerShape(2.dp))) }, track = { sliderState -> SliderDefaults.Track(sliderState = sliderState, modifier = Modifier.height(7.dp).clip(CircleShape), colors = SliderDefaults.colors(activeTrackColor = Color.White, inactiveTrackColor = Color.White.copy(alpha = 0.22f)), thumbTrackGapSize = 0.dp) }, modifier = Modifier.fillMaxWidth())
+        Slider(value = sv.coerceIn(0f, 1f), onValueChange = { onSeek((it * rd).toLong()) }, colors = SliderDefaults.colors(activeTrackColor = Color.White, inactiveTrackColor = Color.White.copy(alpha = 0.22f), thumbColor = Color.White), modifier = Modifier.fillMaxWidth())
         Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) { Text(formatDuration(position), style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.6f)); Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(18.dp), modifier = Modifier.padding(top = 4.dp).clickable { showQ = true }) { Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) { if (q.badge.contains("Lossless")) { Icon(Icons.Default.Waves, null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(12.dp)); Spacer(Modifier.width(6.dp)) }; Text(q.badge, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.85f)) } }; Text("-${formatDuration((rd - position).coerceAtLeast(0L))}", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.6f)) }
         Spacer(Modifier.height(28.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onPrevious, modifier = Modifier.size(64.dp)) { Icon(Icons.Default.SkipPrevious, "Prev", tint = Color.White, modifier = Modifier.size(48.dp)) }; Surface(modifier = Modifier.size(92.dp).clickable { onPlayPause() }, shape = CircleShape, color = Color.White.copy(alpha = 0.18f)) { Box(contentAlignment = Alignment.Center) { Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, "Play/Pause", tint = Color.White, modifier = Modifier.size(56.dp)) } }; IconButton(onClick = onNext, modifier = Modifier.size(64.dp)) { Icon(Icons.Default.SkipNext, "Next", tint = Color.White, modifier = Modifier.size(48.dp)) } }

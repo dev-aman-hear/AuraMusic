@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
@@ -28,12 +30,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
 
 @Composable
@@ -55,7 +58,8 @@ fun MiniPlayer(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .shadow(16.dp, RoundedCornerShape(22.dp))
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragEnd = {
@@ -77,32 +81,40 @@ fun MiniPlayer(
                 }
             }
             .clickable { onOpen() },
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 18.dp, bottomEnd = 18.dp),
-        color = lerp(MaterialTheme.colorScheme.surfaceVariant, dominantColor, 0.12f).copy(alpha = 0.96f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
-        tonalElevation = 12.dp,
-        shadowElevation = 8.dp
+        shape = RoundedCornerShape(22.dp),
+        color = Color.Black.copy(alpha = 0.55f),
+        border = BorderStroke(
+            1.dp,
+            androidx.compose.ui.graphics.Brush.linearGradient(
+                listOf(
+                    Color.White.copy(alpha = 0.40f),
+                    dominantColor.copy(alpha = 0.30f),
+                    Color.White.copy(alpha = 0.12f)
+                )
+            )
+        ),
+        shadowElevation = 12.dp
     ) {
         Column {
             LinearProgressIndicator(
-                progress = { progress },
+                progress = progress,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(2.dp),
-                color = MaterialTheme.colorScheme.primary,
+                color = Color(0xFFFA2D48),
                 trackColor = Color.Transparent,
             )
             
             Row(
                 modifier = Modifier
-                    .height(68.dp)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .height(60.dp)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 SongArtwork(
                     song = song,
-                    size = 50,
-                    shape = RoundedCornerShape(14.dp)
+                    size = 46,
+                    shape = RoundedCornerShape(8.dp)
                 )
                 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -110,16 +122,16 @@ fun MiniPlayer(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = song.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = song.artist,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.65f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -129,15 +141,17 @@ fun MiniPlayer(
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = "Play/Pause",
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = Color.White,
+                        modifier = Modifier.size(26.dp)
                     )
                 }
 
                 IconButton(onClick = onNext) {
                     Icon(
-                        imageVector = Icons.Default.SkipNext,
+                        imageVector = Icons.Default.FastForward,
                         contentDescription = "Next",
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
