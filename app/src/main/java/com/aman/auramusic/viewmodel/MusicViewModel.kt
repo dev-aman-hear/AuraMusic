@@ -15,12 +15,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.OutputStream
 import java.io.InputStream
 
-class MusicViewModel(application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class MusicViewModel @Inject constructor(application: Application) : AndroidViewModel(application) {
 
     private val repository = MusicRepository(application)
     private val userRepository = UserPreferencesRepository(application)

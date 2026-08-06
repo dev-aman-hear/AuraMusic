@@ -9,7 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,6 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.aman.auramusic.R
 import com.aman.auramusic.data.model.AppSettings
 
 @Composable
@@ -210,7 +213,7 @@ fun SettingsScreen(
                     )
 
                     SettingsRow(
-                        icon = Icons.AutoMirrored.Filled.PlaylistAdd,
+                        icon = Icons.Default.PlaylistAdd,
                         title = "Export playlist",
                         subtitle = "Export your playlists to a file",
                         onClick = onExportPlaylist
@@ -239,7 +242,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Info,
                     title = "About Aura Music",
-                    subtitle = "Version 2.7.0",
+                    subtitle = "Version 3.0.0",
                     onClick = onShowAbout
                 )
         }
@@ -270,11 +273,10 @@ fun AboutDialog(onDismiss: () -> Unit) {
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                        Image(
+                            painter = painterResource(id = R.drawable.aura_logo),
+                            contentDescription = "Aura Logo",
+                            modifier = Modifier.size(64.dp)
                         )
                     }
                 }
@@ -287,7 +289,7 @@ fun AboutDialog(onDismiss: () -> Unit) {
                     fontWeight = FontWeight.ExtraBold
                 )
                 Text(
-                    text = "Version 2.7.0 (Premium)",
+                    text = "Version 3.0.0 (Glass Edition)",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

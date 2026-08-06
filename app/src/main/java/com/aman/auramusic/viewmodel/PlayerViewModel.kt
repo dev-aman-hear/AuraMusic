@@ -32,6 +32,8 @@ import android.content.ServiceConnection
 import android.os.IBinder
 import com.aman.auramusic.playback.PlaybackService
 import com.aman.auramusic.playback.RepeatMode
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import androidx.core.content.edit
 
 import java.util.UUID
@@ -41,7 +43,8 @@ data class QueueEntry(
     val song: Song
 )
 
-class PlayerViewModel(application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class PlayerViewModel @Inject constructor(application: Application) : AndroidViewModel(application) {
 
     private var playerManager: VlcPlayerManager? = null
     private var notificationManager: PlaybackNotificationManager? = null
@@ -292,6 +295,35 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             _queue.value = originalQueue
         }
     }
+
+    fun addToQueue(song: Song) {
+        val currentList = playbackService?.queue ?: _queue.value.map { it.song }
+        if (currentList.none { it.id == song.id }) {
+            val updated = currentList + song
+            playbackService?.let { service ->
+                service.queue = updated
+            }
+            val newEntries = updated.map { QueueEntry(song = it) }
+            originalQueue = newEntries
+            _queue.value = newEntries
+        }
+    }
+
+    fun addToQueue(songs: List<Song>) {
+        if (songs.isEmpty()) return
+        val currentList = playbackService?.queue ?: _queue.value.map { it.song }
+        val newSongs = songs.filter { s -> currentList.none { it.id == s.id } }
+        if (newSongs.isNotEmpty()) {
+            val updated = currentList + newSongs
+            playbackService?.let { service ->
+                service.queue = updated
+            }
+            val newEntries = updated.map { QueueEntry(song = it) }
+            originalQueue = newEntries
+            _queue.value = newEntries
+        }
+    }
+
 
     fun play(song: Song, startPosition: Long = 0L) {
         val pm = playerManager ?: return

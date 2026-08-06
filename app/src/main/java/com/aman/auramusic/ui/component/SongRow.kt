@@ -9,10 +9,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +56,7 @@ fun SongRow(
     onAddToPlaylist: (() -> Unit)? = null,
     onToggleFavorite: (() -> Unit)? = null,
     onRemove: (() -> Unit)? = null,
+    onAddToQueue: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
@@ -118,12 +130,19 @@ fun SongRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
                 Box {
-                    IconButton(onClick = { showMenu = true }) {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), CircleShape)
+                            .size(36.dp)
+                    ) {
                         Icon(
-                            imageVector = Icons.Default.MoreVert,
+                            imageVector = Icons.Default.MoreHoriz,
                             contentDescription = "Song options",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                     
@@ -131,39 +150,87 @@ fun SongRow(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
-                        onPlayNow?.let {
+                        if (onPlayNow != null) {
                             DropdownMenuItem(
-                                text = { Text("Play Now") },
+                                text = { Text("Play Now", fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
                                 onClick = {
-                                    it()
+                                    onPlayNow()
                                     showMenu = false
                                 }
                             )
                         }
-                        onToggleFavorite?.let {
+                        if (onToggleFavorite != null) {
                             DropdownMenuItem(
-                                text = { Text(if (isFavorite) "Remove from Favorites" else "Add to Favorites") },
-                                leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) },
+                                text = { Text(if (isFavorite) "Remove from Favorites" else "Add to Favorites", fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = null,
+                                        tint = if (isFavorite) Color(0xFFFA2D48) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
                                 onClick = {
-                                    it()
+                                    onToggleFavorite()
                                     showMenu = false
                                 }
                             )
                         }
-                        onAddToPlaylist?.let {
+                        if (onAddToPlaylist != null) {
                             DropdownMenuItem(
-                                text = { Text("Add to Playlist") },
+                                text = { Text("Add to Playlist", fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.PlaylistAdd,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
                                 onClick = {
-                                    it()
+                                    onAddToPlaylist()
                                     showMenu = false
                                 }
                             )
                         }
-                        onRemove?.let {
+                        if (onAddToQueue != null) {
                             DropdownMenuItem(
-                                text = { Text("Remove from Playlist") },
+                                text = { Text("Add to Queue", fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.QueueMusic,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
                                 onClick = {
-                                    it()
+                                    onAddToQueue()
+                                    showMenu = false
+                                }
+                            )
+                        }
+                        if (onRemove != null) {
+                            DropdownMenuItem(
+                                text = { Text("Remove from Playlist", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = {
+                                    onRemove()
                                     showMenu = false
                                 }
                             )

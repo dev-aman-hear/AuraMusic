@@ -1,12 +1,12 @@
-# 🎵 Aura Music V2.9
+# 🎵 Aura Music V3.0.0 (Glass Edition)
 
-A premium, modern Android music player built with Kotlin and Jetpack Compose. Featuring a clean Apple Music-inspired design, powerful local audio playback, and a unique "Dynamic Pill" overlay for global music control.
+A premium, modern Android music player built with Kotlin and Jetpack Compose. Featuring a futuristic Glassmorphic design finish, Apple Music-inspired aesthetics, powerful local audio playback, advanced playlist controls, and a unique "Dynamic Pill" overlay for global music control.
 
-## 🚀 What's New in V2.9
-* **Modular Architecture**: Refactored the UI layer into modular screen components for better maintainability.
-* **Jetpack Navigation**: Implemented a robust navigation system using the official Jetpack Navigation Compose library.
-* **Modernized UI Entry**: Streamlined the `MainActivity` as a clean navigation host.
-* **Improved Performance**: Optimized screen transitions and state management.
+## 🚀 What's New in V3.0.0
+* **Glassmorphic UI Redesign**: Frosted translucent glass finish applied across floating navigation bars, mini player, cards, dialogs, and popup menus.
+* **Advanced Playlist & Song Controls**: Integrated full 3-dot dropdown menus and "+" action buttons for fast Playlist Creation/Merging, Enqueueing, Favoriting, and Removal.
+* **Batch Queue & Favorite Actions**: Append entire playlists or albums to the playback queue or favorites with a single tap.
+* **Modular Architecture & Performance**: Optimized Jetpack Compose state management and smooth animated transitions.
 
 ## ✨ Key Features
 
