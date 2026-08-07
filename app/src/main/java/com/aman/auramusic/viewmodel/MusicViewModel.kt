@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.Playlist
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.data.model.ThemeMode
 import com.aman.auramusic.data.repository.MusicRepository
 import com.aman.auramusic.data.repository.UserPreferencesRepository
 import kotlinx.coroutines.Dispatchers
@@ -255,6 +256,12 @@ class MusicViewModel @Inject constructor(application: Application) : AndroidView
     fun setPillSizeScale(scale: Float) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setPillSizeScale(scale)
+        }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setThemeMode(mode)
         }
     }
 

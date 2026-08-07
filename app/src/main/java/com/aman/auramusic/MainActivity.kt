@@ -118,6 +118,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aman.auramusic.data.model.Playlist
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.data.model.ThemeMode
 import com.aman.auramusic.ui.component.MiniPlayer
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.component.SongRow
@@ -129,7 +130,10 @@ import com.aman.auramusic.ui.screen.LibraryScreen
 import com.aman.auramusic.ui.screen.OnlinePlaylistsScreen
 import com.aman.auramusic.ui.screen.PlayerScreen
 import com.aman.auramusic.ui.screen.SearchScreen
+import com.aman.auramusic.ui.screen.SettingsScreen
+import com.aman.auramusic.ui.screen.AboutDialog
 import com.aman.auramusic.ui.theme.AuraMusicTheme
+import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.viewmodel.MusicViewModel
 import com.aman.auramusic.viewmodel.OnlinePlaylistViewModel
 import com.aman.auramusic.viewmodel.PlayerViewModel
@@ -155,6 +159,7 @@ class MainActivity : ComponentActivity() {
             val appSettings by musicViewModel.settings.collectAsStateWithLifecycle()
             
             AuraMusicTheme(
+                themeMode = appSettings.themeMode,
                 dynamicColor = appSettings.dynamicColors,
                 amoledMode = appSettings.amoledMode
             ) {
@@ -353,6 +358,9 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
         }
     }
 
+    val isDark = LocalIsDark.current
+    val topBgColor = if (isDark) Color.Black.copy(alpha = 0.65f) else MaterialTheme.colorScheme.background
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -363,9 +371,9 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.65f),
-                            animatedDominantColor.copy(alpha = 0.35f),
-                            animatedDominantColor.copy(alpha = 0.12f),
+                            topBgColor,
+                            animatedDominantColor.copy(alpha = if (isDark) 0.35f else 0.15f),
+                            animatedDominantColor.copy(alpha = if (isDark) 0.12f else 0.05f),
                             animatedDominantColor.copy(alpha = 0.02f),
                             MaterialTheme.colorScheme.background
                         )
@@ -383,6 +391,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 username = username,
                                 appSettings = appSettings,
                                 onUsernameChange = { musicViewModel.updateUsername(it) },
+                                onThemeModeChange = { mode -> musicViewModel.setThemeMode(mode) },
                                 onDynamicColorsChange = { musicViewModel.setDynamicColors(it) },
                                 onAmoledChange = { musicViewModel.setAmoledMode(it) },
                                 onBlurIntensityChange = { musicViewModel.setBlurIntensity(it) },
@@ -2097,23 +2106,33 @@ private fun BottomNavBar(
     selectedTab: AppTab,
     onTabSelected: (AppTab) -> Unit
 ) {
+    val isDark = LocalIsDark.current
+    val navBgColor = if (isDark) Color.Black.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.95f)
+    val navBorderBrush = if (isDark) {
+        Brush.linearGradient(
+            listOf(
+                Color.White.copy(alpha = 0.40f),
+                Color.White.copy(alpha = 0.10f)
+            )
+        )
+    } else {
+        Brush.linearGradient(
+            listOf(
+                Color.White.copy(alpha = 0.95f),
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+            )
+        )
+    }
+
     Surface(
-        color = Color.Black.copy(alpha = 0.65f),
+        color = navBgColor,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .navigationBarsPadding()
-            .shadow(16.dp, RoundedCornerShape(26.dp)),
+            .shadow(if (isDark) 16.dp else 8.dp, RoundedCornerShape(26.dp)),
         shape = RoundedCornerShape(26.dp),
-        border = BorderStroke(
-            1.dp,
-            Brush.linearGradient(
-                listOf(
-                    Color.White.copy(alpha = 0.40f),
-                    Color.White.copy(alpha = 0.10f)
-                )
-            )
-        )
+        border = BorderStroke(1.dp, navBorderBrush)
     ) {
         Row(
             modifier = Modifier
@@ -2124,15 +2143,22 @@ private fun BottomNavBar(
         ) {
             AppTab.entries.forEach { tab ->
                 val selected = selectedTab == tab
-                val tint = if (selected) Color(0xFFFA2D48) else Color.White.copy(alpha = 0.60f)
+                val tint = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    if (isDark) Color.White.copy(alpha = 0.60f) else MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                val selectedItemBg = if (selected) {
+                    if (isDark) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                } else {
+                    Color.Transparent
+                }
                 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
-                        .background(
-                            if (selected) Color.White.copy(alpha = 0.12f) else Color.Transparent
-                        )
+                        .background(selectedItemBg)
                         .clickable { onTabSelected(tab) }
                         .padding(horizontal = 14.dp, vertical = 6.dp)
                 ) {
@@ -2155,337 +2181,7 @@ private fun BottomNavBar(
     }
 }
 
-@Composable
-private fun SettingsScreen(
-    songCount: Int,
-    albumCount: Int,
-    artistCount: Int,
-    username: String,
-    appSettings: com.aman.auramusic.data.model.AppSettings,
-    onUsernameChange: (String) -> Unit,
-    onDynamicColorsChange: (Boolean) -> Unit,
-    onAmoledChange: (Boolean) -> Unit,
-    onBlurIntensityChange: (Int) -> Unit,
-    onKaraokeChange: (Boolean) -> Unit,
-    onLyricFontScaleChange: (Float) -> Unit,
-    onCrossfadeChange: (Boolean) -> Unit,
-    onGaplessChange: (Boolean) -> Unit,
-    onSkipSilenceChange: (Boolean) -> Unit,
-    onSmartAudioFocusChange: (Boolean) -> Unit,
-    onKeepPlayingOnCloseChange: (Boolean) -> Unit,
-    onPlaylistGridColumnsChange: (Int) -> Unit,
-    onPillPositionChange: (Int) -> Unit,
-    onPillVerticalOffsetChange: (Int) -> Unit,
-    onPillSizeScaleChange: (Float) -> Unit,
-    onDynamicPillChange: (Boolean) -> Unit,
-    onImportPlaylistFile: () -> Unit,
-    onExportAllSongs: () -> Unit,
-    onExportPlaylist: () -> Unit,
-    onRefresh: () -> Unit,
-    onBack: () -> Unit,
-    onShowAbout: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Settings",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.Close, contentDescription = "Close")
-                }
-            }
-        }
 
-        item {
-            Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.66f)) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Personalization", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    
-                    var localUsername by remember { mutableStateOf(username) }
-                    
-                    OutlinedTextField(
-                        value = localUsername,
-                        onValueChange = { 
-                            localUsername = it
-                            onUsernameChange(it) 
-                        },
-                        label = { Text("Username") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(18.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    ToggleRow(title = "Dynamic colors", checked = appSettings.dynamicColors, onCheckedChange = onDynamicColorsChange)
-                    ToggleRow(title = "AMOLED dark mode", checked = appSettings.amoledMode, onCheckedChange = onAmoledChange)
-                    ToggleRow(title = "Dynamic Pill (Overlay)", checked = appSettings.dynamicPillEnabled, onCheckedChange = onDynamicPillChange)
-                    
-                    if (appSettings.dynamicPillEnabled) {
-                        Column(modifier = Modifier.padding(top = 8.dp)) {
-                            val posText = when(appSettings.pillPosition) {
-                                0 -> "Left"
-                                2 -> "Right"
-                                else -> "Center"
-                            }
-                            Text("Pill position: $posText", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Slider(
-                                value = appSettings.pillPosition.toFloat(),
-                                onValueChange = { onPillPositionChange(it.toInt()) },
-                                valueRange = 0f..2f,
-                                steps = 1
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Pill vertical offset: ${appSettings.pillVerticalOffset}dp", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Slider(
-                                value = appSettings.pillVerticalOffset.toFloat(),
-                                onValueChange = { onPillVerticalOffsetChange(it.toInt()) },
-                                valueRange = 0f..64f,
-                                steps = 15
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Pill size scale: ${String.format("%.1f", appSettings.pillSizeScale)}x", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Slider(
-                                value = appSettings.pillSizeScale,
-                                onValueChange = { onPillSizeScaleChange(it) },
-                                valueRange = 1.0f..2.0f,
-                                steps = 9
-                            )
-                        }
-                    }
-
-                    ToggleRow(title = "Karaoke mode", checked = appSettings.karaokeMode, onCheckedChange = onKaraokeChange)
-                }
-            }
-        }
-
-        item {
-            Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.66f)) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Appearance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Blur intensity", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                    Slider(
-                        value = appSettings.blurIntensity.toFloat(),
-                        onValueChange = { onBlurIntensityChange(it.toInt()) },
-                        valueRange = 0f..100f,
-                        steps = 9
-                    )
-                    Text("Lyric font size", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                    Slider(
-                        value = appSettings.lyricFontScale,
-                        onValueChange = onLyricFontScaleChange,
-                        valueRange = 0.8f..1.4f,
-                        steps = 5
-                    )
-                }
-            }
-        }
-
-        item {
-            Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.66f)) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Playback", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    ToggleRow(title = "Crossfade", checked = appSettings.crossfadeEnabled, onCheckedChange = onCrossfadeChange)
-                    ToggleRow(title = "Gapless playback", checked = appSettings.gaplessEnabled, onCheckedChange = onGaplessChange)
-                    ToggleRow(title = "Skip silence", checked = appSettings.skipSilence, onCheckedChange = onSkipSilenceChange)
-                    ToggleRow(title = "Smart audio focus", checked = appSettings.smartAudioFocus, onCheckedChange = onSmartAudioFocusChange)
-                    ToggleRow(title = "Keep playing on app close", checked = appSettings.keepPlayingOnClose, onCheckedChange = onKeepPlayingOnCloseChange)
-                    Text("Playlist view columns: ${appSettings.playlistGridColumns}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                    Slider(
-                        value = appSettings.playlistGridColumns.toFloat(),
-                        onValueChange = { onPlaylistGridColumnsChange(it.toInt()) },
-                        valueRange = 1f..2f,
-                        steps = 0
-                    )
-                }
-            }
-        }
-
-        item {
-            Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.66f)) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("System & Files", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    
-                    SettingsRow(
-                        icon = Icons.Default.ArrowUpward,
-                        title = "Import from file",
-                        subtitle = "Import shared playlist files",
-                        onClick = onImportPlaylistFile
-                    )
-
-                    SettingsRow(
-                        icon = Icons.Default.PlaylistAdd,
-                        title = "Export playlist",
-                        subtitle = "Export your playlists to a file",
-                        onClick = onExportPlaylist
-                    )
-
-                    SettingsRow(
-                        icon = Icons.Default.ArrowDownward,
-                        title = "Export all songs",
-                        subtitle = "Export all songs present on device to JSON",
-                        onClick = onExportAllSongs
-                    )
-                }
-            }
-        }
-
-        item {
-            SettingsRow(
-                icon = Icons.Default.Refresh,
-                title = "Scan local music",
-                subtitle = "Refresh songs from device storage",
-                onClick = onRefresh
-            )
-        }
-
-        item {
-                SettingsRow(
-                    icon = Icons.Default.Info,
-                    title = "About Aura Music",
-                    subtitle = "Version 2.7.0",
-                    onClick = onShowAbout
-                )
-        }
-        
-        item {
-            Spacer(modifier = Modifier.height(100.dp))
-        }
-    }
-}
-
-@Composable
-private fun AboutDialog(onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Surface(
-                    modifier = Modifier.size(80.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Image(
-                            painter = painterResource(id = R.drawable.aura_logo),
-                            contentDescription = "Aura Logo",
-                            modifier = Modifier.size(64.dp)
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(20.dp))
-                
-                Text(
-                    text = "Aura Music",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold
-                )
-                Text(
-                    text = "Version 3.0.0 (Glass Edition)",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Text(
-                    text = "A premium, Apple Music-inspired player with stable background playback, intelligent audio focus, and cross-user playlist sharing.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Text(
-                    text = "Developed by Aman",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Close", fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ToggleRow(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(text = title, style = MaterialTheme.typography.bodyLarge)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
-@Composable
-private fun SettingsRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .clickable { onClick() }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Surface(
-            modifier = Modifier.size(44.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-            contentColor = MaterialTheme.colorScheme.primary
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
-            }
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
 
 private enum class AppTab(
     val label: String,

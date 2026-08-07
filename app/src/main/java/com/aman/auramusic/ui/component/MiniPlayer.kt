@@ -16,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -38,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.ui.theme.LocalIsDark
 
 @Composable
 fun MiniPlayer(
@@ -54,12 +54,22 @@ fun MiniPlayer(
     val progress = if (duration > 0) position.toFloat() / duration.toFloat() else 0f
     var dragX by remember { mutableFloatStateOf(0f) }
     var dragY by remember { mutableFloatStateOf(0f) }
+    val isDark = LocalIsDark.current
+
+    val containerColor = if (isDark) {
+        Color.Black.copy(alpha = 0.55f)
+    } else {
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+    }
+    val titleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
+    val subtitleColor = if (isDark) Color.White.copy(alpha = 0.65f) else MaterialTheme.colorScheme.onSurfaceVariant
+    val iconTint = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 6.dp)
-            .shadow(16.dp, RoundedCornerShape(22.dp))
+            .shadow(if (isDark) 16.dp else 10.dp, RoundedCornerShape(22.dp))
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragEnd = {
@@ -82,18 +92,27 @@ fun MiniPlayer(
             }
             .clickable { onOpen() },
         shape = RoundedCornerShape(22.dp),
-        color = Color.Black.copy(alpha = 0.55f),
+        color = containerColor,
         border = BorderStroke(
             1.dp,
-            androidx.compose.ui.graphics.Brush.linearGradient(
-                listOf(
-                    Color.White.copy(alpha = 0.40f),
-                    dominantColor.copy(alpha = 0.30f),
-                    Color.White.copy(alpha = 0.12f)
+            if (isDark) {
+                androidx.compose.ui.graphics.Brush.linearGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.40f),
+                        dominantColor.copy(alpha = 0.30f),
+                        Color.White.copy(alpha = 0.12f)
+                    )
                 )
-            )
+            } else {
+                androidx.compose.ui.graphics.Brush.linearGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.95f),
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.30f)
+                    )
+                )
+            }
         ),
-        shadowElevation = 12.dp
+        shadowElevation = if (isDark) 12.dp else 6.dp
     ) {
         Column {
             LinearProgressIndicator(
@@ -101,7 +120,7 @@ fun MiniPlayer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(2.dp),
-                color = Color(0xFFFA2D48),
+                color = MaterialTheme.colorScheme.primary,
                 trackColor = Color.Transparent,
             )
             
@@ -124,14 +143,14 @@ fun MiniPlayer(
                         text = song.title,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = titleColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = song.artist,
                         fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.65f),
+                        color = subtitleColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -141,7 +160,7 @@ fun MiniPlayer(
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = "Play/Pause",
-                        tint = Color.White,
+                        tint = iconTint,
                         modifier = Modifier.size(26.dp)
                     )
                 }
@@ -150,7 +169,7 @@ fun MiniPlayer(
                     Icon(
                         imageVector = Icons.Default.FastForward,
                         contentDescription = "Next",
-                        tint = Color.White,
+                        tint = iconTint,
                         modifier = Modifier.size(24.dp)
                     )
                 }

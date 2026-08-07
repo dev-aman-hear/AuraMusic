@@ -8,8 +8,13 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import com.aman.auramusic.data.model.ThemeMode
+
+val LocalIsDark = staticCompositionLocalOf { false }
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFFFF375F),
@@ -19,6 +24,8 @@ private val DarkColorScheme = darkColorScheme(
     surface = Color(0xFF1C1C1E),
     surfaceVariant = Color(0xFF2C2C2E),
     onPrimary = Color.White,
+    onSecondary = Color.White,
+    onTertiary = Color.White,
     onBackground = Color.White,
     onSurface = Color.White,
     onSurfaceVariant = Color(0xFFEBEBF5),
@@ -29,23 +36,34 @@ private val LightColorScheme = lightColorScheme(
     primary = Color(0xFFFF2D55),
     secondary = Color(0xFFE64667),
     tertiary = Color(0xFFFF8FA3),
-    background = Color(0xFFFFFBFF),
+    background = Color(0xFFF8F9FA),
     surface = Color.White,
-    surfaceVariant = Color(0xFFF2F2F7),
-    onPrimary = Color.Black,
-    onBackground = Color.Black,
-    onSurface = Color.Black,
-    onSurfaceVariant = Color(0xFF3C3C43),
-    outline = Color(0xFFD1D1D6)
+    surfaceVariant = Color(0xFFEFF1F5),
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onTertiary = Color.White,
+    onBackground = Color(0xFF1C1C1E),
+    onSurface = Color(0xFF1C1C1E),
+    onSurfaceVariant = Color(0xFF6C6C70),
+    outline = Color(0xFFE0E0E6),
+    primaryContainer = Color(0xFFFFE8EC),
+    onPrimaryContainer = Color(0xFFD81B43)
 )
 
 @Composable
 fun AuraMusicTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     dynamicColor: Boolean = true,
     amoledMode: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val isSystemDark = isSystemInDarkTheme()
+    val darkTheme = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemDark
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
@@ -61,9 +79,11 @@ fun AuraMusicTheme(
         else -> LightColorScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalIsDark provides darkTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

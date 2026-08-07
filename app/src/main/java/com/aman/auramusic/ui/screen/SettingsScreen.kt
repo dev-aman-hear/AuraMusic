@@ -25,8 +25,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.DarkMode
 import com.aman.auramusic.R
 import com.aman.auramusic.data.model.AppSettings
+import com.aman.auramusic.data.model.ThemeMode
 
 @Composable
 fun SettingsScreen(
@@ -36,6 +41,7 @@ fun SettingsScreen(
     username: String,
     appSettings: AppSettings,
     onUsernameChange: (String) -> Unit,
+    onThemeModeChange: (ThemeMode) -> Unit = {},
     onDynamicColorsChange: (Boolean) -> Unit,
     onAmoledChange: (Boolean) -> Unit,
     onBlurIntensityChange: (Int) -> Unit,
@@ -102,6 +108,10 @@ fun SettingsScreen(
                         singleLine = true,
                         shape = RoundedCornerShape(18.dp),
                         modifier = Modifier.fillMaxWidth()
+                    )
+                    ThemeSelectionRow(
+                        selectedTheme = appSettings.themeMode,
+                        onThemeSelected = onThemeModeChange
                     )
                     ToggleRow(title = "Dynamic colors", checked = appSettings.dynamicColors, onCheckedChange = onDynamicColorsChange)
                     ToggleRow(title = "AMOLED dark mode", checked = appSettings.amoledMode, onCheckedChange = onAmoledChange)
@@ -368,6 +378,62 @@ fun SettingsRow(
         Column {
             Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun ThemeSelectionRow(
+    selectedTheme: ThemeMode,
+    onThemeSelected: (ThemeMode) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "App Theme",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val themes = listOf(
+                ThemeMode.SYSTEM to ("System" to Icons.Default.BrightnessAuto),
+                ThemeMode.LIGHT to ("Light" to Icons.Default.LightMode),
+                ThemeMode.DARK to ("Dark" to Icons.Default.DarkMode)
+            )
+            themes.forEach { (mode, pair) ->
+                val (label, icon) = pair
+                val isSelected = selectedTheme == mode
+                Surface(
+                    onClick = { onThemeSelected(mode) },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                    border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
         }
     }
 }

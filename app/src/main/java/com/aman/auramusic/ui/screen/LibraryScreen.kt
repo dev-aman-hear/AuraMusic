@@ -26,10 +26,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
 import com.aman.auramusic.data.model.Playlist
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.component.SongRow
+import com.aman.auramusic.ui.theme.LocalIsDark
 
 @Composable
 fun LibraryScreen(
@@ -56,7 +58,24 @@ fun LibraryScreen(
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDark.current
+
+    var showAllPlaylists by remember { mutableStateOf(false) }
+
+    if (showAllPlaylists) {
+        AllPlaylistsScreen(
+            playlists = playlists,
+            allSongs = allSongs,
+            columns = playlistGridColumns,
+            onBack = { showAllPlaylists = false },
+            onPlaylistSelected = { playlist ->
+                showAllPlaylists = false
+                onPlaylistSelected(playlist)
+            },
+            onCreatePlaylist = onCreatePlaylist
+        )
+        return
+    }
 
     val featuredSong = remember(songs) { songs.firstOrNull() }
     val bestNewSongs = remember(songs) { songs.take(4) }
@@ -135,6 +154,114 @@ fun LibraryScreen(
                                             )
                                         )
                                     )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- MY PLAYLISTS (CUSTOM PLAYLISTS) ---
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { showAllPlaylists = true }
+                ) {
+                    Text(
+                        text = "My Playlists",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) Color.White else Color.Black
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onCreatePlaylist,
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "New Playlist",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
+        if (playlists.isNotEmpty()) {
+            item {
+                val songById = remember(allSongs) { allSongs.associateBy { it.id } }
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Custom Playlists
+                    items(playlists, key = { "pl_${it.id}" }) { playlist ->
+                        val firstSong = playlist.songIds.firstOrNull()?.let { songById[it] }
+                        Column(
+                            modifier = Modifier
+                                .width(140.dp)
+                                .clickable { onPlaylistSelected(playlist) }
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(140.dp)
+                                    .shadow(4.dp, RoundedCornerShape(14.dp))
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                if (firstSong != null) {
+                                    SongArtwork(
+                                        song = firstSong,
+                                        size = 140,
+                                        shape = RoundedCornerShape(14.dp),
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.QueueMusic,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .align(Alignment.Center)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = playlist.name,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) Color.White else Color.Black,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "${playlist.songIds.size} songs",
+                                fontSize = 12.sp,
+                                color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -323,7 +450,7 @@ fun LibraryScreen(
 
 @Composable
 fun SectionHeaderTitle(title: String, onClick: () -> Unit) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDark.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -357,7 +484,7 @@ fun StackedSongRow(
     onAddToQueue: (() -> Unit)? = null,
     onToggleFavorite: (() -> Unit)? = null
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDark.current
     var showMenu by remember { mutableStateOf(false) }
 
     Row(
@@ -512,7 +639,7 @@ fun LibraryHeader(
     onRefresh: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDark.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -700,5 +827,227 @@ fun EmptyLibrary(query: String) {
             fontSize = 15.sp,
             color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f)
         )
+    }
+}
+
+@Composable
+fun AllPlaylistsScreen(
+    playlists: List<Playlist>,
+    allSongs: List<Song>,
+    columns: Int,
+    onBack: () -> Unit,
+    onPlaylistSelected: (Playlist) -> Unit,
+    onCreatePlaylist: () -> Unit
+) {
+    val isDark = LocalIsDark.current
+    val songById = remember(allSongs) { allSongs.associateBy { it.id } }
+
+    BackHandler {
+        onBack()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+    ) {
+        // Top Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = if (isDark) Color.White else Color.Black
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "My Playlists",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = if (isDark) Color.White else Color.Black
+                )
+            }
+
+            IconButton(
+                onClick = onCreatePlaylist,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "New Playlist",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        if (playlists.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.QueueMusic,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = (if (isDark) Color.White else Color.Black).copy(alpha = 0.3f)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "No custom playlists created yet",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = onCreatePlaylist,
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Create Playlist", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        } else {
+            if (columns <= 1) {
+                // 1 Column List View
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 100.dp, start = 20.dp, end = 20.dp)
+                ) {
+                    items(playlists, key = { "all_pl_${it.id}" }) { playlist ->
+                        val firstSong = playlist.songIds.firstOrNull()?.let { songById[it] }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { onPlaylistSelected(playlist) }
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            SongArtwork(
+                                song = firstSong,
+                                size = 60,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = playlist.name,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) Color.White else Color.Black,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    text = "${playlist.songIds.size} songs",
+                                    fontSize = 13.sp,
+                                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f)
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = (if (isDark) Color.White else Color.Black).copy(alpha = 0.4f),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Divider(
+                            color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.08f),
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(start = 76.dp)
+                        )
+                    }
+                }
+            } else {
+                // 2 Column Grid View
+                val chunkedPlaylists = remember(playlists) { playlists.chunked(2) }
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 100.dp, start = 20.dp, end = 20.dp, top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(chunkedPlaylists) { pair ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            pair.forEach { playlist ->
+                                val firstSong = playlist.songIds.firstOrNull()?.let { songById[it] }
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { onPlaylistSelected(playlist) }
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .aspectRatio(1f)
+                                            .shadow(6.dp, RoundedCornerShape(16.dp))
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    ) {
+                                        if (firstSong != null) {
+                                            SongArtwork(
+                                                song = firstSong,
+                                                size = 200,
+                                                shape = RoundedCornerShape(16.dp),
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Default.QueueMusic,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier
+                                                    .size(56.dp)
+                                                    .align(Alignment.Center)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = playlist.name,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isDark) Color.White else Color.Black,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "${playlist.songIds.size} songs",
+                                        fontSize = 13.sp,
+                                        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                            if (pair.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

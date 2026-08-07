@@ -38,6 +38,7 @@ import com.aman.auramusic.data.model.PlaybackHistoryEntry
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.component.SongRow
+import com.aman.auramusic.ui.theme.LocalIsDark
 import java.util.Calendar
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -91,7 +92,7 @@ fun HomeScreen(
         )
     }
 
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDark.current
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -147,28 +148,40 @@ fun HomeScreen(
         // --- TOP PICKS SECTION ---
         item {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 20.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "Top Picks",
-                        fontSize = 22.sp,
+                        text = "FEATURED STATIONS",
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color.White else Color.Black
+                        color = Color(0xFFFF2D55),
+                        letterSpacing = 0.5.sp
                     )
-                    Text(
-                        text = "Featuring $topArtist",
-                        fontSize = 13.sp,
-                        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.5f),
-                        fontWeight = FontWeight.Normal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 160.dp)
-                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Top Picks",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isDark) Color.White else Color.Black
+                        )
+                        Text(
+                            text = "Featuring $topArtist",
+                            fontSize = 13.sp,
+                            color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 160.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -178,21 +191,21 @@ fun HomeScreen(
                     contentPadding = PaddingValues(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // CARD 1: Discovery Station (Apple Music Angled Gradient)
+                    // CARD 1: Discovery Station
                     item {
                         Card(
                             modifier = Modifier
                                 .width(260.dp)
                                 .height(310.dp)
-                                .shadow(8.dp, RoundedCornerShape(18.dp))
-                                .clip(RoundedCornerShape(18.dp))
+                                .shadow(10.dp, RoundedCornerShape(20.dp))
+                                .clip(RoundedCornerShape(20.dp))
                                 .clickable {
                                     if (songs.isNotEmpty()) {
                                         val shuffled = songs.shuffled()
                                         onSongSelected(shuffled.first(), shuffled)
                                     }
                                 },
-                            shape = RoundedCornerShape(18.dp)
+                            shape = RoundedCornerShape(20.dp)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -200,38 +213,77 @@ fun HomeScreen(
                                     .background(
                                         Brush.linearGradient(
                                             colors = listOf(
-                                                Color(0xFF2E0854),
+                                                Color(0xFF3B0764),
                                                 Color(0xFF1E3A8A),
                                                 Color(0xFF0284C7),
-                                                Color(0xFF10B981),
-                                                Color(0xFF7C3AED)
+                                                Color(0xFF0D9488),
+                                                Color(0xFF6D28D9)
                                             )
                                         )
                                     )
                             ) {
-                                // Top Badge Branding
+                                // Top Branding Badge
                                 Row(
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .padding(14.dp),
+                                        .padding(14.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color.Black.copy(alpha = 0.35f))
+                                        .padding(horizontal = 10.dp, vertical = 5.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.MusicNote,
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "AuraMusic",
+                                        text = "Discovery",
                                         color = Color.White,
-                                        fontSize = 13.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
 
-                                // Bottom Label Container (iOS Dark Translucent Overlay)
+                                // Center Artwork / Graphic Icon
+                                Icon(
+                                    imageVector = Icons.Default.Radio,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.15f),
+                                    modifier = Modifier
+                                        .size(120.dp)
+                                        .align(Alignment.Center)
+                                )
+
+                                // Floating Play Button
+                                Surface(
+                                    onClick = {
+                                        if (songs.isNotEmpty()) {
+                                            val shuffled = songs.shuffled()
+                                            onSongSelected(shuffled.first(), shuffled)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(end = 16.dp, bottom = 80.dp)
+                                        .size(46.dp)
+                                        .shadow(8.dp, CircleShape),
+                                    shape = CircleShape,
+                                    color = Color(0xFFFF2D55)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Play",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+                                }
+
+                                // Bottom Glass Panel
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -240,28 +292,26 @@ fun HomeScreen(
                                         .background(
                                             Brush.verticalGradient(
                                                 colors = listOf(
-                                                    Color(0xFF1E1B4B).copy(alpha = 0.65f),
-                                                    Color(0xFF111827).copy(alpha = 0.95f)
+                                                    Color(0xFF0F172A).copy(alpha = 0.65f),
+                                                    Color(0xFF020617).copy(alpha = 0.95f)
                                                 )
                                             )
                                         )
                                         .padding(16.dp),
-                                    contentAlignment = Alignment.Center
+                                    contentAlignment = Alignment.CenterStart
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Column {
                                         Text(
                                             text = "Discovery Station",
                                             color = Color.White,
-                                            fontSize = 17.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            textAlign = TextAlign.Center
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.ExtraBold
                                         )
-                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Spacer(modifier = Modifier.height(2.dp))
                                         Text(
-                                            text = "Made for You",
-                                            color = Color.White.copy(alpha = 0.7f),
-                                            fontSize = 12.sp,
-                                            textAlign = TextAlign.Center
+                                            text = "Personalized mix based on your taste",
+                                            color = Color.White.copy(alpha = 0.75f),
+                                            fontSize = 12.sp
                                         )
                                     }
                                 }
@@ -269,14 +319,14 @@ fun HomeScreen(
                         }
                     }
 
-                    // CARD 2: Artist Station (Beck & Similar style card with circular inset)
+                    // CARD 2: Artist Station
                     item {
                         Card(
                             modifier = Modifier
                                 .width(260.dp)
                                 .height(310.dp)
-                                .shadow(8.dp, RoundedCornerShape(18.dp))
-                                .clip(RoundedCornerShape(18.dp))
+                                .shadow(10.dp, RoundedCornerShape(20.dp))
+                                .clip(RoundedCornerShape(20.dp))
                                 .clickable {
                                     val artistSongs = songs.filter { it.artist == topArtist }
                                     if (artistSongs.isNotEmpty()) {
@@ -285,7 +335,7 @@ fun HomeScreen(
                                         onSongSelected(songs.first(), songs)
                                     }
                                 },
-                            shape = RoundedCornerShape(18.dp)
+                            shape = RoundedCornerShape(20.dp)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -293,14 +343,13 @@ fun HomeScreen(
                                     .background(
                                         Brush.verticalGradient(
                                             colors = listOf(
-                                                Color(0xFF475569),
+                                                Color(0xFF334155),
                                                 Color(0xFF1E293B),
                                                 Color(0xFF0F172A)
                                             )
                                         )
                                     )
                             ) {
-                                // Background graphic / artwork representation
                                 if (topArtistSong != null) {
                                     SongArtwork(
                                         song = topArtistSong,
@@ -316,8 +365,8 @@ fun HomeScreen(
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .padding(16.dp)
-                                        .size(68.dp)
+                                        .padding(14.dp)
+                                        .size(56.dp)
                                         .shadow(6.dp, CircleShape)
                                         .clip(CircleShape)
                                         .border(2.dp, Color.White.copy(alpha = 0.9f), CircleShape)
@@ -325,40 +374,66 @@ fun HomeScreen(
                                 ) {
                                     SongArtwork(
                                         song = topArtistSong,
-                                        size = 68,
+                                        size = 56,
                                         shape = CircleShape,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
 
-                                // Bottom Label Container
+                                // Floating Play Button
+                                Surface(
+                                    onClick = {
+                                        val artistSongs = songs.filter { it.artist == topArtist }
+                                        if (artistSongs.isNotEmpty()) {
+                                            onSongSelected(artistSongs.first(), artistSongs)
+                                        } else if (songs.isNotEmpty()) {
+                                            onSongSelected(songs.first(), songs)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(end = 16.dp, bottom = 80.dp)
+                                        .size(46.dp)
+                                        .shadow(8.dp, CircleShape),
+                                    shape = CircleShape,
+                                    color = Color(0xFFFF2D55)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Play",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+                                }
+
+                                // Bottom Glass Panel
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(95.dp)
                                         .align(Alignment.BottomCenter)
                                         .background(
-                                            Color(0xFF1E293B).copy(alpha = 0.95f)
+                                            Color(0xFF0F172A).copy(alpha = 0.92f)
                                         )
                                         .padding(16.dp),
-                                    contentAlignment = Alignment.Center
+                                    contentAlignment = Alignment.CenterStart
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Column {
                                         Text(
                                             text = "$topArtist & Similar",
                                             color = Color.White,
-                                            fontSize = 16.sp,
+                                            fontSize = 17.sp,
                                             fontWeight = FontWeight.Bold,
                                             maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center
+                                            overflow = TextOverflow.Ellipsis
                                         )
-                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Spacer(modifier = Modifier.height(2.dp))
                                         Text(
-                                            text = "Artist Station",
-                                            color = Color.White.copy(alpha = 0.7f),
-                                            fontSize = 12.sp,
-                                            textAlign = TextAlign.Center
+                                            text = "Artist Radio Station",
+                                            color = Color.White.copy(alpha = 0.75f),
+                                            fontSize = 12.sp
                                         )
                                     }
                                 }
@@ -366,14 +441,14 @@ fun HomeScreen(
                         }
                     }
 
-                    // CARD 3: Favorites Station (Vibrant Aura Gradient)
+                    // CARD 3: Favorites Station
                     item {
                         Card(
                             modifier = Modifier
                                 .width(260.dp)
                                 .height(310.dp)
-                                .shadow(8.dp, RoundedCornerShape(18.dp))
-                                .clip(RoundedCornerShape(18.dp))
+                                .shadow(10.dp, RoundedCornerShape(20.dp))
+                                .clip(RoundedCornerShape(20.dp))
                                 .clickable {
                                     if (favorites.isNotEmpty()) {
                                         onSongSelected(favorites.first(), favorites)
@@ -381,7 +456,7 @@ fun HomeScreen(
                                         onSongSelected(songs.first(), songs)
                                     }
                                 },
-                            shape = RoundedCornerShape(18.dp)
+                            shape = RoundedCornerShape(20.dp)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -400,22 +475,61 @@ fun HomeScreen(
                                 Row(
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .padding(14.dp),
+                                        .padding(14.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color.Black.copy(alpha = 0.35f))
+                                        .padding(horizontal = 10.dp, vertical = 5.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Favorite,
                                         contentDescription = null,
-                                        tint = Color(0xFFFA2D48),
-                                        modifier = Modifier.size(16.dp)
+                                        tint = Color(0xFFFF2D55),
+                                        modifier = Modifier.size(14.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "Favorites",
                                         color = Color.White,
-                                        fontSize = 13.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
+                                }
+
+                                Icon(
+                                    imageVector = Icons.Default.FavoriteBorder,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.15f),
+                                    modifier = Modifier
+                                        .size(120.dp)
+                                        .align(Alignment.Center)
+                                )
+
+                                // Floating Play Button
+                                Surface(
+                                    onClick = {
+                                        if (favorites.isNotEmpty()) {
+                                            onSongSelected(favorites.first(), favorites)
+                                        } else if (songs.isNotEmpty()) {
+                                            onSongSelected(songs.first(), songs)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(end = 16.dp, bottom = 80.dp)
+                                        .size(46.dp)
+                                        .shadow(8.dp, CircleShape),
+                                    shape = CircleShape,
+                                    color = Color(0xFFFF2D55)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Play",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
                                 }
 
                                 Box(
@@ -427,22 +541,20 @@ fun HomeScreen(
                                             Color(0xFF1E1B4B).copy(alpha = 0.92f)
                                         )
                                         .padding(16.dp),
-                                    contentAlignment = Alignment.Center
+                                    contentAlignment = Alignment.CenterStart
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Column {
                                         Text(
                                             text = "Favorites Station",
                                             color = Color.White,
-                                            fontSize = 17.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            textAlign = TextAlign.Center
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.ExtraBold
                                         )
-                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Spacer(modifier = Modifier.height(2.dp))
                                         Text(
                                             text = "${favorites.size} Liked Tracks",
-                                            color = Color.White.copy(alpha = 0.7f),
-                                            fontSize = 12.sp,
-                                            textAlign = TextAlign.Center
+                                            color = Color.White.copy(alpha = 0.75f),
+                                            fontSize = 12.sp
                                         )
                                     }
                                 }

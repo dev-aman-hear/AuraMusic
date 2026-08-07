@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.aman.auramusic.data.model.AppSettings
+import com.aman.auramusic.data.model.ThemeMode
 import com.aman.auramusic.data.model.PlaybackHistoryEntry
 import com.aman.auramusic.data.model.Playlist
 import kotlinx.coroutines.flow.Flow
@@ -44,7 +45,10 @@ class UserPreferencesRepository(private val context: Context) {
             dynamicPillEnabled = prefs[Keys.dynamicPillEnabled] ?: false,
             pillPosition = prefs[Keys.pillPosition] ?: 1,
             pillVerticalOffset = prefs[Keys.pillVerticalOffset] ?: 32,
-            pillSizeScale = prefs[Keys.pillSizeScale] ?: 1.0f
+            pillSizeScale = prefs[Keys.pillSizeScale] ?: 1.0f,
+            themeMode = runCatching {
+                ThemeMode.valueOf(prefs[Keys.themeMode] ?: ThemeMode.SYSTEM.name)
+            }.getOrDefault(ThemeMode.SYSTEM)
         )
     }.distinctUntilChanged()
 
@@ -126,6 +130,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setPillSizeScale(scale: Float) {
         dataStore.edit { it[Keys.pillSizeScale] = scale.coerceIn(1.0f, 2.0f) }
+    }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        dataStore.edit { it[Keys.themeMode] = mode.name }
     }
 
     suspend fun setFavorite(songId: Long, isFavorite: Boolean) {
@@ -275,6 +283,7 @@ class UserPreferencesRepository(private val context: Context) {
             val pillPosition = intPreferencesKey("pill_position")
             val pillVerticalOffset = intPreferencesKey("pill_vertical_offset")
             val pillSizeScale = floatPreferencesKey("pill_size_scale")
+            val themeMode = stringPreferencesKey("theme_mode")
             val favoriteIds = stringPreferencesKey("favorite_ids")
             val recentSearches = stringPreferencesKey("recent_searches")
             val playbackHistory = stringPreferencesKey("playback_history")

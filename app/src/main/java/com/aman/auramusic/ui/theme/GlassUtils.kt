@@ -2,7 +2,6 @@ package com.aman.auramusic.ui.theme
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -20,7 +19,7 @@ import androidx.compose.ui.unit.dp
  */
 
 @Composable
-fun glassBackgroundBrush(isDark: Boolean = isSystemInDarkTheme()): Brush {
+fun glassBackgroundBrush(isDark: Boolean = LocalIsDark.current): Brush {
     return if (isDark) {
         Brush.verticalGradient(
             listOf(
@@ -31,15 +30,15 @@ fun glassBackgroundBrush(isDark: Boolean = isSystemInDarkTheme()): Brush {
     } else {
         Brush.verticalGradient(
             listOf(
-                Color.White.copy(alpha = 0.85f),
-                Color.White.copy(alpha = 0.55f)
+                Color.White.copy(alpha = 0.92f),
+                Color.White.copy(alpha = 0.75f)
             )
         )
     }
 }
 
 @Composable
-fun glassBorderBrush(isDark: Boolean = isSystemInDarkTheme()): Brush {
+fun glassBorderBrush(isDark: Boolean = LocalIsDark.current): Brush {
     return if (isDark) {
         Brush.verticalGradient(
             listOf(
@@ -50,8 +49,8 @@ fun glassBorderBrush(isDark: Boolean = isSystemInDarkTheme()): Brush {
     } else {
         Brush.verticalGradient(
             listOf(
-                Color.White.copy(alpha = 0.90f),
-                Color.White.copy(alpha = 0.30f)
+                Color.White.copy(alpha = 0.95f),
+                Color(0xFFE0E0E6).copy(alpha = 0.60f)
             )
         )
     }
@@ -61,11 +60,12 @@ fun glassBorderBrush(isDark: Boolean = isSystemInDarkTheme()): Brush {
 fun Modifier.glassEffect(
     shape: Shape = RoundedCornerShape(20.dp),
     borderWidth: Dp = 1.dp,
-    elevation: Dp = 8.dp
+    elevation: Dp = 4.dp
 ): Modifier {
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDark.current
+    val effectiveElevation = if (isDark) elevation else (elevation / 2).coerceAtLeast(1.dp)
     return this
-        .shadow(elevation, shape, clip = false)
+        .shadow(effectiveElevation, shape, clip = false)
         .clip(shape)
         .background(glassBackgroundBrush(isDark))
         .border(borderWidth, glassBorderBrush(isDark), shape)
@@ -75,17 +75,18 @@ fun Modifier.glassEffect(
 fun GlassSurface(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(20.dp),
-    elevation: Dp = 8.dp,
+    elevation: Dp = 4.dp,
     borderWidth: Dp = 1.dp,
     content: @Composable () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDark.current
+    val effectiveElevation = if (isDark) elevation else (elevation / 2).coerceAtLeast(1.dp)
     Surface(
         shape = shape,
         color = Color.Transparent,
         tonalElevation = 0.dp,
         modifier = modifier
-            .shadow(elevation, shape, clip = false)
+            .shadow(effectiveElevation, shape, clip = false)
             .clip(shape)
             .background(glassBackgroundBrush(isDark))
             .border(borderWidth, glassBorderBrush(isDark), shape)
