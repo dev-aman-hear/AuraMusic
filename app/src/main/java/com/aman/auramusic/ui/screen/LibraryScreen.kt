@@ -22,7 +22,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.foundation.border
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,6 +83,7 @@ fun LibraryScreen(
     val bestNewSongs = remember(songs) { songs.take(4) }
     val trendingSongs = remember(songs) { songs.drop(4).take(4).ifEmpty { songs.take(4) } }
     val albums = remember(songs) { songs.groupBy { it.album }.entries.toList() }
+    val artistsList = remember(songs) { songs.groupBy { it.artist }.entries.toList() }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -262,6 +265,93 @@ fun LibraryScreen(
                                 color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- ARTISTS SECTION (Circular Pictures) ---
+        if (artistsList.isNotEmpty()) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Artists",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) Color.White else Color.Black
+                    )
+                }
+            }
+
+            item {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(18.dp)
+                ) {
+                    items(artistsList, key = { "art_${it.key}" }) { (artistName, artistSongs) ->
+                        val representativeSong = artistSongs.firstOrNull()
+                        Column(
+                            modifier = Modifier
+                                .width(110.dp)
+                                .clickable { onArtistSelected(artistName) },
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(110.dp)
+                                    .shadow(6.dp, CircleShape)
+                                    .clip(CircleShape)
+                                    .border(
+                                        2.dp,
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                        CircleShape
+                                    )
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                if (representativeSong != null) {
+                                    SongArtwork(
+                                        song = representativeSong,
+                                        size = 110,
+                                        shape = CircleShape,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .align(Alignment.Center)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = artistName,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color.White else Color.Black,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center
+                            )
+                            Text(
+                                text = "${artistSongs.size} ${if (artistSongs.size == 1) "song" else "songs"}",
+                                fontSize = 12.sp,
+                                color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
