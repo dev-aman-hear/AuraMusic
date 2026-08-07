@@ -94,11 +94,24 @@ fun HomeScreen(
 
     val isDark = LocalIsDark.current
 
+    val greeting = remember(username) {
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        val timeGreeting = when (hour) {
+            in 5..11 -> "Good Morning"
+            in 12..16 -> "Good Afternoon"
+            in 17..21 -> "Good Evening"
+            else -> "Good Night"
+        }
+        val cleanName = username.trim()
+        if (cleanName.isNotEmpty()) "$timeGreeting, $cleanName" else timeGreeting
+    }
+    val userInitial = remember(username) { username.trim().firstOrNull()?.uppercase() ?: "A" }
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 100.dp)
     ) {
-        // --- APPLE MUSIC HEADER ---
+        // --- HEADER ---
         item {
             Column(
                 modifier = Modifier
@@ -112,28 +125,34 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Home",
-                        fontSize = 32.sp,
+                        text = greeting,
+                        fontSize = 26.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = if (isDark) Color.White else Color.Black,
-                        letterSpacing = (-0.5).sp
+                        letterSpacing = (-0.5).sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
 
-                    IconButton(
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Surface(
                         onClick = onOpenSettings,
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(
-                                color = if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)
-                            )
+                            .size(40.dp)
+                            .shadow(3.dp, CircleShape),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Profile & Settings",
-                            tint = if (isDark) Color.White else Color.Black,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = userInitial,
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))

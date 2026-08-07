@@ -660,19 +660,22 @@ fun LibraryHeader(
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
+                Surface(
                     onClick = onOpenSettings,
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f))
+                        .size(38.dp)
+                        .shadow(2.dp, CircleShape),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary
                 ) {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = "Settings",
-                        tint = if (isDark) Color.White else Color.Black,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "A",
+                            color = Color.White,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
