@@ -14,11 +14,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+import com.aman.auramusic.coloros.ColorOSLiveLyricsBridge
+import com.aman.auramusic.coloros.ColorOSLyricPayload
+import com.aman.auramusic.data.repository.LyricsRepository
+
 class PlaybackService : Service() {
 
     private lateinit var playerManager: VlcPlayerManager
     private lateinit var notificationManager: PlaybackNotificationManager
     private lateinit var userRepository: UserPreferencesRepository
+    private lateinit var colorOSBridge: ColorOSLiveLyricsBridge
+    private val lyricsRepository = LyricsRepository()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var keepPlayingOnClose = true
     private val binder = LocalBinder()
@@ -56,6 +62,7 @@ class PlaybackService : Service() {
         playerManager = VlcPlayerManager(this)
         notificationManager = PlaybackNotificationManager(this)
         userRepository = UserPreferencesRepository(this)
+        colorOSBridge = ColorOSLiveLyricsBridge(this)
         
         setupActions()
 
@@ -63,6 +70,17 @@ class PlaybackService : Service() {
             userRepository.settingsFlow.collect { settings ->
                 keepPlayingOnClose = settings.keepPlayingOnClose
                 playerManager.smartAudioFocusEnabled = settings.smartAudioFocus
+                val wasEnabled = colorOSBridge.isEnabled
+                colorOSBridge.isEnabled = settings.colorOsLiveLyricsEnabled
+                
+                // If setting was newly enabled during playback, broadcast current song state immediately
+                if (!wasEnabled && settings.colorOsLiveLyricsEnabled) {
+                    currentSong?.let { song ->
+                        val lyrics = lyricsRepository.lyricsFor(song)
+                        colorOSBridge.onTrackChanged(song, lyrics, playerManager.isPlaying(), playerManager.position())
+                    }
+                }
+
                 PillStateManager.setPillEnabled(settings.dynamicPillEnabled)
                 PillStateManager.setPillPosition(settings.pillPosition)
                 PillStateManager.setPillVerticalOffset(settings.pillVerticalOffset)
@@ -72,15 +90,20 @@ class PlaybackService : Service() {
         }
 
         playerManager.addListener(object : VlcPlayerManager.PlayerListener {
-            override fun onProgress(position: Long, duration: Long) {}
+            override fun onProgress(position: Long, duration: Long) {
+                currentSong?.let { song ->
+                    colorOSBridge.onPlaybackStateChanged(song, playerManager.isPlaying(), position)
+                }
+            }
+
             override fun onPlaybackState(isPlaying: Boolean) {
                 PillStateManager.updateState(currentSong, isPlaying)
                 currentSong?.let { song ->
                     serviceScope.launch {
-                        val artwork = notificationManager.loadArtwork(song)
-                        playerManager.setMetadata(song.title, song.artist, song.album, song.duration, artwork)
+                        val notification = notificationManager.createNotification(song, isPlaying, playerManager.getSessionToken())
                         notificationManager.show(song, isPlaying, playerManager.getSessionToken())
                     }
+                    colorOSBridge.onPlaybackStateChanged(song, isPlaying, playerManager.position())
                 }
                 if (!isPlaying && isTaskRemoved) {
                     stopSelf()
@@ -94,6 +117,8 @@ class PlaybackService : Service() {
             }
         })
     }
+
+    private var retryJob: kotlinx.coroutines.Job? = null
 
     private fun handlePlaybackEnd() {
         when (repeatMode) {
@@ -180,12 +205,27 @@ class PlaybackService : Service() {
         PillStateManager.updateState(song, isPlaying)
         checkPillService()
 
+        retryJob?.cancel()
         serviceScope.launch {
             val artwork = with(Dispatchers.IO) { notificationManager.loadArtwork(song) }
-            playerManager.setMetadata(song.title, song.artist, song.album, song.duration, artwork)
+            val lyrics = with(Dispatchers.IO) { lyricsRepository.lyricsFor(song) }
+            val lyricInfoJson = ColorOSLyricPayload.generateLyricInfoJson(song, lyrics)
+
+            playerManager.setMetadata(song.title, song.artist, song.album, song.duration, artwork, lyricInfoJson)
+            colorOSBridge.onTrackChanged(song, lyrics, isPlaying, playerManager.position())
 
             val notification = notificationManager.createNotification(song, isPlaying, playerManager.getSessionToken())
             startForeground(PlaybackNotificationManager.NOTIFICATION_ID, notification)
+
+            // Single 800ms check to recover from OPlus media metadata debounce lost updates
+            if (lyricInfoJson.isNotBlank()) {
+                retryJob = launch {
+                    kotlinx.coroutines.delay(800)
+                    if (currentSong?.id == song.id) {
+                        playerManager.setMetadata(song.title, song.artist, song.album, song.duration, artwork, lyricInfoJson)
+                    }
+                }
+            }
         }
     }
 
@@ -193,9 +233,11 @@ class PlaybackService : Service() {
         stopForeground(if (removeNotification) STOP_FOREGROUND_REMOVE else STOP_FOREGROUND_DETACH)
         PillStateManager.updateState(currentSong, false)
         checkPillService()
+        colorOSBridge.onPlaybackStopped(currentSong)
     }
 
     override fun onDestroy() {
+        colorOSBridge.onPlaybackStopped(currentSong)
         serviceScope.cancel()
         // Stop pill service when playback service is destroyed
         stopService(Intent(this, PillOverlayService::class.java))

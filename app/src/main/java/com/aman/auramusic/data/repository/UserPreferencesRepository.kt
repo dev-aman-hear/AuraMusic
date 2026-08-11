@@ -48,7 +48,8 @@ class UserPreferencesRepository(private val context: Context) {
             pillSizeScale = prefs[Keys.pillSizeScale] ?: 1.0f,
             themeMode = runCatching {
                 ThemeMode.valueOf(prefs[Keys.themeMode] ?: ThemeMode.SYSTEM.name)
-            }.getOrDefault(ThemeMode.SYSTEM)
+            }.getOrDefault(ThemeMode.SYSTEM),
+            colorOsLiveLyricsEnabled = prefs[Keys.colorOsLiveLyricsEnabled] ?: false
         )
     }.distinctUntilChanged()
 
@@ -134,6 +135,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { it[Keys.themeMode] = mode.name }
+    }
+
+    suspend fun setColorOsLiveLyricsEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.colorOsLiveLyricsEnabled] = enabled }
     }
 
     suspend fun setFavorite(songId: Long, isFavorite: Boolean) {
@@ -284,6 +289,7 @@ class UserPreferencesRepository(private val context: Context) {
             val pillVerticalOffset = intPreferencesKey("pill_vertical_offset")
             val pillSizeScale = floatPreferencesKey("pill_size_scale")
             val themeMode = stringPreferencesKey("theme_mode")
+            val colorOsLiveLyricsEnabled = booleanPreferencesKey("coloros_live_lyrics_enabled")
             val favoriteIds = stringPreferencesKey("favorite_ids")
             val recentSearches = stringPreferencesKey("recent_searches")
             val playbackHistory = stringPreferencesKey("playback_history")

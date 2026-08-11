@@ -14,6 +14,10 @@
 .cxx
 local.properties
 
+# Signing
+signing.properties
+*.jks
+
 # APKs
 *.apk
 

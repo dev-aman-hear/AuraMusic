@@ -402,6 +402,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 onSkipSilenceChange = { musicViewModel.setSkipSilence(it) },
                                 onSmartAudioFocusChange = { musicViewModel.setSmartAudioFocus(it) },
                                 onKeepPlayingOnCloseChange = { musicViewModel.setKeepPlayingOnClose(it) },
+                                onColorOsLiveLyricsChange = { musicViewModel.setColorOsLiveLyricsEnabled(it) },
                                 onPlaylistGridColumnsChange = { musicViewModel.setPlaylistGridColumns(it) },
                                 onPillPositionChange = { musicViewModel.setPillPosition(it) },
                                 onPillVerticalOffsetChange = { musicViewModel.setPillVerticalOffset(it) },

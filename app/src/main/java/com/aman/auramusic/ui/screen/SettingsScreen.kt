@@ -54,6 +54,7 @@ fun SettingsScreen(
     onSkipSilenceChange: (Boolean) -> Unit,
     onSmartAudioFocusChange: (Boolean) -> Unit,
     onKeepPlayingOnCloseChange: (Boolean) -> Unit,
+    onColorOsLiveLyricsChange: (Boolean) -> Unit = {},
     onPlaylistGridColumnsChange: (Int) -> Unit,
     onPillPositionChange: (Int) -> Unit,
     onPillVerticalOffsetChange: (Int) -> Unit,
@@ -221,6 +222,7 @@ fun SettingsScreen(
                     ToggleRow(title = "Skip silence", checked = appSettings.skipSilence, onCheckedChange = onSkipSilenceChange)
                     ToggleRow(title = "Smart audio focus", checked = appSettings.smartAudioFocus, onCheckedChange = onSmartAudioFocusChange)
                     ToggleRow(title = "Keep playing on app close", checked = appSettings.keepPlayingOnClose, onCheckedChange = onKeepPlayingOnCloseChange)
+                    ToggleRow(title = "ColorOS Live Lyrics", checked = appSettings.colorOsLiveLyricsEnabled, onCheckedChange = onColorOsLiveLyricsChange)
                     Text("Playlist view columns: ${appSettings.playlistGridColumns}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     Slider(
                         value = appSettings.playlistGridColumns.toFloat(),
@@ -274,7 +276,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Info,
                     title = "About Aura Music",
-                    subtitle = "Version 3.0.0",
+                    subtitle = "Version 3.1.0",
                     onClick = onShowAbout
                 )
         }
@@ -321,7 +323,7 @@ fun AboutDialog(onDismiss: () -> Unit) {
                     fontWeight = FontWeight.ExtraBold
                 )
                 Text(
-                    text = "Version 3.0.0 (Glass Edition)",
+                    text = "Version 3.1.0 (Glass Edition)",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

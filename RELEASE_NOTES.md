@@ -1,33 +1,25 @@
-# AuraMusic 3.0.0 (Glass Edition)
+# AuraMusic 3.1.0 (Glass Edition)
 
 Release Date: August 2026
 
 ## ✨ New Features
 
-* **Glassmorphic UI Finish**: Elegant translucent frosted glass styling across navigation bar, mini player, cards, dialogs, and popups.
-* **Complete Playlist Management**: Full 3-dot dropdown menus and "+" sign action menus to Add to Playlist, Remove Playlist, Add to Queue, and Favorite tracks/playlists.
-* **Batch Operations**: Add entire playlists or albums to queue or favorites with one tap.
-* **Upgraded Design System**: Specular glass borders, translucent surfaces, and dynamic color integration.
+* **ColorOS Live Lyrics Bridge**: Real-time status bar / capsule live lyrics support for ColorOS & compatible Android devices.
+* **Artists Section**: Dedicated Artists tab with circular artist avatar pictures and artist track lists.
+* **Time-of-Day Greetings**: Dynamic greeting header on Home screen (Good Morning / Afternoon / Evening).
+* **Grid Customization**: Adjustable playlist grid column count in settings.
 
 ## 🚀 Improvements
 
-* Faster song scanning
-* Optimized memory usage
-* Improved player responsiveness
-* Refined UI animations and transitions
+* Enhanced Glassmorphic UI finish across player and settings.
+* Improved audio focus, notification status management, and background service stability.
+* Refined playback queue handling and track metadata resolution.
 
 ## 🐛 Bug Fixes
 
-* Fixed playback-related issues
-* Fixed artwork loading inconsistencies
-* Fixed minor UI glitches
-* Improved app stability
-
-## 🔧 Technical Changes
-
-* Code cleanup and refactoring
-* Dependency updates
-* Performance optimizations
+* Fixed artwork loading and palette extraction edge cases.
+* Resolved playback state synchronization glitches.
+* Overall performance optimizations and memory improvements.
 
 ## 📱 Supported Formats
 

@@ -186,6 +186,12 @@ class MusicViewModel @Inject constructor(application: Application) : AndroidView
         }
     }
 
+    fun setColorOsLiveLyricsEnabled(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setColorOsLiveLyricsEnabled(enabled)
+        }
+    }
+
     fun setCrossfadeEnabled(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setCrossfadeEnabled(enabled)

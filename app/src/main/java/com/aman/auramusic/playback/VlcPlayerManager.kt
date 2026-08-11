@@ -148,14 +148,25 @@ class VlcPlayerManager(context: Context) {
         mediaSession.setPlaybackState(playbackState)
     }
 
-    fun setMetadata(title: String, artist: String, album: String, duration: Long, artwork: android.graphics.Bitmap?) {
-        val metadata = android.media.MediaMetadata.Builder()
+    private var currentLyricInfoJson: String? = null
+
+    fun setMetadata(title: String, artist: String, album: String, duration: Long, artwork: android.graphics.Bitmap?, lyricInfoJson: String? = null) {
+        if (lyricInfoJson != null) {
+            currentLyricInfoJson = lyricInfoJson
+        }
+        val builder = android.media.MediaMetadata.Builder()
             .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, title)
             .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, artist)
             .putString(android.media.MediaMetadata.METADATA_KEY_ALBUM, album)
             .putLong(android.media.MediaMetadata.METADATA_KEY_DURATION, duration)
             .putBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART, artwork)
-            .build()
+
+        val jsonToSet = if (lyricInfoJson != null) lyricInfoJson else currentLyricInfoJson
+        if (!jsonToSet.isNullOrBlank()) {
+            builder.putString("lyricInfo", jsonToSet)
+        }
+
+        val metadata = builder.build()
         mediaSession.setMetadata(metadata)
     }
 
@@ -180,7 +191,6 @@ class VlcPlayerManager(context: Context) {
         media.release()
 
         mediaPlayer.play()
-        listeners.forEach { it.onPlaybackState(true) } // Notify immediately when starting new track
     }
 
     private fun createMedia(path: String): Media {

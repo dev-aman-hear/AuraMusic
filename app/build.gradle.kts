@@ -1,9 +1,17 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+}
+
+val signingPropsFile = rootProject.file("signing.properties")
+val signingProps = Properties()
+if (signingPropsFile.exists()) {
+    signingProps.load(signingPropsFile.inputStream())
 }
 
 android {
@@ -14,11 +22,20 @@ android {
         applicationId = "com.aman.auramusic"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "3.0.0"
+        versionCode = 11
+        versionName = "3.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["appName"] = "Aura Music"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = signingProps["STORE_FILE"]?.let { file(it) }
+            storePassword = signingProps["STORE_PASSWORD"] as String?
+            keyAlias = signingProps["KEY_ALIAS"] as String?
+            keyPassword = signingProps["KEY_PASSWORD"] as String?
+        }
     }
 
     buildTypes {
@@ -30,6 +47,7 @@ android {
 
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
