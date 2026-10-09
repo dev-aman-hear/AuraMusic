@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.util.ArtworkExtractor
 
@@ -68,6 +69,7 @@ fun AuraArtwork(
     fallbackIcon: ImageVector = Icons.Default.MusicNote,
     contentScale: ContentScale = ContentScale.Crop
 ) {
+    val context = LocalContext.current
     val isDark = LocalIsDark.current
     val fallbackGradient = remember(isDark) {
         if (isDark) {
@@ -81,6 +83,12 @@ fun AuraArtwork(
         }
     }
 
+    val imageRequest = remember(model, context) {
+        if (model != null) {
+            ArtworkQualityOptimizer.buildImageRequest(context, model)
+        } else null
+    }
+
     Box(
         modifier = modifier
             .size(size.dp)
@@ -89,9 +97,9 @@ fun AuraArtwork(
             .background(fallbackGradient),
         contentAlignment = Alignment.Center
     ) {
-        if (model != null) {
+        if (imageRequest != null) {
             AsyncImage(
-                model = model,
+                model = imageRequest,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = contentScale

@@ -64,7 +64,7 @@ class OnlinePlaybackManager(
 
     // 1. AndroidX Media3 ExoPlayer for direct CDN streams (JioSaavn 320k untouched)
     private val httpDataSourceFactory = DefaultHttpDataSource.Factory()
-        .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AuraMusicPlayer/3.1.0")
+        .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AuraMusicPlayer/3.2.0")
         .setConnectTimeoutMs(15000)
         .setReadTimeoutMs(15000)
         .setAllowCrossProtocolRedirects(true)

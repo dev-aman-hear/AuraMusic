@@ -4,6 +4,7 @@ import android.util.LruCache
 import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.network.piped.PipedService
+import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -309,7 +310,7 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
                                     YouTubeArtist(
                                         id = "yt_artist_${cleanName.hashCode()}",
                                         name = cleanName,
-                                        profileImageUrl = thumb.ifBlank { null },
+                                        profileImageUrl = ArtworkQualityOptimizer.optimizeUrl(thumb).ifBlank { null },
                                         subscriberCountText = subtitle.ifBlank { "YouTube Music Artist" },
                                         isVerified = true
                                     )
@@ -360,15 +361,15 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
     }
 
     private fun getFallbackPopularArtists(): List<YouTubeArtist> = listOf(
-        YouTubeArtist("yt_arijit", "Arijit Singh", "https://c.saavncdn.com/artists/Arijit_Singh_002_20240321111624_500x500.jpg", "Official Artist Channel", true),
-        YouTubeArtist("yt_theweeknd", "The Weeknd", "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80", "Official Artist Channel", true),
-        YouTubeArtist("yt_diljit", "Diljit Dosanjh", "https://c.saavncdn.com/artists/Diljit_Dosanjh_003_20231025173154_500x500.jpg", "Official Artist Channel", true),
-        YouTubeArtist("yt_taylor", "Taylor Swift", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&q=80", "Official Artist Channel", true),
-        YouTubeArtist("yt_karan", "Karan Aujla", "https://c.saavncdn.com/artists/Karan_Aujla_006_20240410072535_500x500.jpg", "Official Artist Channel", true),
-        YouTubeArtist("yt_bruno", "Bruno Mars", "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&q=80", "Official Artist Channel", true),
-        YouTubeArtist("yt_billie", "Billie Eilish", "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&q=80", "Official Artist Channel", true),
-        YouTubeArtist("yt_post", "Post Malone", "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=500&q=80", "Official Artist Channel", true),
-        YouTubeArtist("yt_dualipa", "Dua Lipa", "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=500&q=80", "Official Artist Channel", true),
-        YouTubeArtist("yt_shreya", "Shreya Ghoshal", "https://c.saavncdn.com/artists/Shreya_Ghoshal_004_20231117074404_500x500.jpg", "Official Artist Channel", true)
+        YouTubeArtist("yt_arijit", "Arijit Singh", "https://c.saavncdn.com/artists/Arijit_Singh_004_20241118063717_500x500.jpg", "Official Artist Channel", true),
+        YouTubeArtist("yt_theweeknd", "The Weeknd", "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1080&q=85", "Official Artist Channel", true),
+        YouTubeArtist("yt_diljit", "Diljit Dosanjh", "https://c.saavncdn.com/artists/Diljit_Dosanjh_005_20231025073054_500x500.jpg", "Official Artist Channel", true),
+        YouTubeArtist("yt_taylor", "Taylor Swift", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1080&q=85", "Official Artist Channel", true),
+        YouTubeArtist("yt_karan", "Karan Aujla", "https://c.saavncdn.com/artists/Karan_Aujla_005_20260925061936_500x500.jpg", "Official Artist Channel", true),
+        YouTubeArtist("yt_bruno", "Bruno Mars", "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1080&q=85", "Official Artist Channel", true),
+        YouTubeArtist("yt_billie", "Billie Eilish", "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1080&q=85", "Official Artist Channel", true),
+        YouTubeArtist("yt_post", "Post Malone", "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1080&q=85", "Official Artist Channel", true),
+        YouTubeArtist("yt_dualipa", "Dua Lipa", "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1080&q=85", "Official Artist Channel", true),
+        YouTubeArtist("yt_shreya", "Shreya Ghoshal", "https://c.saavncdn.com/artists/Shreya_Ghoshal_007_20241101074144_500x500.jpg", "Official Artist Channel", true)
     )
 }

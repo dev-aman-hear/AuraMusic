@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.theme.LocalIsDark
 
 private fun Int.ifZero(default: Int): Int = if (this == 0) default else this
@@ -82,20 +83,12 @@ fun OnlinePlaylistDetailScreen(
                         .padding(horizontal = 24.dp, vertical = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(200.dp)
-                            .shadow(12.dp, RoundedCornerShape(18.dp))
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(if (isDark) Color(0xFF222226) else Color(0xFFE5E5EA))
-                    ) {
-                        AsyncImage(
-                            model = playlist.artworkUrl,
-                            contentDescription = playlist.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                    AuraArtwork(
+                        model = playlist.artworkUrl,
+                        size = 200,
+                        shape = RoundedCornerShape(18.dp),
+                        elevation = 12.dp
+                    )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -225,19 +218,12 @@ fun OnlinePlaylistSongRow(
             .padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(50.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(if (isDark) Color(0xFF222226) else Color(0xFFE5E5EA))
-        ) {
-            AsyncImage(
-                model = song.artworkUrl,
-                contentDescription = song.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+        AuraArtwork(
+            model = song.artworkUrl,
+            size = 50,
+            shape = RoundedCornerShape(8.dp),
+            elevation = 2.dp
+        )
 
         Spacer(modifier = Modifier.width(12.dp))
 

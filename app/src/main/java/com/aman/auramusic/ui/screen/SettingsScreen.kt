@@ -222,7 +222,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Info,
                     title = "About Aura Music",
-                    subtitle = "Version 3.1.0",
+                    subtitle = "Version 3.2.0",
                     onClick = onShowAbout
                 )
         }
@@ -269,7 +269,7 @@ fun AboutDialog(onDismiss: () -> Unit) {
                     fontWeight = FontWeight.ExtraBold
                 )
                 Text(
-                    text = "Version 3.1.0 (Glass Edition)",
+                    text = "Version 3.2.0 (Glass Edition)",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -3,6 +3,7 @@ package com.aman.auramusic.online.network.saavn
 import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.network.crypto.DesDecryptor
+import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -138,9 +139,7 @@ class JioSaavnService(
                 val lastname = obj.get("lastname")?.asString ?: ""
                 val author = listOf(firstname, lastname).filter { it.isNotBlank() }.joinToString(" ").ifBlank { "JioSaavn Editor" }
 
-                val highResArtwork = rawImage
-                    .replace("150x150", "500x500")
-                    .replace("50x50", "500x500")
+                val highResArtwork = ArtworkQualityOptimizer.optimizeUrl(rawImage)
 
                 val source = if (rawName.contains("Spotify", ignoreCase = true)) {
                     AudioSource.SPOTIFY
@@ -193,9 +192,7 @@ class JioSaavnService(
                 val encryptedMediaUrl = obj.get("encrypted_media_url")?.asString ?: ""
                 val mediaPreviewUrl = obj.get("media_preview_url")?.asString ?: ""
 
-                val highResArtwork = rawImage
-                    .replace("150x150", "500x500")
-                    .replace("50x50", "500x500")
+                val highResArtwork = ArtworkQualityOptimizer.optimizeUrl(rawImage)
 
                 val decryptedUrl = if (encryptedMediaUrl.isNotBlank()) {
                     val initial = DesDecryptor.decrypt(encryptedMediaUrl)

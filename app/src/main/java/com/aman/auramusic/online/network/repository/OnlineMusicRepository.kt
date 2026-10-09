@@ -95,7 +95,7 @@ class OnlineMusicRepository(
                 id = "yt_trending",
                 title = "YouTube Music Top 50",
                 subtitle = "YouTube Music • Global Trending",
-                artworkUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80",
+                artworkUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1080&q=85",
                 songCount = 50,
                 source = AudioSource.YOUTUBE
             ),
@@ -103,7 +103,7 @@ class OnlineMusicRepository(
                 id = "spotify_top_global",
                 title = "Spotify: Today's Top Hits",
                 subtitle = "Spotify • Chart Toppers",
-                artworkUrl = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&q=80",
+                artworkUrl = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1080&q=85",
                 songCount = 50,
                 source = AudioSource.SPOTIFY
             )

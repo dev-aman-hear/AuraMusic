@@ -56,7 +56,7 @@ class LrclibService(
 
             val request = Request.Builder()
                 .url(url)
-                .header("User-Agent", "AuraMusic/3.1.0 (https://github.com/aman/AuraMusic)")
+                .header("User-Agent", "AuraMusic/3.2.0 (https://github.com/aman/AuraMusic)")
                 .build()
 
             client.newCall(request).execute().use { response ->
@@ -76,7 +76,7 @@ class LrclibService(
 
             val request = Request.Builder()
                 .url(url)
-                .header("User-Agent", "AuraMusic/3.1.0 (https://github.com/aman/AuraMusic)")
+                .header("User-Agent", "AuraMusic/3.2.0 (https://github.com/aman/AuraMusic)")
                 .build()
 
             client.newCall(request).execute().use { response ->

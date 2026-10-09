@@ -22,8 +22,8 @@ android {
         applicationId = "com.aman.auramusic"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
-        versionName = "3.1.0"
+        versionCode = 12
+        versionName = "3.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["appName"] = "Aura Music"

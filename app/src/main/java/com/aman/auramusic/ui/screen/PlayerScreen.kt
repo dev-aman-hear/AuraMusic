@@ -127,6 +127,7 @@ import coil.request.ImageRequest
 import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.LyricLine
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.aman.auramusic.playback.RepeatMode
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.theme.LocalIsDark
@@ -319,9 +320,16 @@ private fun PlayerBackground(
     blurIntensity: Int,
     onPaletteExtracted: ((Int, Int) -> Unit)? = null
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val imageRequest = remember(artworkModel, context) {
+        if (artworkModel != null) {
+            ArtworkQualityOptimizer.buildImageRequest(context, artworkModel)
+        } else null
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AsyncImage(
-            model = artworkModel,
+            model = imageRequest ?: artworkModel,
             contentDescription = null,
             modifier = Modifier
                 .fillMaxSize()

@@ -2,6 +2,7 @@ package com.aman.auramusic.online.network.piped
 
 import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -153,7 +154,7 @@ class PipedService(
                                     title = title,
                                     artist = artist,
                                     album = "YouTube Music",
-                                    artworkUrl = thumb,
+                                    artworkUrl = ArtworkQualityOptimizer.optimizeUrl(thumb),
                                     durationSeconds = 0L,
                                     source = AudioSource.YOUTUBE,
                                     bitrate = "Adaptive",
@@ -229,7 +230,7 @@ class PipedService(
                         title = title,
                         artist = uploader,
                         album = "YouTube Music",
-                        artworkUrl = thumbnail,
+                        artworkUrl = ArtworkQualityOptimizer.optimizeUrl(thumbnail),
                         durationSeconds = duration,
                         source = AudioSource.YOUTUBE,
                         bitrate = "Adaptive",
