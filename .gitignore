@@ -29,3 +29,5 @@ signing.properties
 app/release/
 app/build/
 .idea/
+.kotlin/
+.vscode/

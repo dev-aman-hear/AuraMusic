@@ -1,47 +1,64 @@
 package com.aman.auramusic.ui.screen
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import coil.compose.AsyncImage
-import com.aman.auramusic.R
-import com.aman.auramusic.data.model.OnlinePlaylist
 import com.aman.auramusic.data.model.PlaybackHistoryEntry
 import com.aman.auramusic.data.model.Song
-import com.aman.auramusic.ui.component.SongArtwork
+import com.aman.auramusic.ui.component.AlbumCard
+import com.aman.auramusic.ui.component.ArtistCard
+import com.aman.auramusic.ui.component.AuraArtwork
+import com.aman.auramusic.ui.component.AuraEmptyState
+import com.aman.auramusic.ui.component.SectionHeader
+import com.aman.auramusic.ui.component.SongOptionsDialog
 import com.aman.auramusic.ui.component.SongRow
 import com.aman.auramusic.ui.theme.LocalIsDark
 import java.util.Calendar
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     songs: List<Song>,
@@ -49,9 +66,7 @@ fun HomeScreen(
     history: List<PlaybackHistoryEntry>,
     favorites: List<Song>,
     favoriteIds: Set<Long>,
-    matchedOnlinePlaylists: List<OnlinePlaylist>,
     dominantColor: Color,
-    onOnlinePlaylistClick: (OnlinePlaylist) -> Unit,
     onRefresh: () -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
     onFavoriteToggle: (Song) -> Unit,
@@ -62,11 +77,34 @@ fun HomeScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsDark.current
     var selectedSongOptions by remember { mutableStateOf<Song?>(null) }
-    var mixQueue by remember { mutableStateOf<List<Song>>(emptyList()) }
-    val albums = remember(songs) { songs.groupBy { it.album }.entries.toList().shuffled().take(10) }
-    val topArtist = remember(songs) { songs.map { it.artist }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key ?: "Featured Artist" }
-    val topArtistSong = remember(songs, topArtist) { songs.find { it.artist == topArtist } }
+    var activeContextQueue by remember { mutableStateOf<List<Song>>(emptyList()) }
+
+    val albums = remember(songs) {
+        songs.groupBy { it.album }.entries.toList().shuffled().take(12)
+    }
+    val topArtist = remember(songs) {
+        songs.map { it.artist }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key ?: "Featured Artist"
+    }
+    val topArtistSongs = remember(songs, topArtist) {
+        songs.filter { it.artist == topArtist }
+    }
+    val topArtistSong = remember(topArtistSongs) { topArtistSongs.firstOrNull() }
+
+    val historySongs = remember(history, songs) {
+        history.mapNotNull { entry -> songs.find { it.id == entry.songId } }.distinct().take(14)
+    }
+    val recentSongs = remember(songs, historySongs) {
+        if (historySongs.isNotEmpty()) historySongs else songs.take(12)
+    }
+
+    val topArtistsList = remember(songs) {
+        songs.groupBy { it.artist }
+            .entries
+            .sortedByDescending { it.value.size }
+            .take(10)
+    }
 
     if (selectedSongOptions != null) {
         SongOptionsDialog(
@@ -74,16 +112,16 @@ fun HomeScreen(
             isFavorite = selectedSongOptions!!.id in favoriteIds,
             onDismiss = { selectedSongOptions = null },
             onPlay = {
-                onSongSelected(selectedSongOptions!!, mixQueue)
+                onSongSelected(selectedSongOptions!!, activeContextQueue.ifEmpty { songs })
                 selectedSongOptions = null
             },
-            onToggleFavorite = { 
+            onToggleFavorite = {
                 onFavoriteToggle(selectedSongOptions!!)
-                selectedSongOptions = null 
+                selectedSongOptions = null
             },
-            onAddToPlaylist = { 
+            onAddToPlaylist = {
                 onAddToPlaylist(selectedSongOptions!!)
-                selectedSongOptions = null 
+                selectedSongOptions = null
             },
             onAddToQueue = {
                 onAddToQueue(selectedSongOptions!!)
@@ -92,56 +130,80 @@ fun HomeScreen(
         )
     }
 
-    val isDark = LocalIsDark.current
-
     val greeting = remember(username) {
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         val timeGreeting = when (hour) {
-            in 5..11 -> "Good Morning"
-            in 12..16 -> "Good Afternoon"
-            in 17..21 -> "Good Evening"
-            else -> "Good Night"
+            in 5..11 -> "Good morning"
+            in 12..16 -> "Good afternoon"
+            in 17..21 -> "Good evening"
+            else -> "Good night"
         }
         val cleanName = username.trim()
         if (cleanName.isNotEmpty()) "$timeGreeting, $cleanName" else timeGreeting
     }
     val userInitial = remember(username) { username.trim().firstOrNull()?.uppercase() ?: "A" }
 
+    if (songs.isEmpty()) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+            contentAlignment = Alignment.Center
+        ) {
+            AuraEmptyState(
+                title = "Welcome to AuraMusic",
+                message = "Scan your local library or stream online songs to build your personalized feed.",
+                actionLabel = "Scan Device",
+                onAction = onRefresh
+            )
+        }
+        return
+    }
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 100.dp)
+        contentPadding = PaddingValues(bottom = 120.dp)
     ) {
-        // --- HEADER ---
+        // --- 1. TOP HEADER & PROFILE ---
         item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp)
+                    .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = greeting,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = if (isDark) Color.White else Color.Black,
-                        letterSpacing = (-0.5).sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
+                        Text(
+                            text = "AURAMUSIC",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = 1.2.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = greeting,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface,
+                            letterSpacing = (-0.5).sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
 
                     Surface(
                         onClick = onOpenSettings,
                         modifier = Modifier
-                            .size(40.dp)
-                            .shadow(3.dp, CircleShape),
+                            .size(42.dp)
+                            .shadow(6.dp, CircleShape),
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.primary
                     ) {
@@ -149,61 +211,30 @@ fun HomeScreen(
                             Text(
                                 text = userInitial,
                                 color = Color.White,
-                                fontSize = 18.sp,
+                                fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Divider(
-                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.12f),
-                    thickness = 0.8.dp,
-                    modifier = Modifier.padding(vertical = 8.dp)
+
+                Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(
+                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.08f),
+                    thickness = 0.8.dp
                 )
             }
         }
 
-        // --- TOP PICKS SECTION ---
+        // --- 2. EDITORIAL FEATURED HERO STATIONS ---
         item {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "FEATURED STATIONS",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFF2D55),
-                        letterSpacing = 0.5.sp
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Top Picks",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (isDark) Color.White else Color.Black
-                        )
-                        Text(
-                            text = "Featuring $topArtist",
-                            fontSize = 13.sp,
-                            color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.widthIn(max = 160.dp)
-                        )
-                    }
-                }
+                SectionHeader(
+                    eyebrow = "FEATURED STATIONS",
+                    title = "Top Picks"
+                )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -214,83 +245,51 @@ fun HomeScreen(
                     item {
                         Card(
                             modifier = Modifier
-                                .width(260.dp)
+                                .width(270.dp)
                                 .height(310.dp)
-                                .shadow(10.dp, RoundedCornerShape(20.dp))
-                                .clip(RoundedCornerShape(20.dp))
+                                .shadow(12.dp, RoundedCornerShape(22.dp))
+                                .clip(RoundedCornerShape(22.dp))
                                 .clickable {
-                                    if (songs.isNotEmpty()) {
-                                        val shuffled = songs.shuffled()
-                                        onSongSelected(shuffled.first(), shuffled)
-                                    }
+                                    val shuffled = songs.shuffled()
+                                    if (shuffled.isNotEmpty()) onSongSelected(shuffled.first(), shuffled)
                                 },
-                            shape = RoundedCornerShape(20.dp)
+                            shape = RoundedCornerShape(22.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .background(
                                         Brush.linearGradient(
-                                            colors = listOf(
-                                                Color(0xFF3B0764),
-                                                Color(0xFF1E3A8A),
-                                                Color(0xFF0284C7),
-                                                Color(0xFF0D9488),
-                                                Color(0xFF6D28D9)
-                                            )
+                                            listOf(Color(0xFF831843), Color(0xFF6B21A8), Color(0xFF0F172A))
                                         )
                                     )
                             ) {
-                                // Top Branding Badge
-                                Row(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(14.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color.Black.copy(alpha = 0.35f))
-                                        .padding(horizontal = 10.dp, vertical = 5.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.MusicNote,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "Discovery",
-                                        color = Color.White,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
+                                songs.firstOrNull()?.let { firstSong ->
+                                    AuraArtwork(
+                                        model = firstSong.artworkUri,
+                                        size = 270,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(bottom = 90.dp),
+                                        shape = RoundedCornerShape(0.dp),
+                                        elevation = 0.dp
                                     )
                                 }
 
-                                // Center Artwork / Graphic Icon
-                                Icon(
-                                    imageVector = Icons.Default.Radio,
-                                    contentDescription = null,
-                                    tint = Color.White.copy(alpha = 0.15f),
-                                    modifier = Modifier
-                                        .size(120.dp)
-                                        .align(Alignment.Center)
-                                )
-
-                                // Floating Play Button
+                                // Play button overlay
                                 Surface(
                                     onClick = {
-                                        if (songs.isNotEmpty()) {
-                                            val shuffled = songs.shuffled()
-                                            onSongSelected(shuffled.first(), shuffled)
-                                        }
+                                        val shuffled = songs.shuffled()
+                                        if (shuffled.isNotEmpty()) onSongSelected(shuffled.first(), shuffled)
                                     },
                                     modifier = Modifier
                                         .align(Alignment.BottomEnd)
-                                        .padding(end = 16.dp, bottom = 80.dp)
-                                        .size(46.dp)
+                                        .padding(end = 16.dp, bottom = 76.dp)
+                                        .size(48.dp)
                                         .shadow(8.dp, CircleShape),
                                     shape = CircleShape,
-                                    color = Color(0xFFFF2D55)
+                                    color = MaterialTheme.colorScheme.primary
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
@@ -302,146 +301,19 @@ fun HomeScreen(
                                     }
                                 }
 
-                                // Bottom Glass Panel
+                                // Bottom glass panel
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(95.dp)
+                                        .height(92.dp)
                                         .align(Alignment.BottomCenter)
-                                        .background(
-                                            Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color(0xFF0F172A).copy(alpha = 0.65f),
-                                                    Color(0xFF020617).copy(alpha = 0.95f)
-                                                )
-                                            )
-                                        )
+                                        .background(Color(0xFF0F172A).copy(alpha = 0.94f))
                                         .padding(16.dp),
                                     contentAlignment = Alignment.CenterStart
                                 ) {
                                     Column {
                                         Text(
                                             text = "Discovery Station",
-                                            color = Color.White,
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.ExtraBold
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = "Personalized mix based on your taste",
-                                            color = Color.White.copy(alpha = 0.75f),
-                                            fontSize = 12.sp
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // CARD 2: Artist Station
-                    item {
-                        Card(
-                            modifier = Modifier
-                                .width(260.dp)
-                                .height(310.dp)
-                                .shadow(10.dp, RoundedCornerShape(20.dp))
-                                .clip(RoundedCornerShape(20.dp))
-                                .clickable {
-                                    val artistSongs = songs.filter { it.artist == topArtist }
-                                    if (artistSongs.isNotEmpty()) {
-                                        onSongSelected(artistSongs.first(), artistSongs)
-                                    } else if (songs.isNotEmpty()) {
-                                        onSongSelected(songs.first(), songs)
-                                    }
-                                },
-                            shape = RoundedCornerShape(20.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color(0xFF334155),
-                                                Color(0xFF1E293B),
-                                                Color(0xFF0F172A)
-                                            )
-                                        )
-                                    )
-                            ) {
-                                if (topArtistSong != null) {
-                                    SongArtwork(
-                                        song = topArtistSong,
-                                        size = 260,
-                                        shape = RoundedCornerShape(0.dp),
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(bottom = 95.dp)
-                                    )
-                                }
-
-                                // Circular Artist Badge Overlay
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(14.dp)
-                                        .size(56.dp)
-                                        .shadow(6.dp, CircleShape)
-                                        .clip(CircleShape)
-                                        .border(2.dp, Color.White.copy(alpha = 0.9f), CircleShape)
-                                        .background(Color.DarkGray)
-                                ) {
-                                    SongArtwork(
-                                        song = topArtistSong,
-                                        size = 56,
-                                        shape = CircleShape,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-
-                                // Floating Play Button
-                                Surface(
-                                    onClick = {
-                                        val artistSongs = songs.filter { it.artist == topArtist }
-                                        if (artistSongs.isNotEmpty()) {
-                                            onSongSelected(artistSongs.first(), artistSongs)
-                                        } else if (songs.isNotEmpty()) {
-                                            onSongSelected(songs.first(), songs)
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(end = 16.dp, bottom = 80.dp)
-                                        .size(46.dp)
-                                        .shadow(8.dp, CircleShape),
-                                    shape = CircleShape,
-                                    color = Color(0xFFFF2D55)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.PlayArrow,
-                                            contentDescription = "Play",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(26.dp)
-                                        )
-                                    }
-                                }
-
-                                // Bottom Glass Panel
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(95.dp)
-                                        .align(Alignment.BottomCenter)
-                                        .background(
-                                            Color(0xFF0F172A).copy(alpha = 0.92f)
-                                        )
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    Column {
-                                        Text(
-                                            text = "$topArtist & Similar",
                                             color = Color.White,
                                             fontSize = 17.sp,
                                             fontWeight = FontWeight.Bold,
@@ -450,8 +322,8 @@ fun HomeScreen(
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(
-                                            text = "Artist Radio Station",
-                                            color = Color.White.copy(alpha = 0.75f),
+                                            text = "Personalized dynamic mix",
+                                            color = Color.White.copy(alpha = 0.70f),
                                             fontSize = 12.sp
                                         )
                                     }
@@ -460,121 +332,206 @@ fun HomeScreen(
                         }
                     }
 
-                    // CARD 3: Favorites Station
-                    item {
-                        Card(
-                            modifier = Modifier
-                                .width(260.dp)
-                                .height(310.dp)
-                                .shadow(10.dp, RoundedCornerShape(20.dp))
-                                .clip(RoundedCornerShape(20.dp))
-                                .clickable {
-                                    if (favorites.isNotEmpty()) {
-                                        onSongSelected(favorites.first(), favorites)
-                                    } else if (songs.isNotEmpty()) {
-                                        onSongSelected(songs.first(), songs)
-                                    }
-                                },
-                            shape = RoundedCornerShape(20.dp)
-                        ) {
-                            Box(
+                    // CARD 2: Artist Radio Station
+                    if (topArtistSong != null) {
+                        item {
+                            Card(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.linearGradient(
-                                            colors = listOf(
-                                                Color(0xFF831843),
-                                                Color(0xFFBE185D),
-                                                Color(0xFF6D28D9),
-                                                Color(0xFF1E1B4B)
-                                            )
-                                        )
-                                    )
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(14.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color.Black.copy(alpha = 0.35f))
-                                        .padding(horizontal = 10.dp, vertical = 5.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Favorite,
-                                        contentDescription = null,
-                                        tint = Color(0xFFFF2D55),
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "Favorites",
-                                        color = Color.White,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-
-                                Icon(
-                                    imageVector = Icons.Default.FavoriteBorder,
-                                    contentDescription = null,
-                                    tint = Color.White.copy(alpha = 0.15f),
-                                    modifier = Modifier
-                                        .size(120.dp)
-                                        .align(Alignment.Center)
-                                )
-
-                                // Floating Play Button
-                                Surface(
-                                    onClick = {
-                                        if (favorites.isNotEmpty()) {
-                                            onSongSelected(favorites.first(), favorites)
-                                        } else if (songs.isNotEmpty()) {
-                                            onSongSelected(songs.first(), songs)
+                                    .width(270.dp)
+                                    .height(310.dp)
+                                    .shadow(12.dp, RoundedCornerShape(22.dp))
+                                    .clip(RoundedCornerShape(22.dp))
+                                    .clickable {
+                                        if (topArtistSongs.isNotEmpty()) {
+                                            onSongSelected(topArtistSongs.first(), topArtistSongs)
                                         }
                                     },
-                                    modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(end = 16.dp, bottom = 80.dp)
-                                        .size(46.dp)
-                                        .shadow(8.dp, CircleShape),
-                                    shape = CircleShape,
-                                    color = Color(0xFFFF2D55)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.PlayArrow,
-                                            contentDescription = "Play",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(26.dp)
-                                        )
-                                    }
-                                }
-
+                                shape = RoundedCornerShape(22.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                            ) {
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(95.dp)
-                                        .align(Alignment.BottomCenter)
+                                        .fillMaxSize()
                                         .background(
-                                            Color(0xFF1E1B4B).copy(alpha = 0.92f)
+                                            Brush.linearGradient(
+                                                listOf(Color(0xFF1E3A8A), Color(0xFF1E293B), Color(0xFF0F172A))
+                                            )
                                         )
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        AuraArtwork(
+                                            model = topArtistSong.artworkUri,
+                                            size = 270,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(bottom = 90.dp),
+                                            shape = RoundedCornerShape(0.dp),
+                                            elevation = 0.dp
+                                        )
+
+                                        // Play button overlay
+                                        Surface(
+                                            onClick = {
+                                                if (topArtistSongs.isNotEmpty()) {
+                                                    onSongSelected(topArtistSongs.first(), topArtistSongs)
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(end = 16.dp, bottom = 76.dp)
+                                                .size(48.dp)
+                                                .shadow(8.dp, CircleShape),
+                                            shape = CircleShape,
+                                            color = MaterialTheme.colorScheme.primary
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = Icons.Default.PlayArrow,
+                                                    contentDescription = "Play",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(26.dp)
+                                                )
+                                            }
+                                        }
+
+                                        // Bottom glass panel
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(92.dp)
+                                                .align(Alignment.BottomCenter)
+                                                .background(Color(0xFF0F172A).copy(alpha = 0.94f))
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.CenterStart
+                                        ) {
+                                            Column {
+                                                Text(
+                                                    text = "$topArtist Radio",
+                                                    color = Color.White,
+                                                    fontSize = 17.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = "${topArtistSongs.size} tracks from this artist",
+                                                    color = Color.White.copy(alpha = 0.70f),
+                                                    fontSize = 12.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                    // CARD 3: Favorites Station
+                    if (favorites.isNotEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .width(270.dp)
+                                    .height(310.dp)
+                                    .shadow(12.dp, RoundedCornerShape(22.dp))
+                                    .clip(RoundedCornerShape(22.dp))
+                                    .clickable {
+                                        onSongSelected(favorites.first(), favorites)
+                                    },
+                                shape = RoundedCornerShape(22.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.linearGradient(
+                                                listOf(Color(0xFF9D174D), Color(0xFFBE185D), Color(0xFF4C1D95))
+                                            )
+                                        )
                                 ) {
-                                    Column {
-                                        Text(
-                                            text = "Favorites Station",
-                                            color = Color.White,
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.ExtraBold
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = "${favorites.size} Liked Tracks",
-                                            color = Color.White.copy(alpha = 0.75f),
-                                            fontSize = 12.sp
-                                        )
+                                    AuraArtwork(
+                                        model = favorites.first().artworkUri,
+                                        size = 270,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(bottom = 90.dp),
+                                        shape = RoundedCornerShape(0.dp),
+                                        elevation = 0.dp
+                                    )
+
+                                    // Floating Favorite badge
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(14.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(Color.Black.copy(alpha = 0.45f))
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Favorite,
+                                                contentDescription = null,
+                                                tint = Color(0xFFFF2D55),
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "${favorites.size}",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+
+                                    // Play button overlay
+                                    Surface(
+                                        onClick = {
+                                            onSongSelected(favorites.first(), favorites)
+                                        },
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(end = 16.dp, bottom = 76.dp)
+                                            .size(48.dp)
+                                            .shadow(8.dp, CircleShape),
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.primary
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = "Play",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(26.dp)
+                                            )
+                                        }
+                                    }
+
+                                    // Bottom glass panel
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(92.dp)
+                                            .align(Alignment.BottomCenter)
+                                            .background(Color(0xFF0F172A).copy(alpha = 0.94f))
+                                            .padding(16.dp),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = "Favorites Station",
+                                                color = Color.White,
+                                                fontSize = 17.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = "${favorites.size} Liked tracks",
+                                                color = Color.White.copy(alpha = 0.70f),
+                                                fontSize = 12.sp
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -584,182 +541,61 @@ fun HomeScreen(
             }
         }
 
-        // --- RECENTLY PLAYED > SECTION ---
+        // --- 3. CONTINUE LISTENING / RECENTLY PLAYED ---
         item {
-            val historySongs = remember(history, songs) {
-                history.mapNotNull { entry -> songs.find { it.id == entry.songId } }.distinct().take(12)
-            }
-            val displayList = if (historySongs.isNotEmpty()) historySongs else songs.take(10)
-
             Column(modifier = Modifier.padding(top = 28.dp)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .clickable {
-                            if (songs.isNotEmpty()) {
-                                onAlbumSelected(songs.first().album)
-                            }
-                        },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Recently Played",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color.White else Color.Black
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "See All",
-                        tint = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                SectionHeader(
+                    eyebrow = "RECENT",
+                    title = "Recently Played",
+                    actionText = "See All",
+                    onActionClick = {
+                        if (songs.isNotEmpty()) onAlbumSelected(songs.first().album)
+                    }
+                )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(displayList, key = { it.id }) { song ->
-                        Column(
-                            modifier = Modifier
-                                .width(140.dp)
-                                .combinedClickable(
-                                    onClick = { onSongSelected(song, displayList) },
-                                    onLongClick = {
-                                        mixQueue = displayList
-                                        selectedSongOptions = song
-                                    }
-                                )
-                        ) {
-                            SongArtwork(
-                                song = song,
-                                size = 140,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .size(140.dp)
-                                    .shadow(4.dp, RoundedCornerShape(12.dp))
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = song.title,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isDark) Color.White else Color.Black,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = song.artist,
-                                fontSize = 12.sp,
-                                color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                    items(recentSongs, key = { "recent_${it.id}" }) { song ->
+                        AlbumCard(
+                            title = song.title,
+                            subtitle = song.artist,
+                            artworkModel = song.artworkUri,
+                            size = 144.dp,
+                            onClick = { onSongSelected(song, recentSongs) }
+                        )
                     }
                 }
             }
         }
 
-        // --- FEATURED ALBUMS SECTION ---
+        // --- 4. FEATURED ALBUMS ---
         if (albums.isNotEmpty()) {
             item {
                 Column(modifier = Modifier.padding(top = 28.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Featured Albums",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color.White else Color.Black
-                        )
-                    }
+                    SectionHeader(
+                        eyebrow = "COLLECTIONS",
+                        title = "Featured Albums"
+                    )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(albums, key = { it.key }) { entry ->
-                            val albumName = entry.key
-                            val firstSong = entry.value.first()
-                            Column(
-                                modifier = Modifier
-                                    .width(140.dp)
-                                    .clickable { onAlbumSelected(albumName) }
-                            ) {
-                                SongArtwork(
-                                    song = firstSong,
-                                    size = 140,
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier
-                                        .size(140.dp)
-                                        .shadow(4.dp, RoundedCornerShape(12.dp))
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = albumName,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isDark) Color.White else Color.Black,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = firstSong.artist,
-                                    fontSize = 12.sp,
-                                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // --- ONLINE PLAYLISTS SECTION ---
-        if (matchedOnlinePlaylists.isNotEmpty()) {
-            item {
-                Column(modifier = Modifier.padding(top = 28.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Playlists for You",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color.White else Color.Black
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(matchedOnlinePlaylists, key = { it.id }) { playlist ->
-                            OnlinePlaylistCompactCard(
-                                playlist = playlist,
-                                onClick = { onOnlinePlaylistClick(playlist) }
+                        items(albums, key = { "alb_${it.key}" }) { (albumName, albumSongs) ->
+                            AlbumCard(
+                                title = albumName,
+                                subtitle = "${albumSongs.size} tracks • ${albumSongs.first().artist}",
+                                artworkModel = albumSongs.first().artworkUri,
+                                size = 144.dp,
+                                onClick = { onAlbumSelected(albumName) }
                             )
                         }
                     }
@@ -767,195 +603,61 @@ fun HomeScreen(
             }
         }
 
-        // --- FAVORITES SECTION ---
+        // --- 5. YOUR TOP ARTISTS ---
+        if (topArtistsList.isNotEmpty()) {
+            item {
+                Column(modifier = Modifier.padding(top = 28.dp)) {
+                    SectionHeader(
+                        eyebrow = "DISCOVER",
+                        title = "Your Top Artists"
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        items(topArtistsList, key = { "artist_${it.key}" }) { (artistName, artistTracks) ->
+                            ArtistCard(
+                                name = artistName,
+                                songCountText = "${artistTracks.size} songs",
+                                artworkModel = artistTracks.firstOrNull()?.artworkUri,
+                                onClick = { onArtistSelected(artistName) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 6. FAVORITE TRACKS (COMPACT LIST) ---
         if (favorites.isNotEmpty()) {
             item {
-                Column(modifier = Modifier.padding(top = 28.dp, bottom = 8.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Favorite Tracks",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color.White else Color.Black
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
+                Column(modifier = Modifier.padding(top = 28.dp, bottom = 4.dp)) {
+                    SectionHeader(
+                        eyebrow = "QUICK PLAY",
+                        title = "Favorite Tracks"
+                    )
                 }
             }
 
-            items(favorites.take(5), key = { it.id }) { song ->
+            items(favorites.take(6), key = { "fav_row_${it.id}" }) { song ->
                 SongRow(
                     song = song,
                     isPlaying = false,
                     isFavorite = true,
+                    onClick = { onSongSelected(song, favorites) },
                     onPlayNow = { onSongSelected(song, favorites) },
                     onToggleFavorite = { onFavoriteToggle(song) },
                     onAddToPlaylist = { onAddToPlaylist(song) },
                     onAddToQueue = { onAddToQueue(song) },
-                    onClick = { onSongSelected(song, favorites) },
                     onLongClick = {
-                        mixQueue = favorites
+                        activeContextQueue = favorites
                         selectedSongOptions = song
                     }
                 )
-            }
-        }
-    }
-}
-
-@Composable
-fun OnlinePlaylistCompactCard(
-    playlist: OnlinePlaylist,
-    onClick: () -> Unit
-) {
-    val isDark = isSystemInDarkTheme()
-    Column(
-        modifier = Modifier
-            .width(140.dp)
-            .clickable { onClick() }
-    ) {
-        AsyncImage(
-            model = playlist.cover,
-            contentDescription = null,
-            modifier = Modifier
-                .size(140.dp)
-                .shadow(4.dp, RoundedCornerShape(12.dp))
-                .clip(RoundedCornerShape(12.dp)),
-            contentScale = ContentScale.Crop
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = playlist.title,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (isDark) Color.White else Color.Black,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = playlist.author,
-            fontSize = 12.sp,
-            color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
-private fun SongOptionsDialog(
-    song: Song,
-    isFavorite: Boolean,
-    onDismiss: () -> Unit,
-    onPlay: () -> Unit,
-    onToggleFavorite: () -> Unit,
-    onAddToPlaylist: () -> Unit,
-    onAddToQueue: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                SongArtwork(song = song, size = 100, shape = RoundedCornerShape(16.dp))
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Text(
-                    text = song.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = song.artist,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Button(
-                        onClick = onPlay,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Play Now", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                    }
-
-                    OutlinedButton(
-                        onClick = onToggleFavorite,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = null,
-                            tint = if (isFavorite) Color(0xFFFA2D48) else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (isFavorite) "Remove from Favorites" else "Add to Favorites",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    
-                    OutlinedButton(
-                        onClick = onAddToPlaylist,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Icon(Icons.Default.PlaylistAdd, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Add to Playlist", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    }
-
-                    OutlinedButton(
-                        onClick = onAddToQueue,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Icon(Icons.Default.QueueMusic, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Add to Queue", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    }
-                    
-                    Spacer(modifier = Modifier.height(4.dp))
-                    
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Text("Cancel", fontWeight = FontWeight.SemiBold)
-                    }
-                }
             }
         }
     }

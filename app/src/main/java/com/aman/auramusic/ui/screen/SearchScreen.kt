@@ -1,14 +1,20 @@
 package com.aman.auramusic.ui.screen
 
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
@@ -25,7 +31,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.online.model.AudioSource
+import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.online.network.repository.OnlineMusicRepository
+import com.aman.auramusic.online.player.OnlinePlaybackManager
+import com.aman.auramusic.ui.component.AuraArtwork
+import com.aman.auramusic.ui.component.AuraEmptyState
+import com.aman.auramusic.ui.component.SectionHeader
 import com.aman.auramusic.ui.component.SongRow
+import com.aman.auramusic.ui.theme.AuraCyan
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 data class SearchCategory(
     val title: String,
@@ -47,9 +64,20 @@ fun SearchScreen(
     onAddToQueue: (Song) -> Unit = {},
     onAlbumSelected: (String) -> Unit,
     onArtistSelected: (String) -> Unit,
+    onlinePlaybackManager: OnlinePlaybackManager? = null,
+    onOnlineSongSelected: (OnlineSong, List<OnlineSong>) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
+    val scope = rememberCoroutineScope()
+    val repository = remember { OnlineMusicRepository() }
+
+    var selectedSource by remember { mutableStateOf(AudioSource.ALL) }
+    var onlineResults by remember { mutableStateOf<List<OnlineSong>>(emptyList()) }
+    var trendingOnlineSongs by remember { mutableStateOf<List<OnlineSong>>(emptyList()) }
+    var isOnlineLoading by remember { mutableStateOf(false) }
+
+    val onlinePlaybackState = onlinePlaybackManager?.playbackState?.collectAsState()
 
     val categories = remember {
         listOf(
@@ -84,7 +112,7 @@ fun SearchScreen(
             val q = query.trim().lowercase()
             val catKeywords = matchedCategory?.keywords ?: emptyList()
 
-            val primaryMatches = songs.filter { song ->
+            songs.filter { song ->
                 val title = song.title.lowercase()
                 val artist = song.artist.lowercase()
                 val album = song.album.lowercase()
@@ -92,13 +120,6 @@ fun SearchScreen(
 
                 title.contains(q) || artist.contains(q) || album.contains(q) ||
                 catKeywords.any { kw -> title.contains(kw) || artist.contains(kw) || album.contains(kw) || path.contains(kw) }
-            }
-
-            // Fallback: if category matched but local metadata doesn't contain exact keywords, return sample queue so screen is rich
-            if (primaryMatches.isEmpty() && matchedCategory != null) {
-                songs.shuffled().take(8)
-            } else {
-                primaryMatches
             }
         }
     }
@@ -113,17 +134,44 @@ fun SearchScreen(
         else songs.map { it.artist }.distinct().filter { it.contains(query, ignoreCase = true) }
     }
 
+    // Unified Online Search bound directly to query and source filter
+    LaunchedEffect(query, selectedSource) {
+        if (query.isNotBlank()) {
+            isOnlineLoading = true
+            delay(250) // slight debounce
+            try {
+                onlineResults = repository.search(query, selectedSource)
+            } catch (e: Exception) {
+                onlineResults = emptyList()
+            } finally {
+                isOnlineLoading = false
+            }
+        } else {
+            onlineResults = emptyList()
+            if (trendingOnlineSongs.isEmpty()) {
+                isOnlineLoading = true
+                try {
+                    trendingOnlineSongs = repository.getTrending(selectedSource)
+                } catch (e: Exception) {
+                    trendingOnlineSongs = emptyList()
+                } finally {
+                    isOnlineLoading = false
+                }
+            }
+        }
+    }
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 100.dp)
     ) {
-        // --- HEADER & SEARCH BAR ---
+        // --- HEADER & UNIFIED SEARCH BAR ---
         item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp)
+                    .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp)
             ) {
                 Text(
                     text = "Search",
@@ -140,15 +188,16 @@ fun SearchScreen(
                     onValueChange = onQueryChange,
                     placeholder = {
                         Text(
-                            text = "Artists, Songs, Lyrics and more",
-                            color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.5f)
+                            text = "Search songs, artists, albums...",
+                            color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.5f),
+                            fontSize = 14.sp
                         )
                     },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = null,
-                            tint = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f)
+                            tint = Color(0xFF00E5FF)
                         )
                     },
                     trailingIcon = if (query.isNotEmpty()) {
@@ -168,17 +217,103 @@ fun SearchScreen(
                     shape = RoundedCornerShape(14.dp),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFFA2D48),
+                        focusedBorderColor = Color(0xFF00E5FF),
                         unfocusedBorderColor = (if (isDark) Color.White else Color.Black).copy(alpha = 0.15f),
                         focusedContainerColor = if (isDark) Color(0xFF1C1C1E) else Color(0xFFF2F2F7),
                         unfocusedContainerColor = if (isDark) Color(0xFF1C1C1E) else Color(0xFFF2F2F7)
                     )
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Catalog Filter Chips: All, Top Results, Global
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AudioSource.values().filter { it != AudioSource.SPOTIFY }.forEach { source ->
+                        val isSelected = selectedSource == source
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isSelected) AuraCyan else (if (isDark) Color(0xFF2C2C2E) else Color(0xFFE5E5EA)))
+                                .border(1.dp, if (isSelected) AuraCyan else Color.Transparent, RoundedCornerShape(10.dp))
+                                .clickable { selectedSource = source }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = when (source) {
+                                    AudioSource.ALL -> "All"
+                                    AudioSource.JIOSAAVN -> "Top Results"
+                                    AudioSource.YOUTUBE -> "Global"
+                                    else -> "All"
+                                },
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.Black else (if (isDark) Color.White else Color.Black)
+                            )
+                        }
+                    }
+                }
             }
         }
 
-        // --- QUERY IS BLANK: DISPLAY 2-COLUMN CATEGORY GRID ---
+        // --- QUERY IS BLANK: TRENDING ONLINE FEED & CATEGORY GRID ---
         if (query.isBlank()) {
+
+            // Top Trending Hits
+            if (trendingOnlineSongs.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Trending Now",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color.White else Color.Black
+                        )
+                        if (isOnlineLoading) {
+                            CircularProgressIndicator(
+                                color = AuraCyan,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+
+                items(trendingOnlineSongs.take(6), key = { "trending_search_${it.id}" }) { song ->
+                    val currentPlayingId = onlinePlaybackState?.value?.currentSong?.id
+                    val isPlaying = currentPlayingId == song.id && (onlinePlaybackState?.value?.isPlaying == true)
+                    SongRow(
+                        onlineSong = song,
+                        isPlaying = isPlaying,
+                        onClick = { onOnlineSongSelected(song, trendingOnlineSongs) },
+                        onPlayNow = { onOnlineSongSelected(song, trendingOnlineSongs) }
+                    )
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+            }
+
+            // Explore Categories Title
+            item {
+                Text(
+                    text = "Explore Categories",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDark) Color.White else Color.Black,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                )
+            }
+
             val rows = categories.chunked(2)
             items(rows) { row ->
                 Row(
@@ -201,7 +336,7 @@ fun SearchScreen(
                 }
             }
         } else {
-            // --- SEARCH RESULTS MODE ---
+            // --- SEARCH RESULTS MODE (UNIFIED ONLINE + LOCAL) ---
             item {
                 Row(
                     modifier = Modifier
@@ -211,101 +346,180 @@ fun SearchScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (matchedCategory != null) "${matchedCategory.title} Songs" else "Results for '$query'",
+                        text = "Results for '$query'",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (isDark) Color.White else Color.Black
                     )
-                    TextButton(onClick = { onQueryChange("") }) {
-                        Text(text = "Clear", color = Color(0xFFFA2D48))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isOnlineLoading) {
+                            CircularProgressIndicator(
+                                color = AuraCyan,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .padding(end = 8.dp)
+                            )
+                        }
+                        TextButton(onClick = { onQueryChange("") }) {
+                            Text(text = "Clear", color = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
             }
 
-            if (filteredSongs.isEmpty() && matchedAlbums.isEmpty() && matchedArtists.isEmpty()) {
+            // 1. ONLINE STREAMING RESULTS (JioSaavn 320k & YouTube)
+            if (onlineResults.isNotEmpty()) {
                 item {
-                    Column(
+                    SectionHeader(
+                        title = "Online Streaming",
+                        eyebrow = "${onlineResults.size} tracks found"
+                    )
+                }
+
+                items(onlineResults, key = { "search_online_${it.id}" }) { song ->
+                    val currentPlayingId = onlinePlaybackState?.value?.currentSong?.id
+                    val isPlaying = currentPlayingId == song.id && (onlinePlaybackState?.value?.isPlaying == true)
+                    SongRow(
+                        onlineSong = song,
+                        isPlaying = isPlaying,
+                        onClick = { onOnlineSongSelected(song, onlineResults) },
+                        onPlayNow = { onOnlineSongSelected(song, onlineResults) }
+                    )
+                }
+            }
+
+            // 2. LOCAL LIBRARY RESULTS
+            if (filteredSongs.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    SectionHeader(
+                        title = "Local Library",
+                        eyebrow = "${filteredSongs.size} tracks found"
+                    )
+                }
+
+                items(filteredSongs, key = { "search_song_${it.id}" }) { song ->
+                    SongRow(
+                        song = song,
+                        isPlaying = song.id == currentSongId,
+                        isFavorite = song.id in favoriteIds,
+                        onPlayNow = { onSongSelected(song, filteredSongs) },
+                        onToggleFavorite = { onFavoriteToggle(song) },
+                        onAddToPlaylist = { onAddToPlaylist(song) },
+                        onAddToQueue = { onAddToQueue(song) },
+                        onClick = { onSongSelected(song, filteredSongs) }
+                    )
+                }
+            }
+
+            // 3. MATCHING LOCAL ALBUMS
+            if (matchedAlbums.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    SectionHeader(
+                        title = "Albums",
+                        eyebrow = "${matchedAlbums.size} matching"
+                    )
+                }
+                items(matchedAlbums, key = { "search_album_$it" }) { albumName ->
+                    val albumSongs = songs.filter { it.album == albumName }
+                    SearchMediaRow(
+                        title = albumName,
+                        subtitle = "Album • ${albumSongs.firstOrNull()?.artist ?: "Unknown Artist"}",
+                        artworkModel = albumSongs.firstOrNull(),
+                        isCircular = false,
+                        onClick = { onAlbumSelected(albumName) }
+                    )
+                }
+            }
+
+            // 4. MATCHING LOCAL ARTISTS
+            if (matchedArtists.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    SectionHeader(
+                        title = "Artists",
+                        eyebrow = "${matchedArtists.size} matching"
+                    )
+                }
+                items(matchedArtists, key = { "search_artist_$it" }) { artistName ->
+                    val artistSongs = songs.filter { it.artist == artistName }
+                    SearchMediaRow(
+                        title = artistName,
+                        subtitle = "${artistSongs.size} songs",
+                        artworkModel = artistSongs.firstOrNull(),
+                        isCircular = true,
+                        onClick = { onArtistSelected(artistName) }
+                    )
+                }
+            }
+
+            // EMPTY STATE
+            if (onlineResults.isEmpty() && filteredSongs.isEmpty() && !isOnlineLoading) {
+                item {
+                    AuraEmptyState(
+                        title = "No Tracks Found",
+                        message = "We couldn't find any tracks matching \"$query\".",
+                        icon = Icons.Default.MusicNote,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 60.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = (if (isDark) Color.White else Color.Black).copy(alpha = 0.2f)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No songs found matching '$query'",
-                            fontSize = 15.sp,
-                            color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f)
-                        )
-                    }
-                }
-            } else {
-                // Matching Songs
-                if (filteredSongs.isNotEmpty()) {
-                    items(filteredSongs, key = { "search_song_${it.id}" }) { song ->
-                        SongRow(
-                            song = song,
-                            isPlaying = song.id == currentSongId,
-                            isFavorite = song.id in favoriteIds,
-                            onPlayNow = { onSongSelected(song, filteredSongs) },
-                            onToggleFavorite = { onFavoriteToggle(song) },
-                            onAddToPlaylist = { onAddToPlaylist(song) },
-                            onAddToQueue = { onAddToQueue(song) },
-                            onClick = { onSongSelected(song, filteredSongs) }
-                        )
-                    }
-                }
-
-                // Matching Albums
-                if (matchedAlbums.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Albums",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color.White else Color.Black,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-                        )
-                    }
-                    items(matchedAlbums, key = { "search_album_$it" }) { albumName ->
-                        val albumSongs = songs.filter { it.album == albumName }
-                        CollectionRow(
-                            title = albumName,
-                            subtitle = "Album • ${albumSongs.firstOrNull()?.artist ?: "Artist"}",
-                            song = albumSongs.first(),
-                            onClick = { onAlbumSelected(albumName) }
-                        )
-                    }
-                }
-
-                // Matching Artists
-                if (matchedArtists.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Artists",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color.White else Color.Black,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-                        )
-                    }
-                    items(matchedArtists, key = { "search_artist_$it" }) { artistName ->
-                        val artistSongs = songs.filter { it.artist == artistName }
-                        CollectionRow(
-                            title = artistName,
-                            subtitle = "${artistSongs.size} songs",
-                            song = artistSongs.first(),
-                            onClick = { onArtistSelected(artistName) }
-                        )
-                    }
+                            .padding(top = 40.dp)
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SearchMediaRow(
+    title: String,
+    subtitle: String,
+    artworkModel: Any?,
+    isCircular: Boolean = false,
+    onClick: () -> Unit
+) {
+    val isDark = isSystemInDarkTheme()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AuraArtwork(
+            model = artworkModel,
+            size = 50,
+            shape = if (isCircular) CircleShape else RoundedCornerShape(12.dp),
+            modifier = Modifier.size(50.dp)
+        )
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isDark) Color.White else Color(0xFF0F172A),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.55f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = (if (isDark) Color.White else Color.Black).copy(alpha = 0.35f),
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 

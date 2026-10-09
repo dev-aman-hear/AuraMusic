@@ -9,4 +9,6 @@ object PlaybackActionRegistry {
     var onNext: (() -> Unit)? = null
     var onPrevious: (() -> Unit)? = null
     var onFavorite: (() -> Unit)? = null
+    var onSeekTo: ((Long) -> Unit)? = null
 }
+

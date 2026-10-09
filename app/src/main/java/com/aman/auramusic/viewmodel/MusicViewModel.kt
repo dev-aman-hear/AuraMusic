@@ -24,10 +24,11 @@ import java.io.OutputStream
 import java.io.InputStream
 
 @HiltViewModel
-class MusicViewModel @Inject constructor(application: Application) : AndroidViewModel(application) {
-
-    private val repository = MusicRepository(application)
-    private val userRepository = UserPreferencesRepository(application)
+class MusicViewModel @Inject constructor(
+    application: Application,
+    private val repository: MusicRepository,
+    private val userRepository: UserPreferencesRepository
+) : AndroidViewModel(application) {
 
     private val _songs = MutableStateFlow<List<Song>>(emptyList())
     val songs: StateFlow<List<Song>> = _songs.asStateFlow()
@@ -186,12 +187,6 @@ class MusicViewModel @Inject constructor(application: Application) : AndroidView
         }
     }
 
-    fun setColorOsLiveLyricsEnabled(enabled: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.setColorOsLiveLyricsEnabled(enabled)
-        }
-    }
-
     fun setCrossfadeEnabled(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setCrossfadeEnabled(enabled)
@@ -238,30 +233,6 @@ class MusicViewModel @Inject constructor(application: Application) : AndroidView
     fun setPlaylistGridColumns(columns: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setPlaylistGridColumns(columns)
-        }
-    }
-
-    fun setDynamicPillEnabled(enabled: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.setDynamicPillEnabled(enabled)
-        }
-    }
-
-    fun setPillPosition(position: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.setPillPosition(position)
-        }
-    }
-
-    fun setPillVerticalOffset(offset: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.setPillVerticalOffset(offset)
-        }
-    }
-
-    fun setPillSizeScale(scale: Float) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.setPillSizeScale(scale)
         }
     }
 

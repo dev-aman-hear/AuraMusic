@@ -13,7 +13,9 @@ import androidx.palette.graphics.Palette
 import com.aman.auramusic.data.model.LyricLine
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.data.repository.LyricsRepository
+import com.aman.auramusic.data.repository.MusicRepository
 import com.aman.auramusic.data.repository.UserPreferencesRepository
+import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.playback.PlaybackActionRegistry
 import com.aman.auramusic.playback.PlaybackNotificationManager
 import com.aman.auramusic.playback.VlcPlayerManager
@@ -44,14 +46,16 @@ data class QueueEntry(
 )
 
 @HiltViewModel
-class PlayerViewModel @Inject constructor(application: Application) : AndroidViewModel(application) {
+class PlayerViewModel @Inject constructor(
+    application: Application,
+    private val lyricsRepository: LyricsRepository,
+    private val userRepository: UserPreferencesRepository,
+    private val musicRepository: MusicRepository
+) : AndroidViewModel(application) {
 
     private var playerManager: VlcPlayerManager? = null
     private var notificationManager: PlaybackNotificationManager? = null
     private var playbackService: PlaybackService? = null
-    private val lyricsRepository = LyricsRepository()
-    private val userRepository = UserPreferencesRepository(application)
-    private val musicRepository = com.aman.auramusic.data.repository.MusicRepository(application)
     private var favoriteJob: Job? = null
     var isServiceBound by mutableStateOf(false)
         private set
@@ -346,8 +350,42 @@ class PlayerViewModel @Inject constructor(application: Application) : AndroidVie
         checkIsFavorite(song)
         recordPlayback(song)
         saveLastSong(song, startPosition)
-        
-        // Notification and metadata are now handled by PlaybackService
+    }
+
+    fun startOnlinePlayback(
+        song: OnlineSong,
+        isPlaying: Boolean,
+        onPlayPause: () -> Unit,
+        onNext: () -> Unit,
+        onPrevious: () -> Unit,
+        onSeekTo: ((Long) -> Unit)? = null
+    ) {
+        playbackService?.startOnlinePlayback(song, isPlaying, onPlayPause, onNext, onPrevious, onSeekTo)
+    }
+
+    fun updateOnlinePlaybackState(
+        song: OnlineSong,
+        isPlaying: Boolean,
+        positionMs: Long = 0L,
+        durationMs: Long = 0L
+    ) {
+        playbackService?.updateOnlinePlaybackState(song, isPlaying, positionMs, durationMs)
+    }
+
+    fun updateOnlineLyrics(song: OnlineSong, lyrics: List<LyricLine>) {
+        playbackService?.updateOnlineLyrics(song, lyrics)
+    }
+
+    fun onOnlineProgressUpdate(song: OnlineSong, positionMs: Long) {
+        playbackService?.updateOnlinePosition(positionMs)
+    }
+
+    fun onOnlineSeek(song: OnlineSong, positionMs: Long) {
+        playbackService?.onOnlineSeek(positionMs)
+    }
+
+    fun stopOnlinePlayback() {
+        playbackService?.stopOnlinePlayback()
     }
 
     private fun recordPlayback(song: Song) {
@@ -426,6 +464,12 @@ class PlayerViewModel @Inject constructor(application: Application) : AndroidVie
 
     fun togglePlayPause() {
         playerManager?.togglePlayPause()
+    }
+
+    fun pause() {
+        if (isPlaying) {
+            playerManager?.togglePlayPause()
+        }
     }
 
     fun seekTo(position: Long) {

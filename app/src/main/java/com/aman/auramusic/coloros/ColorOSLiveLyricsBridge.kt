@@ -2,6 +2,7 @@ package com.aman.auramusic.coloros
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import com.aman.auramusic.data.model.LyricLine
@@ -9,7 +10,11 @@ import com.aman.auramusic.data.model.Song
 
 class ColorOSLiveLyricsBridge(private val context: Context) {
 
-    var isEnabled: Boolean = false
+    /**
+     * Automatically determined based on ROM compatibility (ColorOS, Realme UI, OxygenOS, OPlus).
+     * Remains always active when compatible.
+     */
+    var isEnabled: Boolean = isRomCompatible(context)
 
     private var currentSongId: Long? = null
     private var trackGeneration: Long = 100L
@@ -17,10 +22,68 @@ class ColorOSLiveLyricsBridge(private val context: Context) {
 
     private var lastPositionBroadcastMs: Long = 0L
     private var lastBroadcastTimeMs: Long = 0L
+    private var lastIsPlaying: Boolean? = null
 
     companion object {
         private const val TAG = "ColorOSLiveLyricsBridge"
         private const val POSITION_THROTTLE_MS = 2000L
+
+        /**
+         * Checks whether the current device ROM is compatible with ColorOS / OPlus / Realme / OxygenOS Live Lyrics.
+         */
+        fun isRomCompatible(context: Context? = null): Boolean {
+            val manufacturer = Build.MANUFACTURER.lowercase()
+            val brand = Build.BRAND.lowercase()
+            val fingerprint = Build.FINGERPRINT.lowercase()
+            val display = Build.DISPLAY.lowercase()
+
+            val isOplusBrand = manufacturer.contains("oppo") ||
+                    manufacturer.contains("realme") ||
+                    manufacturer.contains("oneplus") ||
+                    brand.contains("oppo") ||
+                    brand.contains("realme") ||
+                    brand.contains("oneplus") ||
+                    fingerprint.contains("oplus") ||
+                    fingerprint.contains("coloros") ||
+                    fingerprint.contains("realme") ||
+                    display.contains("coloros") ||
+                    display.contains("realme")
+
+            if (isOplusBrand) {
+                Log.i(TAG, "ColorOS Live Lyrics ROM check: Device ($manufacturer / $brand) is compatible.")
+                return true
+            }
+
+            // Check system properties via reflection for custom/ported ROMs
+            try {
+                val sysPropClass = Class.forName("android.os.SystemProperties")
+                val getMethod = sysPropClass.getMethod("get", String::class.java)
+                val oplusRom = getMethod.invoke(null, "ro.build.version.oplusrom") as? String
+                val oppoRom = getMethod.invoke(null, "ro.build.version.opporom") as? String
+                val realmeUi = getMethod.invoke(null, "ro.build.version.realmeui") as? String
+                val oplusVersion = getMethod.invoke(null, "ro.oplus.version.my_engineering") as? String
+
+                if (!oplusRom.isNullOrBlank() || !oppoRom.isNullOrBlank() || !realmeUi.isNullOrBlank() || !oplusVersion.isNullOrBlank()) {
+                    Log.i(TAG, "ColorOS Live Lyrics ROM check: System property matched ($oplusRom / $oppoRom / $realmeUi).")
+                    return true
+                }
+            } catch (_: Exception) {}
+
+            // Check if broadcast receivers or system features exist
+            if (context != null) {
+                try {
+                    val intent = Intent(ColorOSBridgeConfig.ACTION_DIRECT_V4)
+                    val receivers = context.packageManager.queryBroadcastReceivers(intent, 0)
+                    if (receivers.isNotEmpty()) {
+                        Log.i(TAG, "ColorOS Live Lyrics ROM check: Found ${receivers.size} registered receiver(s).")
+                        return true
+                    }
+                } catch (_: Exception) {}
+            }
+
+            Log.d(TAG, "ColorOS Live Lyrics ROM check: Device ($manufacturer / $brand) is not a ColorOS/OPlus device.")
+            return false
+        }
     }
 
     @Synchronized
@@ -58,17 +121,20 @@ class ColorOSLiveLyricsBridge(private val context: Context) {
         cachedLyrics = lyrics
         if (!isEnabled) return
 
-        if (currentSongId == song.id) {
-            val lrcString = ColorOSLyricPayload.formatLrc(lyrics)
-            if (lrcString.isNotEmpty()) {
-                sendDirectV4Broadcast(
-                    song = song,
-                    lrcString = lrcString,
-                    eventType = ColorOSBridgeConfig.EventType.LYRIC_READY,
-                    isPlaying = isPlaying,
-                    positionMs = positionMs
-                )
-            }
+        if (currentSongId != song.id) {
+            currentSongId = song.id
+            trackGeneration++
+        }
+
+        val lrcString = ColorOSLyricPayload.formatLrc(lyrics)
+        if (lrcString.isNotEmpty()) {
+            sendDirectV4Broadcast(
+                song = song,
+                lrcString = lrcString,
+                eventType = ColorOSBridgeConfig.EventType.LYRIC_READY,
+                isPlaying = isPlaying,
+                positionMs = positionMs
+            )
         }
     }
 
@@ -78,9 +144,11 @@ class ColorOSLiveLyricsBridge(private val context: Context) {
 
         val now = SystemClock.elapsedRealtime()
         val posDelta = Math.abs(positionMs - lastPositionBroadcastMs)
+        val stateChanged = lastIsPlaying != isPlaying
 
         // Broadcast state immediately if playback state toggles, or throttled if just playing
-        if (now - lastBroadcastTimeMs >= POSITION_THROTTLE_MS || posDelta >= 1000L) {
+        if (stateChanged || now - lastBroadcastTimeMs >= POSITION_THROTTLE_MS || posDelta >= 1000L) {
+            lastIsPlaying = isPlaying
             val lrcString = ColorOSLyricPayload.formatLrc(cachedLyrics)
             sendDirectV4Broadcast(
                 song = song,

@@ -17,35 +17,35 @@ import com.aman.auramusic.data.model.ThemeMode
 val LocalIsDark = staticCompositionLocalOf { false }
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFFFF375F),
-    secondary = Color(0xFFFF6B8A),
-    tertiary = Color(0xFFFFB3C1),
-    background = Color(0xFF0F0F10),
-    surface = Color(0xFF1C1C1E),
-    surfaceVariant = Color(0xFF2C2C2E),
+    primary = AuraPrimary,
+    secondary = AuraSecondary,
+    tertiary = AuraTertiary,
+    background = AuraDarkBackground,
+    surface = AuraDarkSurface,
+    surfaceVariant = AuraDarkSurfaceVariant,
     onPrimary = Color.White,
     onSecondary = Color.White,
     onTertiary = Color.White,
-    onBackground = Color.White,
-    onSurface = Color.White,
-    onSurfaceVariant = Color(0xFFEBEBF5),
-    outline = Color(0xFF3A3A3C)
+    onBackground = AuraTextPrimaryDark,
+    onSurface = AuraTextPrimaryDark,
+    onSurfaceVariant = AuraTextSecondaryDark,
+    outline = AuraDarkBorder
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFFFF2D55),
-    secondary = Color(0xFFE64667),
-    tertiary = Color(0xFFFF8FA3),
-    background = Color(0xFFF8F9FA),
-    surface = Color.White,
-    surfaceVariant = Color(0xFFEFF1F5),
+    primary = AuraPrimary,
+    secondary = AuraSecondary,
+    tertiary = AuraTertiary,
+    background = AuraLightBackground,
+    surface = AuraLightSurface,
+    surfaceVariant = AuraLightSurfaceVariant,
     onPrimary = Color.White,
     onSecondary = Color.White,
     onTertiary = Color.White,
-    onBackground = Color(0xFF1C1C1E),
-    onSurface = Color(0xFF1C1C1E),
-    onSurfaceVariant = Color(0xFF6C6C70),
-    outline = Color(0xFFE0E0E6),
+    onBackground = AuraTextPrimaryLight,
+    onSurface = AuraTextPrimaryLight,
+    onSurfaceVariant = AuraTextSecondaryLight,
+    outline = AuraLightBorder,
     primaryContainer = Color(0xFFFFE8EC),
     onPrimaryContainer = Color(0xFFD81B43)
 )

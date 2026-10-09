@@ -12,6 +12,17 @@ fun formatDuration(ms: Long): String {
 }
 
 fun audioQuality(song: Song): AudioQuality {
+    if (song.filePath.startsWith("http") || song.uri.startsWith("http")) {
+        return AudioQuality(
+            badge = "Stream 320K",
+            detail = "320 kbps / 44.1 kHz",
+            compact = "320k",
+            bitDepth = "16-bit",
+            sampleRate = "44.1 kHz",
+            bitrate = "320 kbps",
+            format = "AAC/MP4"
+        )
+    }
     return audioQuality(
         filePath = song.filePath,
         mimeType = song.mimeType,

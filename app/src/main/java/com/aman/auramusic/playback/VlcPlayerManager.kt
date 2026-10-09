@@ -83,11 +83,11 @@ class VlcPlayerManager(context: Context) {
 
     init {
         mediaSession.setCallback(object : MediaSession.Callback() {
-            override fun onPlay() { togglePlayPause() }
-            override fun onPause() { togglePlayPause() }
+            override fun onPlay() { PlaybackActionRegistry.onPlayPause?.invoke() ?: togglePlayPause() }
+            override fun onPause() { PlaybackActionRegistry.onPlayPause?.invoke() ?: togglePlayPause() }
             override fun onSkipToNext() { PlaybackActionRegistry.onNext?.invoke() }
             override fun onSkipToPrevious() { PlaybackActionRegistry.onPrevious?.invoke() }
-            override fun onSeekTo(pos: Long) { seekTo(pos) }
+            override fun onSeekTo(pos: Long) { PlaybackActionRegistry.onSeekTo?.invoke(pos) ?: seekTo(pos) }
         })
         mediaSession.isActive = true
 
@@ -136,6 +136,22 @@ class VlcPlayerManager(context: Context) {
         
         val playbackState = PlaybackState.Builder()
             .setState(state, position(), 1f)
+            .setActions(
+                PlaybackState.ACTION_PLAY or
+                PlaybackState.ACTION_PAUSE or
+                PlaybackState.ACTION_PLAY_PAUSE or
+                PlaybackState.ACTION_SKIP_TO_NEXT or
+                PlaybackState.ACTION_SKIP_TO_PREVIOUS or
+                PlaybackState.ACTION_SEEK_TO
+            )
+            .build()
+        mediaSession.setPlaybackState(playbackState)
+    }
+
+    fun updateSessionPlaybackState(isPlaying: Boolean, positionMs: Long) {
+        val state = if (isPlaying) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
+        val playbackState = PlaybackState.Builder()
+            .setState(state, positionMs.coerceAtLeast(0L), 1f)
             .setActions(
                 PlaybackState.ACTION_PLAY or
                 PlaybackState.ACTION_PAUSE or
@@ -216,6 +232,16 @@ class VlcPlayerManager(context: Context) {
 
     private fun abandonAudioFocus() {
         audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+    }
+
+    fun pause() {
+        if (isPlaying()) {
+            shouldResumeOnFocusGain = false
+            mediaPlayer.pause()
+            abandonAudioFocus()
+            listeners.forEach { it.onPlaybackState(false) }
+            updatePlaybackState()
+        }
     }
 
     fun togglePlayPause() {

@@ -12,11 +12,5 @@ data class AppSettings(
     val smartAudioFocus: Boolean = true,
     val keepPlayingOnClose: Boolean = true,
     val playlistGridColumns: Int = 2,
-    val dynamicPillEnabled: Boolean = false,
-    val pillPosition: Int = 1, // 0: Left, 1: Center, 2: Right
-    val pillVerticalOffset: Int = 32,
-    val pillSizeScale: Float = 1.0f,
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val colorOsLiveLyricsEnabled: Boolean = false
+    val themeMode: ThemeMode = ThemeMode.SYSTEM
 )
-

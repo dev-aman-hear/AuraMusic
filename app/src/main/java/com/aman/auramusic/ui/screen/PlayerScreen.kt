@@ -50,6 +50,9 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.DragIndicator
@@ -95,6 +98,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -156,6 +160,15 @@ fun PlayerScreen(
     onAddToPlaylist: () -> Unit,
     appSettings: AppSettings,
     playerViewModel: PlayerViewModel = viewModel(),
+    isFavorite: Boolean = playerViewModel.isFavorite,
+    onFavoriteToggle: () -> Unit = { playerViewModel.toggleFavorite() },
+    isShuffled: Boolean = playerViewModel.isShuffled,
+    repeatMode: RepeatMode = playerViewModel.repeatMode,
+    onToggleShuffle: () -> Unit = { playerViewModel.toggleShuffle() },
+    onToggleRepeat: () -> Unit = { playerViewModel.toggleRepeat() },
+    onAddToQueue: ((Song) -> Unit)? = null,
+    onMoveQueueItem: ((Int, Int) -> Unit)? = null,
+    onOpenDiagnostics: (() -> Unit)? = null,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val artworkModel = remember(song.id, song.uri, song.artworkUri) {
@@ -171,8 +184,13 @@ fun PlayerScreen(
 
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val scope = rememberCoroutineScope()
-    val dominantColorInt = playerViewModel.dominantColor
-    val accentColorInt = playerViewModel.accentColor
+
+    var onlineDominantColor by remember(song.id, song.artworkUri) { mutableIntStateOf(0xFF1E1E1E.toInt()) }
+    var onlineAccentColor by remember(song.id, song.artworkUri) { mutableIntStateOf(0xFF2A2A2A.toInt()) }
+    val isOnlineSong = song.artworkUri?.startsWith("http") == true
+    val dominantColorInt = if (isOnlineSong && onlineDominantColor != 0xFF1E1E1E.toInt()) onlineDominantColor else playerViewModel.dominantColor
+    val accentColorInt = if (isOnlineSong && onlineAccentColor != 0xFF2A2A2A.toInt()) onlineAccentColor else playerViewModel.accentColor
+
     val offsetY = remember { Animatable(0f) }
     
     val scaleFactor = remember(offsetY.value) { (1f - (offsetY.value / 3000f)).coerceIn(0.9f, 1f) }
@@ -210,7 +228,16 @@ fun PlayerScreen(
                 )
             }
     ) {
-        PlayerBackground(artworkModel, animatedColor, animatedAccentColor, appSettings.blurIntensity)
+        PlayerBackground(
+            artworkModel = artworkModel,
+            dominantColor = animatedColor,
+            accentColor = animatedAccentColor,
+            blurIntensity = appSettings.blurIntensity,
+            onPaletteExtracted = { dom, acc ->
+                onlineDominantColor = dom
+                onlineAccentColor = acc
+            }
+        )
 
         if (showSleepTimerDialog) {
             SleepTimerDialog(
@@ -227,18 +254,43 @@ fun PlayerScreen(
                 isLyricsPage = pagerState.currentPage != 1,
                 isPlaying = isPlaying,
                 onPlayPause = onPlayPause,
-                isFavorite = playerViewModel.isFavorite,
-                onFavoriteToggle = { playerViewModel.toggleFavorite() },
+                isFavorite = isFavorite,
+                onFavoriteToggle = onFavoriteToggle,
                 onAddToPlaylist = onAddToPlaylist,
-                onAddToQueue = { playerViewModel.addToQueue(song) },
-                onShowSleepTimer = { showSleepTimerDialog = true }
+                onAddToQueue = { onAddToQueue?.invoke(song) ?: playerViewModel.addToQueue(song) },
+                onShowSleepTimer = { showSleepTimerDialog = true },
+                onOpenDiagnostics = onOpenDiagnostics
             )
 
             HorizontalPager(state = pagerState, modifier = Modifier.weight(1f), verticalAlignment = Alignment.Top, beyondViewportPageCount = 1) { page ->
                 when (page) {
                     0 -> LyricsPage(lyrics, position, onSeek, appSettings.lyricFontScale, appSettings.karaokeMode)
-                    1 -> NowPlayingPage(song, isPlaying, playerViewModel.isFavorite, { playerViewModel.toggleFavorite() }, onAddToPlaylist, { playerViewModel.addToQueue(song) }, { showSleepTimerDialog = true })
-                    2 -> QueuePage(queue, history, song.id, playerViewModel.isShuffled, playerViewModel.repeatMode, pagerState.currentPage == 2, { playerViewModel.toggleShuffle() }, { playerViewModel.toggleRepeat() }, onSongSelected, onQueueRemove, onQueueClear, onQueueSave, onHistoryClear, { from, to -> playerViewModel.moveQueueItem(from, to) })
+                    1 -> NowPlayingPage(
+                        song = song,
+                        isPlaying = isPlaying,
+                        isFavorite = isFavorite,
+                        onFavoriteToggle = onFavoriteToggle,
+                        onAddToPlaylist = onAddToPlaylist,
+                        onAddToQueue = { onAddToQueue?.invoke(song) ?: playerViewModel.addToQueue(song) },
+                        onShowSleepTimer = { showSleepTimerDialog = true },
+                        onOpenDiagnostics = onOpenDiagnostics
+                    )
+                    2 -> QueuePage(
+                        queue = queue,
+                        history = history,
+                        currentSongId = song.id,
+                        isShuffled = isShuffled,
+                        repeatMode = repeatMode,
+                        isCurrentPage = pagerState.currentPage == 2,
+                        onShuffleToggle = onToggleShuffle,
+                        onRepeatToggle = onToggleRepeat,
+                        onSongSelected = onSongSelected,
+                        onQueueRemove = onQueueRemove,
+                        onQueueClear = onQueueClear,
+                        onQueueSave = onQueueSave,
+                        onHistoryClear = onHistoryClear,
+                        onMove = onMoveQueueItem ?: { from, to -> playerViewModel.moveQueueItem(from, to) }
+                    )
                 }
             }
 
@@ -260,10 +312,63 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun PlayerBackground(artworkModel: Any?, dominantColor: Color, accentColor: Color, blurIntensity: Int) {
+private fun PlayerBackground(
+    artworkModel: Any?,
+    dominantColor: Color,
+    accentColor: Color,
+    blurIntensity: Int,
+    onPaletteExtracted: ((Int, Int) -> Unit)? = null
+) {
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        AsyncImage(model = artworkModel, contentDescription = null, modifier = Modifier.fillMaxSize().blur(blurIntensity.dp).scale(2.5f), contentScale = ContentScale.Crop, alpha = 0.45f)
-        Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(colors = listOf(dominantColor.copy(alpha = 0.4f), accentColor.copy(alpha = 0.2f), Color.Transparent, Color.Black.copy(alpha = 0.7f), Color.Black))))
+        AsyncImage(
+            model = artworkModel,
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(blurIntensity.dp)
+                .scale(2.5f),
+            contentScale = ContentScale.Crop,
+            alpha = 0.45f,
+            onSuccess = { state ->
+                try {
+                    val drawable = state.result.drawable
+                    if (drawable is android.graphics.drawable.BitmapDrawable) {
+                        val bmp = drawable.bitmap
+                        val safeBmp = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && bmp.config == android.graphics.Bitmap.Config.HARDWARE) {
+                            bmp.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                        } else {
+                            bmp
+                        }
+                        if (safeBmp != null) {
+                            androidx.palette.graphics.Palette.from(safeBmp).generate { palette ->
+                                palette?.let {
+                                    val vibrant = it.getVibrantColor(it.getDominantColor(0xFF1E1E1E.toInt()))
+                                    val muted = it.getMutedColor(it.getDarkVibrantColor(0xFF2A2A2A.toInt()))
+                                    onPaletteExtracted?.invoke(vibrant, muted)
+                                }
+                            }
+                        }
+                    }
+                } catch (_: Throwable) {
+                    // Safe fallback
+                }
+            }
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            dominantColor.copy(alpha = 0.4f),
+                            accentColor.copy(alpha = 0.2f),
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.7f),
+                            Color.Black
+                        )
+                    )
+                )
+        )
     }
 }
 
@@ -278,7 +383,8 @@ private fun PlayerHeader(
     onFavoriteToggle: () -> Unit,
     onAddToPlaylist: () -> Unit,
     onAddToQueue: () -> Unit,
-    onShowSleepTimer: () -> Unit
+    onShowSleepTimer: () -> Unit,
+    onOpenDiagnostics: (() -> Unit)? = null
 ) {
     var showMenu by remember { mutableStateOf(value = false) }
 
@@ -352,7 +458,7 @@ private fun PlayerHeader(
                             text = { Text("Add to Playlist", fontWeight = FontWeight.SemiBold) },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Default.PlaylistAdd,
+                                    imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp)
@@ -364,7 +470,7 @@ private fun PlayerHeader(
                             text = { Text("Add to Queue", fontWeight = FontWeight.SemiBold) },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Default.QueueMusic,
+                                    imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp)
@@ -384,6 +490,20 @@ private fun PlayerHeader(
                             },
                             onClick = { onShowSleepTimer(); showMenu = false }
                         )
+                        if (onOpenDiagnostics != null) {
+                            DropdownMenuItem(
+                                text = { Text("Stream Quality", fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.HighQuality,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = { onOpenDiagnostics(); showMenu = false }
+                            )
+                        }
                     }
                 }
             }
@@ -392,7 +512,16 @@ private fun PlayerHeader(
 }
 
 @Composable
-private fun NowPlayingPage(song: Song, isPlaying: Boolean, isFavorite: Boolean, onFavoriteToggle: () -> Unit, onAddToPlaylist: () -> Unit, onAddToQueue: () -> Unit, onShowSleepTimer: () -> Unit) {
+private fun NowPlayingPage(
+    song: Song,
+    isPlaying: Boolean,
+    isFavorite: Boolean,
+    onFavoriteToggle: () -> Unit,
+    onAddToPlaylist: () -> Unit,
+    onAddToQueue: () -> Unit,
+    onShowSleepTimer: () -> Unit,
+    onOpenDiagnostics: (() -> Unit)? = null
+) {
     val artworkScale by animateFloatAsState(if (isPlaying) 1f else 0.85f, label = "artworkScale")
     var showMenu by remember { mutableStateOf(value = false) }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Top) {
@@ -443,7 +572,7 @@ private fun NowPlayingPage(song: Song, isPlaying: Boolean, isFavorite: Boolean, 
                         text = { Text("Add to Playlist", fontWeight = FontWeight.SemiBold) },
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.PlaylistAdd,
+                                imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
@@ -455,7 +584,7 @@ private fun NowPlayingPage(song: Song, isPlaying: Boolean, isFavorite: Boolean, 
                         text = { Text("Add to Queue", fontWeight = FontWeight.SemiBold) },
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.QueueMusic,
+                                imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
@@ -475,6 +604,20 @@ private fun NowPlayingPage(song: Song, isPlaying: Boolean, isFavorite: Boolean, 
                         },
                         onClick = { onShowSleepTimer(); showMenu = false }
                     )
+                    if (onOpenDiagnostics != null) {
+                        DropdownMenuItem(
+                            text = { Text("Stream Quality", fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.HighQuality,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = { onOpenDiagnostics(); showMenu = false }
+                        )
+                    }
                 }
             }
         }
@@ -739,7 +882,7 @@ private fun PlayerControls(song: Song, isPlaying: Boolean, position: Long, durat
         Spacer(Modifier.height(28.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onPrevious, modifier = Modifier.size(64.dp)) { Icon(Icons.Default.SkipPrevious, "Prev", tint = Color.White, modifier = Modifier.size(48.dp)) }; Surface(modifier = Modifier.size(92.dp).clickable { onPlayPause() }, shape = CircleShape, color = Color.White.copy(alpha = 0.18f)) { Box(contentAlignment = Alignment.Center) { Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, "Play/Pause", tint = Color.White, modifier = Modifier.size(56.dp)) } }; IconButton(onClick = onNext, modifier = Modifier.size(64.dp)) { Icon(Icons.Default.SkipNext, "Next", tint = Color.White, modifier = Modifier.size(48.dp)) } }
         Spacer(Modifier.height(34.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { onPageToggle(0) }) { Icon(Icons.Default.Article, "Lyrics", tint = if (currentPage == 0) Color.White else Color.White.copy(alpha = 0.45f)) }; IconButton(onClick = { onPageToggle(2) }) { Icon(Icons.Default.QueueMusic, "Queue", tint = if (currentPage == 2) Color.White else Color.White.copy(alpha = 0.45f)) } }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { onPageToggle(0) }) { Icon(Icons.AutoMirrored.Filled.Article, "Lyrics", tint = if (currentPage == 0) Color.White else Color.White.copy(alpha = 0.45f)) }; IconButton(onClick = { onPageToggle(2) }) { Icon(Icons.AutoMirrored.Filled.QueueMusic, "Queue", tint = if (currentPage == 2) Color.White else Color.White.copy(alpha = 0.45f)) } }
     }
 }
 

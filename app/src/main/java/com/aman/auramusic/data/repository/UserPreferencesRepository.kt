@@ -42,14 +42,9 @@ class UserPreferencesRepository(private val context: Context) {
             smartAudioFocus = prefs[Keys.smartAudioFocus] ?: true,
             keepPlayingOnClose = prefs[Keys.keepPlayingOnClose] ?: false,
             playlistGridColumns = prefs[Keys.playlistGridColumns] ?: 2,
-            dynamicPillEnabled = prefs[Keys.dynamicPillEnabled] ?: false,
-            pillPosition = prefs[Keys.pillPosition] ?: 1,
-            pillVerticalOffset = prefs[Keys.pillVerticalOffset] ?: 32,
-            pillSizeScale = prefs[Keys.pillSizeScale] ?: 1.0f,
             themeMode = runCatching {
                 ThemeMode.valueOf(prefs[Keys.themeMode] ?: ThemeMode.SYSTEM.name)
-            }.getOrDefault(ThemeMode.SYSTEM),
-            colorOsLiveLyricsEnabled = prefs[Keys.colorOsLiveLyricsEnabled] ?: false
+            }.getOrDefault(ThemeMode.SYSTEM)
         )
     }.distinctUntilChanged()
 
@@ -117,28 +112,8 @@ class UserPreferencesRepository(private val context: Context) {
         dataStore.edit { it[Keys.playlistGridColumns] = columns.coerceIn(1, 2) }
     }
 
-    suspend fun setDynamicPillEnabled(enabled: Boolean) {
-        dataStore.edit { it[Keys.dynamicPillEnabled] = enabled }
-    }
-
-    suspend fun setPillPosition(position: Int) {
-        dataStore.edit { it[Keys.pillPosition] = position.coerceIn(0, 2) }
-    }
-
-    suspend fun setPillVerticalOffset(offset: Int) {
-        dataStore.edit { it[Keys.pillVerticalOffset] = offset.coerceIn(0, 64) }
-    }
-
-    suspend fun setPillSizeScale(scale: Float) {
-        dataStore.edit { it[Keys.pillSizeScale] = scale.coerceIn(1.0f, 2.0f) }
-    }
-
     suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { it[Keys.themeMode] = mode.name }
-    }
-
-    suspend fun setColorOsLiveLyricsEnabled(enabled: Boolean) {
-        dataStore.edit { it[Keys.colorOsLiveLyricsEnabled] = enabled }
     }
 
     suspend fun setFavorite(songId: Long, isFavorite: Boolean) {
@@ -284,12 +259,7 @@ class UserPreferencesRepository(private val context: Context) {
             val smartAudioFocus = booleanPreferencesKey("smart_audio_focus")
             val keepPlayingOnClose = booleanPreferencesKey("keep_playing_on_close")
             val playlistGridColumns = intPreferencesKey("playlist_grid_columns")
-            val dynamicPillEnabled = booleanPreferencesKey("dynamic_pill_enabled")
-            val pillPosition = intPreferencesKey("pill_position")
-            val pillVerticalOffset = intPreferencesKey("pill_vertical_offset")
-            val pillSizeScale = floatPreferencesKey("pill_size_scale")
             val themeMode = stringPreferencesKey("theme_mode")
-            val colorOsLiveLyricsEnabled = booleanPreferencesKey("coloros_live_lyrics_enabled")
             val favoriteIds = stringPreferencesKey("favorite_ids")
             val recentSearches = stringPreferencesKey("recent_searches")
             val playbackHistory = stringPreferencesKey("playback_history")

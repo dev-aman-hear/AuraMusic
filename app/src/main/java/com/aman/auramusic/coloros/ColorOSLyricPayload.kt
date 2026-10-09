@@ -13,7 +13,7 @@ object ColorOSLyricPayload {
             val minutes = totalSeconds / 60
             val seconds = totalSeconds % 60
             val hundredths = (line.timeMs % 1000) / 10
-            String.format("[%02d:%02d.%02d]%s", minutes, seconds, hundredths, line.text)
+            String.format(java.util.Locale.US, "[%02d:%02d.%02d]%s", minutes, seconds, hundredths, line.text)
         }
     }
 

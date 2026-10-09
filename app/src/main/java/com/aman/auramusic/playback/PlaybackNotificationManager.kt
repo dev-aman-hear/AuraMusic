@@ -112,25 +112,51 @@ class PlaybackNotificationManager(private val context: Context) {
         )
     }
 
+    private val artworkCache = android.util.LruCache<String, Bitmap>(20)
+
     fun loadArtwork(song: Song): Bitmap? {
-        if (song.id == -1L) {
-            return com.aman.auramusic.util.ArtworkExtractor.getArtwork(context, song.uri)
-        }
-        val uri = song.artworkUri ?: return null
-        return runCatching {
-            context.contentResolver.openInputStream(uri.toUri())?.use { input ->
-                BitmapFactory.decodeStream(input)
+        val uri = song.artworkUri
+        if (uri.isNullOrBlank()) {
+            if (song.id == -1L) {
+                return com.aman.auramusic.util.ArtworkExtractor.getArtwork(context, song.uri)
             }
-        }.getOrNull()
+            return null
+        }
+        return loadArtwork(uri)
     }
 
     fun loadArtwork(artworkUri: String?): Bitmap? {
         if (artworkUri.isNullOrBlank()) return null
-        return runCatching {
+        artworkCache.get(artworkUri)?.let { return it }
+
+        if (artworkUri.startsWith("http://") || artworkUri.startsWith("https://")) {
+            val bitmap = runCatching {
+                val url = java.net.URL(artworkUri)
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                connection.instanceFollowRedirects = true
+                connection.doInput = true
+                connection.connect()
+                connection.inputStream.use { stream ->
+                    BitmapFactory.decodeStream(stream)
+                }
+            }.getOrNull()
+            if (bitmap != null) {
+                artworkCache.put(artworkUri, bitmap)
+            }
+            return bitmap
+        }
+
+        val bitmap = runCatching {
             context.contentResolver.openInputStream(artworkUri.toUri())?.use { input ->
                 BitmapFactory.decodeStream(input)
             }
         }.getOrNull()
+        if (bitmap != null) {
+            artworkCache.put(artworkUri, bitmap)
+        }
+        return bitmap
     }
 
     companion object {

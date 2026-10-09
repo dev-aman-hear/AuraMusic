@@ -9,7 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -54,12 +54,7 @@ fun SettingsScreen(
     onSkipSilenceChange: (Boolean) -> Unit,
     onSmartAudioFocusChange: (Boolean) -> Unit,
     onKeepPlayingOnCloseChange: (Boolean) -> Unit,
-    onColorOsLiveLyricsChange: (Boolean) -> Unit = {},
     onPlaylistGridColumnsChange: (Int) -> Unit,
-    onPillPositionChange: (Int) -> Unit,
-    onPillVerticalOffsetChange: (Int) -> Unit,
-    onPillSizeScaleChange: (Float) -> Unit,
-    onDynamicPillChange: (Boolean) -> Unit,
     onImportPlaylistFile: () -> Unit,
     onExportAllSongs: () -> Unit,
     onExportPlaylist: () -> Unit,
@@ -138,54 +133,6 @@ fun SettingsScreen(
                     )
                     ToggleRow(title = "Dynamic colors", checked = appSettings.dynamicColors, onCheckedChange = onDynamicColorsChange)
                     ToggleRow(title = "AMOLED dark mode", checked = appSettings.amoledMode, onCheckedChange = onAmoledChange)
-                    ToggleRow(title = "Dynamic Pill (Overlay)", checked = appSettings.dynamicPillEnabled, onCheckedChange = { enabled ->
-                        if (enabled && !android.provider.Settings.canDrawOverlays(context)) {
-                            val intent = android.content.Intent(
-                                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                Uri.parse("package:${context.packageName}")
-                            )
-                            context.startActivity(intent)
-                            Toast.makeText(context, "Please enable Overlay Permission", Toast.LENGTH_LONG).show()
-                        } else {
-                            onDynamicPillChange(enabled)
-                        }
-                    })
-                    
-                    if (appSettings.dynamicPillEnabled) {
-                        Column(modifier = Modifier.padding(top = 8.dp)) {
-                            val posText = when(appSettings.pillPosition) {
-                                0 -> "Left"
-                                2 -> "Right"
-                                else -> "Center"
-                            }
-                            Text("Pill position: $posText", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Slider(
-                                value = appSettings.pillPosition.toFloat(),
-                                onValueChange = { onPillPositionChange(it.toInt()) },
-                                valueRange = 0f..2f,
-                                steps = 1
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Pill vertical offset: ${appSettings.pillVerticalOffset}dp", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Slider(
-                                value = appSettings.pillVerticalOffset.toFloat(),
-                                onValueChange = { onPillVerticalOffsetChange(it.toInt()) },
-                                valueRange = 0f..64f,
-                                steps = 15
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Pill size scale: ${String.format("%.1f", appSettings.pillSizeScale)}x", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Slider(
-                                value = appSettings.pillSizeScale,
-                                onValueChange = { onPillSizeScaleChange(it) },
-                                valueRange = 1.0f..2.0f,
-                                steps = 9
-                            )
-                        }
-                    }
-
                     ToggleRow(title = "Karaoke mode", checked = appSettings.karaokeMode, onCheckedChange = onKaraokeChange)
                 }
             }
@@ -222,7 +169,6 @@ fun SettingsScreen(
                     ToggleRow(title = "Skip silence", checked = appSettings.skipSilence, onCheckedChange = onSkipSilenceChange)
                     ToggleRow(title = "Smart audio focus", checked = appSettings.smartAudioFocus, onCheckedChange = onSmartAudioFocusChange)
                     ToggleRow(title = "Keep playing on app close", checked = appSettings.keepPlayingOnClose, onCheckedChange = onKeepPlayingOnCloseChange)
-                    ToggleRow(title = "ColorOS Live Lyrics", checked = appSettings.colorOsLiveLyricsEnabled, onCheckedChange = onColorOsLiveLyricsChange)
                     Text("Playlist view columns: ${appSettings.playlistGridColumns}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     Slider(
                         value = appSettings.playlistGridColumns.toFloat(),
@@ -247,7 +193,7 @@ fun SettingsScreen(
                     )
 
                     SettingsRow(
-                        icon = Icons.Default.PlaylistAdd,
+                        icon = Icons.AutoMirrored.Filled.PlaylistAdd,
                         title = "Export playlist",
                         subtitle = "Export your playlists to a file",
                         onClick = onExportPlaylist

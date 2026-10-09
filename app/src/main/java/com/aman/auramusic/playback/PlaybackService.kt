@@ -4,6 +4,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
+import com.aman.auramusic.data.model.LyricLine
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.data.repository.UserPreferencesRepository
 import kotlinx.coroutines.CoroutineScope
@@ -14,9 +15,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+import kotlinx.coroutines.withContext
 import com.aman.auramusic.coloros.ColorOSLiveLyricsBridge
 import com.aman.auramusic.coloros.ColorOSLyricPayload
 import com.aman.auramusic.data.repository.LyricsRepository
+import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.online.model.toSong
 
 class PlaybackService : Service() {
 
@@ -70,22 +74,6 @@ class PlaybackService : Service() {
             userRepository.settingsFlow.collect { settings ->
                 keepPlayingOnClose = settings.keepPlayingOnClose
                 playerManager.smartAudioFocusEnabled = settings.smartAudioFocus
-                val wasEnabled = colorOSBridge.isEnabled
-                colorOSBridge.isEnabled = settings.colorOsLiveLyricsEnabled
-                
-                // If setting was newly enabled during playback, broadcast current song state immediately
-                if (!wasEnabled && settings.colorOsLiveLyricsEnabled) {
-                    currentSong?.let { song ->
-                        val lyrics = lyricsRepository.lyricsFor(song)
-                        colorOSBridge.onTrackChanged(song, lyrics, playerManager.isPlaying(), playerManager.position())
-                    }
-                }
-
-                PillStateManager.setPillEnabled(settings.dynamicPillEnabled)
-                PillStateManager.setPillPosition(settings.pillPosition)
-                PillStateManager.setPillVerticalOffset(settings.pillVerticalOffset)
-                PillStateManager.setPillSizeScale(settings.pillSizeScale)
-                checkPillService()
             }
         }
 
@@ -97,7 +85,6 @@ class PlaybackService : Service() {
             }
 
             override fun onPlaybackState(isPlaying: Boolean) {
-                PillStateManager.updateState(currentSong, isPlaying)
                 currentSong?.let { song ->
                     serviceScope.launch {
                         val notification = notificationManager.createNotification(song, isPlaying, playerManager.getSessionToken())
@@ -107,8 +94,6 @@ class PlaybackService : Service() {
                 }
                 if (!isPlaying && isTaskRemoved) {
                     stopSelf()
-                } else {
-                    checkPillService()
                 }
             }
 
@@ -152,6 +137,11 @@ class PlaybackService : Service() {
     }
 
     fun play(song: Song) {
+        if (isOnlinePlaybackActive) {
+            isOnlinePlaybackActive = false
+            currentOnlineSong = null
+        }
+        setupActions()
         currentSong = song
         playerManager.play(song.filePath)
         startAsForeground(song, true)
@@ -160,27 +150,170 @@ class PlaybackService : Service() {
     fun prepare(song: Song, positionMs: Long) {
         currentSong = song
         playerManager.prepare(song.filePath, positionMs)
-        PillStateManager.updateState(song, false)
-        checkPillService()
+    }
+
+    var isOnlinePlaybackActive: Boolean = false
+        private set
+    var currentOnlineSong: OnlineSong? = null
+        private set
+    private var cachedOnlineLyrics: List<LyricLine> = emptyList()
+    private var isOnlinePlaying: Boolean = false
+    private var currentOnlinePosition: Long = 0L
+
+    fun startOnlinePlayback(
+        song: OnlineSong,
+        isPlaying: Boolean,
+        onPlayPause: () -> Unit,
+        onNext: () -> Unit,
+        onPrevious: () -> Unit,
+        onSeekTo: ((Long) -> Unit)? = null
+    ) {
+        isOnlinePlaybackActive = true
+        currentOnlineSong = song
+        currentSong = null
+        isOnlinePlaying = isPlaying
+        currentOnlinePosition = 0L
+        cachedOnlineLyrics = emptyList()
+
+        // Stop offline player if running
+        playerManager.pause()
+
+        val displaySong = song.toSong()
+
+        PlaybackActionRegistry.onPlayPause = onPlayPause
+        PlaybackActionRegistry.onNext = onNext
+        PlaybackActionRegistry.onPrevious = onPrevious
+        PlaybackActionRegistry.onSeekTo = { pos ->
+            currentOnlinePosition = pos
+            colorOSBridge.onSeek(displaySong, pos, isOnlinePlaying)
+            onSeekTo?.invoke(pos)
+        }
+
+        colorOSBridge.onTrackChanged(displaySong, cachedOnlineLyrics, isPlaying, 0L)
+        updateOnlineNotification(song, isPlaying)
+
+        serviceScope.launch {
+            val lyrics = withContext(Dispatchers.IO) { lyricsRepository.lyricsFor(displaySong) }
+            if (lyrics.isNotEmpty() && currentOnlineSong?.id == song.id) {
+                updateOnlineLyrics(song, lyrics)
+            }
+        }
+    }
+
+    fun updateOnlineLyrics(song: OnlineSong, lyrics: List<LyricLine>) {
+        if (!isOnlinePlaybackActive || currentOnlineSong?.id != song.id) return
+        cachedOnlineLyrics = lyrics
+        val displaySong = song.toSong()
+
+        colorOSBridge.onLyricsLoaded(displaySong, lyrics, isPlaying = isOnlinePlaying, positionMs = currentOnlinePosition)
+
+        val lyricInfoJson = ColorOSLyricPayload.generateLyricInfoJson(displaySong, lyrics)
+
+        retryJob?.cancel()
+        serviceScope.launch {
+            val artwork = withContext(Dispatchers.IO) { notificationManager.loadArtwork(displaySong) }
+            playerManager.setMetadata(displaySong.title, displaySong.artist, displaySong.album, displaySong.duration, artwork, lyricInfoJson)
+
+            if (lyricInfoJson.isNotBlank()) {
+                retryJob = launch {
+                    kotlinx.coroutines.delay(800)
+                    if (currentOnlineSong?.id == song.id) {
+                        playerManager.setMetadata(displaySong.title, displaySong.artist, displaySong.album, displaySong.duration, artwork, lyricInfoJson)
+                    }
+                }
+            }
+        }
+    }
+
+    fun updateOnlinePlaybackState(
+        song: OnlineSong,
+        isPlaying: Boolean,
+        positionMs: Long = 0L,
+        durationMs: Long = 0L
+    ) {
+        if (!isOnlinePlaybackActive) return
+        val songChanged = currentOnlineSong?.id != song.id
+        val playStateChanged = isOnlinePlaying != isPlaying
+        currentOnlineSong = song
+        isOnlinePlaying = isPlaying
+        currentOnlinePosition = positionMs
+
+        val displaySong = song.toSong()
+
+        playerManager.updateSessionPlaybackState(isPlaying, positionMs)
+        colorOSBridge.onPlaybackStateChanged(displaySong, isPlaying, positionMs)
+
+        if (songChanged) {
+            cachedOnlineLyrics = emptyList()
+            colorOSBridge.onTrackChanged(displaySong, cachedOnlineLyrics, isPlaying, positionMs)
+            updateOnlineNotification(song, isPlaying)
+
+            serviceScope.launch {
+                val lyrics = withContext(Dispatchers.IO) { lyricsRepository.lyricsFor(displaySong) }
+                if (lyrics.isNotEmpty() && currentOnlineSong?.id == song.id) {
+                    updateOnlineLyrics(song, lyrics)
+                }
+            }
+        } else if (playStateChanged) {
+            updateOnlineNotification(song, isPlaying)
+        }
+    }
+
+    fun updateOnlinePosition(positionMs: Long) {
+        if (!isOnlinePlaybackActive) return
+        currentOnlinePosition = positionMs
+        val displaySong = currentOnlineSong?.toSong() ?: return
+        playerManager.updateSessionPlaybackState(isOnlinePlaying, positionMs)
+        colorOSBridge.onPlaybackStateChanged(displaySong, isOnlinePlaying, positionMs)
+    }
+
+    fun onOnlineSeek(positionMs: Long) {
+        if (!isOnlinePlaybackActive) return
+        currentOnlinePosition = positionMs
+        val displaySong = currentOnlineSong?.toSong() ?: return
+        playerManager.updateSessionPlaybackState(isOnlinePlaying, positionMs)
+        colorOSBridge.onSeek(displaySong, positionMs, isOnlinePlaying)
+    }
+
+    fun stopOnlinePlayback() {
+        if (!isOnlinePlaybackActive) return
+        val displaySong = currentOnlineSong?.toSong()
+        isOnlinePlaybackActive = false
+        currentOnlineSong = null
+        cachedOnlineLyrics = emptyList()
+        currentOnlinePosition = 0L
+        setupActions()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        notificationManager.clear()
+        colorOSBridge.onPlaybackStopped(displaySong)
+    }
+
+    private fun updateOnlineNotification(
+        onlineSong: OnlineSong,
+        isPlaying: Boolean
+    ) {
+        val displaySong = onlineSong.toSong()
+
+        retryJob?.cancel()
+        serviceScope.launch {
+            val artwork = withContext(Dispatchers.IO) { notificationManager.loadArtwork(displaySong) }
+            val lyricInfoJson = ColorOSLyricPayload.generateLyricInfoJson(displaySong, cachedOnlineLyrics)
+            playerManager.setMetadata(displaySong.title, displaySong.artist, displaySong.album, displaySong.duration, artwork, lyricInfoJson)
+            val notification = notificationManager.createNotification(displaySong, isPlaying, playerManager.getSessionToken())
+            if (isPlaying) {
+                startForeground(PlaybackNotificationManager.NOTIFICATION_ID, notification)
+            } else {
+                notificationManager.show(displaySong, isPlaying, playerManager.getSessionToken())
+                stopForeground(STOP_FOREGROUND_DETACH)
+            }
+        }
     }
 
     private fun setupActions() {
         PlaybackActionRegistry.onPlayPause = { playerManager.togglePlayPause() }
         PlaybackActionRegistry.onNext = { playNext() }
         PlaybackActionRegistry.onPrevious = { playPrevious() }
-    }
-
-    private fun checkPillService() {
-        // Pill should show if enabled and we have a song.
-        // It should NOT disappear immediately on pause anymore.
-        val shouldRun = PillStateManager.isPillEnabled.value && currentSong != null
-        
-        val serviceIntent = Intent(this, PillOverlayService::class.java)
-        if (shouldRun) {
-            startService(serviceIntent)
-        } else {
-            stopService(serviceIntent)
-        }
+        PlaybackActionRegistry.onSeekTo = { playerManager.seekTo(it) }
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
@@ -192,7 +325,8 @@ class PlaybackService : Service() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
         isTaskRemoved = true
-        if (!keepPlayingOnClose || !playerManager.isPlaying()) {
+        val isAnyPlaying = if (isOnlinePlaybackActive) true else playerManager.isPlaying()
+        if (!keepPlayingOnClose || !isAnyPlaying) {
             stopSelf()
         }
     }
@@ -202,13 +336,11 @@ class PlaybackService : Service() {
 
     fun startAsForeground(song: Song, isPlaying: Boolean) {
         currentSong = song
-        PillStateManager.updateState(song, isPlaying)
-        checkPillService()
 
         retryJob?.cancel()
         serviceScope.launch {
             val artwork = with(Dispatchers.IO) { notificationManager.loadArtwork(song) }
-            val lyrics = with(Dispatchers.IO) { lyricsRepository.lyricsFor(song) }
+            val lyrics = withContext(Dispatchers.IO) { lyricsRepository.lyricsFor(song) }
             val lyricInfoJson = ColorOSLyricPayload.generateLyricInfoJson(song, lyrics)
 
             playerManager.setMetadata(song.title, song.artist, song.album, song.duration, artwork, lyricInfoJson)
@@ -231,16 +363,14 @@ class PlaybackService : Service() {
 
     fun stopAsForeground(removeNotification: Boolean) {
         stopForeground(if (removeNotification) STOP_FOREGROUND_REMOVE else STOP_FOREGROUND_DETACH)
-        PillStateManager.updateState(currentSong, false)
-        checkPillService()
-        colorOSBridge.onPlaybackStopped(currentSong)
+        val activeSong = currentSong ?: currentOnlineSong?.toSong()
+        colorOSBridge.onPlaybackStopped(activeSong)
     }
 
     override fun onDestroy() {
-        colorOSBridge.onPlaybackStopped(currentSong)
+        val activeSong = currentSong ?: currentOnlineSong?.toSong()
+        colorOSBridge.onPlaybackStopped(activeSong)
         serviceScope.cancel()
-        // Stop pill service when playback service is destroyed
-        stopService(Intent(this, PillOverlayService::class.java))
         playerManager.release()
         super.onDestroy()
     }

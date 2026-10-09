@@ -1,10 +1,10 @@
 package com.aman.auramusic.di
 
 import android.content.Context
-import androidx.room.Room
-import com.aman.auramusic.data.local.PlaylistDao
-import com.aman.auramusic.data.local.PlaylistDatabase
-import com.aman.auramusic.data.remote.PlaylistApi
+import com.aman.auramusic.data.repository.LyricsRepository
+import com.aman.auramusic.data.repository.MusicRepository
+import com.aman.auramusic.data.repository.UserPreferencesRepository
+import com.aman.auramusic.online.network.repository.OnlineMusicRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -12,8 +12,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Singleton
 
 @Module
@@ -32,27 +30,25 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun providePlaylistApi(okHttpClient: OkHttpClient): PlaylistApi {
-        return Retrofit.Builder()
-            .baseUrl("https://yourserver.com/") // Replace with actual server URL
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(PlaylistApi::class.java)
+    fun provideMusicRepository(@ApplicationContext context: Context): MusicRepository {
+        return MusicRepository(context)
     }
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): PlaylistDatabase {
-        return Room.databaseBuilder(
-            context,
-            PlaylistDatabase::class.java,
-            "aura_music_db"
-        ).build()
+    fun provideUserPreferencesRepository(@ApplicationContext context: Context): UserPreferencesRepository {
+        return UserPreferencesRepository(context)
     }
 
     @Provides
-    fun providePlaylistDao(database: PlaylistDatabase): PlaylistDao {
-        return database.playlistDao()
+    @Singleton
+    fun provideLyricsRepository(): LyricsRepository {
+        return LyricsRepository()
+    }
+
+    @Provides
+    @Singleton
+    fun provideOnlineMusicRepository(): OnlineMusicRepository {
+        return OnlineMusicRepository()
     }
 }
