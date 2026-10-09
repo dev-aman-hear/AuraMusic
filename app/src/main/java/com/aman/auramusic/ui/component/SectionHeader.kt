@@ -62,7 +62,7 @@ fun SectionHeader(
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = titleColor,
-                letterSpacing = (-0.3).sp,
+                letterSpacing = 0.sp,
                 modifier = Modifier.weight(1f, fill = false)
             )
 

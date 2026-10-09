@@ -19,6 +19,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +31,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.ui.theme.LocalIsDark
+
+import androidx.compose.material.icons.filled.AutoAwesome
+import com.aman.auramusic.BuildConfig
 
 enum class AppTab(
     val label: String,
@@ -52,11 +56,11 @@ fun BottomNavBar(
     onTabSelected: (AppTab) -> Unit
 ) {
     val isDark = LocalIsDark.current
-    val navBgColor = if (isDark) Color(0xD9181920) else Color.White.copy(alpha = 0.88f)
+    val navBgColor = if (isDark) Color(0xE6121013) else Color.White.copy(alpha = 0.92f)
     val navBorderBrush = if (isDark) {
         Brush.verticalGradient(
             listOf(
-                Color.White.copy(alpha = 0.32f),
+                            Color.White.copy(alpha = 0.24f),
                 Color.White.copy(alpha = 0.08f)
             )
         )
@@ -85,13 +89,13 @@ fun BottomNavBar(
             color = navBgColor,
             modifier = Modifier
                 .weight(1f)
-                .height(58.dp)
+                .height(56.dp)
                 .shadow(
                     elevation = shadowElevation,
                     shape = RoundedCornerShape(30.dp),
                     spotColor = if (isDark) Color.Black else Color(0x33000000)
                 ),
-            shape = RoundedCornerShape(30.dp),
+            shape = RoundedCornerShape(24.dp),
             border = BorderStroke(1.dp, navBorderBrush)
         ) {
             Row(
@@ -101,7 +105,9 @@ fun BottomNavBar(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val primaryTabs = listOf(AppTab.Home, AppTab.Online, AppTab.Library)
+                val primaryTabs = remember {
+                    listOf(AppTab.Home, AppTab.Online, AppTab.Library)
+                }
                 primaryTabs.forEach { tab ->
                     val selected = selectedTab == tab
                     val tabTint by animateColorAsState(
@@ -127,7 +133,7 @@ fun BottomNavBar(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .clip(RoundedCornerShape(22.dp))
+                            .clip(RoundedCornerShape(18.dp))
                             .background(activePillBg)
                             .clickable { onTabSelected(tab) },
                         contentAlignment = Alignment.Center
@@ -140,16 +146,16 @@ fun BottomNavBar(
                                 imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
                                 contentDescription = tab.label,
                                 tint = tabTint,
-                                modifier = Modifier.size(21.dp)
+                                modifier = Modifier.size(if (primaryTabs.size > 3) 19.dp else 21.dp)
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = tab.label,
-                                fontSize = 10.5.sp,
+                                fontSize = if (primaryTabs.size > 3) 9.5.sp else 10.5.sp,
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                 color = tabTint,
                                 maxLines = 1,
-                                letterSpacing = (-0.2).sp
+                                letterSpacing = 0.sp
                             )
                         }
                     }
@@ -184,7 +190,7 @@ fun BottomNavBar(
 
         Surface(
             modifier = Modifier
-                .size(58.dp)
+                .size(56.dp)
                 .shadow(
                     elevation = shadowElevation,
                     shape = CircleShape,

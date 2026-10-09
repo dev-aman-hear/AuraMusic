@@ -129,6 +129,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.material3.Divider
 import com.aman.auramusic.ui.screen.HomeScreen
+import com.aman.auramusic.ui.screen.hometest.HomeTestScreen
 import com.aman.auramusic.ui.screen.OnlineScreen
 import com.aman.auramusic.ui.screen.LibraryScreen
 import androidx.compose.runtime.DisposableEffect
@@ -606,22 +607,27 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         }
                         else -> {
                             when (selectedTab) {
-                                AppTab.Home -> HomeScreen(
+                                AppTab.Home -> HomeTestScreen(
                                     songs = filteredSongs,
                                     username = username,
                                     history = playbackHistory,
                                     favorites = favoriteSongs,
                                     favoriteIds = favoriteIds,
-                                    dominantColor = animatedDominantColor,
+                                    currentSongId = playerViewModel.currentSong?.id,
+                                    isPlaying = playerViewModel.isPlaying,
                                     onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
-                                    onSongSelected = { song, queue -> 
-                                        playSong(song, queue) 
+                                    onSongSelected = { song, queue ->
+                                        playSong(song, queue)
                                     },
                                     onFavoriteToggle = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
                                     onAddToPlaylist = { songToAddToPlaylist = it },
                                     onAddToQueue = { playerViewModel.addToQueue(it) },
+                                    onOnlineSongSelected = { onlineSong, queue ->
+                                        playOnlineSong(onlineSong, queue)
+                                    },
                                     onAlbumSelected = { selectedAlbumName = it },
                                     onArtistSelected = { selectedArtistName = it },
+                                    onPlaylistSelected = { selectedPlaylistId = it },
                                     onOpenSettings = { showSettings = true }
                                 )
                                 AppTab.Online -> OnlineScreen(

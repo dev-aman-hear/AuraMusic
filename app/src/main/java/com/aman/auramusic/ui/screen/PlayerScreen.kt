@@ -17,6 +17,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -86,13 +87,10 @@ import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -362,8 +360,8 @@ private fun PlayerBackground(
                         colors = listOf(
                             dominantColor.copy(alpha = 0.4f),
                             accentColor.copy(alpha = 0.2f),
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.7f),
+                            Color.Black.copy(alpha = 0.18f),
+                            Color.Black.copy(alpha = 0.78f),
                             Color.Black
                         )
                     )
@@ -522,28 +520,42 @@ private fun NowPlayingPage(
     onShowSleepTimer: () -> Unit,
     onOpenDiagnostics: (() -> Unit)? = null
 ) {
-    val artworkScale by animateFloatAsState(if (isPlaying) 1f else 0.85f, label = "artworkScale")
+    val artworkScale by animateFloatAsState(if (isPlaying) 1f else 0.96f, label = "artworkScale")
     var showMenu by remember { mutableStateOf(value = false) }
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Top) {
-        Spacer(modifier = Modifier.height(24.dp))
-        SongArtwork(song, size = 280, modifier = Modifier.scale(artworkScale).clip(RoundedCornerShape(24.dp)))
-        Spacer(modifier = Modifier.height(32.dp))
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 30.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        Spacer(modifier = Modifier.height(14.dp))
+        SongArtwork(
+            song = song,
+            size = 314,
+            modifier = Modifier
+                .scale(artworkScale)
+                .clip(RoundedCornerShape(22.dp)),
+            shape = RoundedCornerShape(22.dp),
+            elevation = 16.dp
+        )
+        Spacer(modifier = Modifier.height(34.dp))
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-                Text(song.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.basicMarquee())
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(song.artist, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.85f), maxLines = 1, modifier = Modifier.basicMarquee())
+                Text(song.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.basicMarquee())
+                Spacer(modifier = Modifier.height(5.dp))
+                Text(song.artist, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.72f), maxLines = 1, modifier = Modifier.basicMarquee())
             }
-            IconButton(onClick = onFavoriteToggle, modifier = Modifier.background(if (isFavorite) Color.White.copy(alpha = 0.95f) else Color.White.copy(alpha = 0.1f), CircleShape).size(40.dp)) {
-                Icon(if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Favorite", tint = if (isFavorite) Color(0xFFFA2D48) else Color.White, modifier = Modifier.size(22.dp))
+            IconButton(onClick = onFavoriteToggle, modifier = Modifier.background(Color.White.copy(alpha = if (isFavorite) 0.22f else 0.12f), CircleShape).size(44.dp)) {
+                Icon(if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Favorite", tint = if (isFavorite) Color(0xFFFF5C7A) else Color.White, modifier = Modifier.size(24.dp))
             }
             Spacer(modifier = Modifier.width(8.dp))
             Box {
                 IconButton(
                     onClick = { showMenu = true },
                     modifier = Modifier
-                        .background(Color.White.copy(alpha = 0.15f), CircleShape)
-                        .size(40.dp)
+                        .background(Color.White.copy(alpha = 0.12f), CircleShape)
+                        .size(44.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreHoriz,
@@ -868,7 +880,6 @@ private fun SleepTimerDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlayerControls(song: Song, isPlaying: Boolean, position: Long, duration: Long, currentPage: Int, onPlayPause: () -> Unit, onSeek: (Long) -> Unit, onPrevious: () -> Unit, onNext: () -> Unit, onPageToggle: (Int) -> Unit) {
     val rd = if (duration > 0) duration else song.duration
@@ -876,13 +887,90 @@ private fun PlayerControls(song: Song, isPlaying: Boolean, position: Long, durat
     val q = audioQuality(song)
     var showQ by remember { mutableStateOf(false) }
     if (showQ) QualityDetailsDialog(quality = q) { showQ = false }
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Slider(value = sv.coerceIn(0f, 1f), onValueChange = { onSeek((it * rd).toLong()) }, colors = SliderDefaults.colors(activeTrackColor = Color.White, inactiveTrackColor = Color.White.copy(alpha = 0.22f), thumbColor = Color.White), modifier = Modifier.fillMaxWidth())
-        Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) { Text(formatDuration(position), style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.6f)); Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(18.dp), modifier = Modifier.padding(top = 4.dp).clickable { showQ = true }) { Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) { if (q.badge.contains("Lossless")) { Icon(Icons.Default.Waves, null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(12.dp)); Spacer(Modifier.width(6.dp)) }; Text(q.badge, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.85f)) } }; Text("-${formatDuration((rd - position).coerceAtLeast(0L))}", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.6f)) }
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 30.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        AppleMusicScrubber(
+            progress = sv.coerceIn(0f, 1f),
+            onScrub = { fraction -> onSeek((fraction * rd).toLong()) }
+        )
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 7.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(formatDuration(position), style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.58f))
+            Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(18.dp), modifier = Modifier.clickable { showQ = true }) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                    if (q.badge.contains("Lossless") || q.badge.contains("Stream")) {
+                        Icon(Icons.Default.Waves, null, tint = Color.White.copy(alpha = 0.82f), modifier = Modifier.size(12.dp))
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(q.badge, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.82f))
+                }
+            }
+            Text("-${formatDuration((rd - position).coerceAtLeast(0L))}", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.58f))
+        }
+        Spacer(Modifier.height(30.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onPrevious, modifier = Modifier.size(64.dp)) {
+                Icon(Icons.Default.SkipPrevious, "Previous", tint = Color.White, modifier = Modifier.size(46.dp))
+            }
+            Surface(modifier = Modifier.size(96.dp).clickable { onPlayPause() }, shape = CircleShape, color = Color.White.copy(alpha = 0.16f)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, "Play/Pause", tint = Color.White, modifier = Modifier.size(56.dp))
+                }
+            }
+            IconButton(onClick = onNext, modifier = Modifier.size(64.dp)) {
+                Icon(Icons.Default.SkipNext, "Next", tint = Color.White, modifier = Modifier.size(46.dp))
+            }
+        }
         Spacer(Modifier.height(28.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onPrevious, modifier = Modifier.size(64.dp)) { Icon(Icons.Default.SkipPrevious, "Prev", tint = Color.White, modifier = Modifier.size(48.dp)) }; Surface(modifier = Modifier.size(92.dp).clickable { onPlayPause() }, shape = CircleShape, color = Color.White.copy(alpha = 0.18f)) { Box(contentAlignment = Alignment.Center) { Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, "Play/Pause", tint = Color.White, modifier = Modifier.size(56.dp)) } }; IconButton(onClick = onNext, modifier = Modifier.size(64.dp)) { Icon(Icons.Default.SkipNext, "Next", tint = Color.White, modifier = Modifier.size(48.dp)) } }
-        Spacer(Modifier.height(34.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { onPageToggle(0) }) { Icon(Icons.AutoMirrored.Filled.Article, "Lyrics", tint = if (currentPage == 0) Color.White else Color.White.copy(alpha = 0.45f)) }; IconButton(onClick = { onPageToggle(2) }) { Icon(Icons.AutoMirrored.Filled.QueueMusic, "Queue", tint = if (currentPage == 2) Color.White else Color.White.copy(alpha = 0.45f)) } }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { onPageToggle(0) }) {
+                Icon(Icons.AutoMirrored.Filled.Article, "Lyrics", tint = if (currentPage == 0) Color.White else Color.White.copy(alpha = 0.42f), modifier = Modifier.size(27.dp))
+            }
+            IconButton(onClick = { onPageToggle(2) }) {
+                Icon(Icons.AutoMirrored.Filled.QueueMusic, "Queue", tint = if (currentPage == 2) Color.White else Color.White.copy(alpha = 0.42f), modifier = Modifier.size(29.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppleMusicScrubber(
+    progress: Float,
+    onScrub: (Float) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(28.dp)
+            .pointerInput(Unit) {
+                detectTapGestures { offset ->
+                    onScrub((offset.x / size.width).coerceIn(0f, 1f))
+                }
+            }
+            .pointerInput(Unit) {
+                detectDragGestures { change, _ ->
+                    onScrub((change.position.x / size.width).coerceIn(0f, 1f))
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(Color.White.copy(alpha = 0.24f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .weight(progress.coerceIn(0.001f, 1f))
+                    .background(Color.White.copy(alpha = 0.92f))
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .weight((1f - progress).coerceIn(0.001f, 1f))
+            )
+        }
     }
 }
 

@@ -51,4 +51,15 @@ object AppModule {
     fun provideOnlineMusicRepository(): OnlineMusicRepository {
         return OnlineMusicRepository()
     }
+
+    @Provides
+    @Singleton
+    fun provideYouTubeArtistRepository(
+        onlineRepository: OnlineMusicRepository
+    ): com.aman.auramusic.online.network.repository.YouTubeArtistRepository {
+        return com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl(
+            pipedService = com.aman.auramusic.online.network.piped.PipedService(),
+            onlineRepository = onlineRepository
+        )
+    }
 }

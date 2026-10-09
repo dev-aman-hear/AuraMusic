@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.ui.theme.AuraShapes
 import com.aman.auramusic.ui.theme.LocalIsDark
 
 @Composable
@@ -57,9 +58,9 @@ fun MiniPlayer(
     val isDark = LocalIsDark.current
 
     val containerColor = if (isDark) {
-        Color.Black.copy(alpha = 0.55f)
+        Color(0xE6121013)
     } else {
-        MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
     }
     val titleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
     val subtitleColor = if (isDark) Color.White.copy(alpha = 0.65f) else MaterialTheme.colorScheme.onSurfaceVariant
@@ -69,7 +70,7 @@ fun MiniPlayer(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 6.dp)
-            .shadow(if (isDark) 16.dp else 10.dp, RoundedCornerShape(22.dp))
+            .shadow(if (isDark) 14.dp else 8.dp, AuraShapes.Surface)
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragEnd = {
@@ -91,7 +92,7 @@ fun MiniPlayer(
                 }
             }
             .clickable { onOpen() },
-        shape = RoundedCornerShape(22.dp),
+        shape = AuraShapes.Surface,
         color = containerColor,
         border = BorderStroke(
             1.dp,
@@ -133,7 +134,7 @@ fun MiniPlayer(
                 SongArtwork(
                     song = song,
                     size = 46,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(10.dp)
                 )
                 
                 Spacer(modifier = Modifier.width(12.dp))

@@ -12,21 +12,21 @@ val Typography = Typography(
         fontWeight = FontWeight.ExtraBold,
         fontSize = 32.sp,
         lineHeight = 38.sp,
-        letterSpacing = (-0.75).sp
+        letterSpacing = 0.sp
     ),
     headlineLarge = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 26.sp,
         lineHeight = 32.sp,
-        letterSpacing = (-0.5).sp
+        letterSpacing = 0.sp
     ),
     headlineMedium = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 22.sp,
         lineHeight = 28.sp,
-        letterSpacing = (-0.25).sp
+        letterSpacing = 0.sp
     ),
     titleLarge = TextStyle(
         fontFamily = FontFamily.Default,

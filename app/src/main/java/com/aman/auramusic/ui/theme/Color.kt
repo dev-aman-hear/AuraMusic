@@ -7,16 +7,16 @@ import androidx.compose.ui.graphics.Color
 val AuraPrimary = Color(0xFFFF2D55)        // Signature Electric Rose / Coral
 val AuraPrimaryVariant = Color(0xFFFF375F) // Luminous Crimson
 val AuraSecondary = Color(0xFFFF6B8A)      // Soft Rose
-val AuraTertiary = Color(0xFF8B5CF6)       // Deep Violet Accent
+val AuraTertiary = Color(0xFF7A3E4C)       // Muted wine accent
 val AuraCyan = Color(0xFF00E5FF)           // Streaming Hi-Fi Cyan
 val AuraEmerald = Color(0xFF10B981)        // Downloaded / Offline Emerald
 
 // --- Dark Theme (Obsidian Elegance) ---
-val AuraDarkBackground = Color(0xFF090A0F)        // Deep Void Black
-val AuraDarkSurface = Color(0xFF13151D)           // Surface Card Base
-val AuraDarkSurfaceVariant = Color(0xFF1C1E2A)    // Secondary Surface Card
-val AuraDarkSurfaceElevated = Color(0xFF252837)   // Elevated / Active Card
-val AuraDarkSurfaceGlass = Color(0xD912141C)      // Translucent Glass Surface
+val AuraDarkBackground = Color(0xFF0B0A0C)        // Deep warm black
+val AuraDarkSurface = Color(0xFF161316)           // Surface base
+val AuraDarkSurfaceVariant = Color(0xFF211A1F)    // Secondary surface
+val AuraDarkSurfaceElevated = Color(0xFF2A2026)   // Elevated / active surface
+val AuraDarkSurfaceGlass = Color(0xD9161316)      // Translucent glass surface
 val AuraDarkBorder = Color(0x1AFFFFFF)            // 10% Translucent Border
 val AuraDarkBorderGlow = Color(0x33FFFFFF)        // 20% Border Highlight
 
@@ -25,10 +25,10 @@ val AuraTextSecondaryDark = Color(0xB8FFFFFF)     // 72% opacity
 val AuraTextTertiaryDark = Color(0x66FFFFFF)      // 40% opacity
 
 // --- Light Theme (Clean Crisp Glass) ---
-val AuraLightBackground = Color(0xFFF7F8FC)
+val AuraLightBackground = Color(0xFFFFFAFB)
 val AuraLightSurface = Color(0xFFFFFFFF)
-val AuraLightSurfaceVariant = Color(0xFFEFF1F8)
-val AuraLightSurfaceElevated = Color(0xFFE5E8F3)
+val AuraLightSurfaceVariant = Color(0xFFF4EEF1)
+val AuraLightSurfaceElevated = Color(0xFFFFEEF2)
 val AuraLightSurfaceGlass = Color(0xE6FFFFFF)
 val AuraLightBorder = Color(0x14000000)
 
@@ -46,5 +46,5 @@ val AuraGlassBorderLight = Brush.verticalGradient(
 )
 
 val AuraHeroGradientDark = Brush.linearGradient(
-    listOf(Color(0xFF2E0854), Color(0xFF831843), Color(0xFF1E1B4B))
+    listOf(Color(0xFF3A161E), Color(0xFF8C263B), Color(0xFF151012))
 )

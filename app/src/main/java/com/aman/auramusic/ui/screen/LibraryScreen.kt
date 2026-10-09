@@ -227,10 +227,9 @@ fun LibraryScreen(
     val cardBg = if (isDark) AuraDarkSurfaceElevated else Color(0xFFF1F5F9)
     val cardBorder = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)
 
+    AuraScreenBackground(modifier = modifier) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(if (isDark) AuraDarkBackground else MaterialTheme.colorScheme.background)
+        modifier = Modifier.fillMaxSize()
     ) {
         // --- EDITORIAL HEADER ---
         Column(
@@ -252,7 +251,7 @@ fun LibraryScreen(
                             fontWeight = FontWeight.Black
                         ),
                         color = textColor,
-                        letterSpacing = (-0.5).sp
+                        letterSpacing = 0.sp
                     )
                     Text(
                         text = "${songs.size} tracks collected",
@@ -318,7 +317,7 @@ fun LibraryScreen(
                         }
                     }
                 },
-                shape = RoundedCornerShape(16.dp),
+                shape = AuraShapes.Surface,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = cardBorder,
@@ -347,12 +346,12 @@ fun LibraryScreen(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(AuraShapes.Control)
                             .background(chipBg)
                             .border(
                                 1.dp,
                                 if (isSelected) MaterialTheme.colorScheme.primary else cardBorder,
-                                RoundedCornerShape(14.dp)
+                                AuraShapes.Control
                             )
                             .clickable { selectedTab = tab }
                             .padding(vertical = 10.dp),
@@ -710,5 +709,6 @@ fun LibraryScreen(
                 }
             }
         }
+    }
     }
 }
