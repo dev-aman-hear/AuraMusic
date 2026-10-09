@@ -300,7 +300,10 @@ class TrendingSongFilterTest {
             "Bollywood Merged Audio Nonstop",
             "2 Hours Relaxing Piano Music All Songs",
             "Top 20 Hit Songs 2026",
-            "Greatest Hits Album Discography"
+            "Greatest Hits Album Discography",
+            "Top Hits Playlist ~ Spotify Playlist",
+            "Best of Bollywood Vol. 1",
+            "Top Hits 2026 (New Popular Songs 2026 Best English Songs Best Music)"
         )
 
         for (title in testCases) {

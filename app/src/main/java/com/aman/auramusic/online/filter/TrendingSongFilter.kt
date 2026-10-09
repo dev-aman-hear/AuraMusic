@@ -112,7 +112,10 @@ class TrendingSongFilter(
         "Merged Audio" to Regex("""\bmerged\s+audio\b""", RegexOption.IGNORE_CASE),
         "Multi-song Count" to Regex("""\b(?:top|best|\d+)\s+\d+\s+(?:songs?|tracks?|hits?)\b""", RegexOption.IGNORE_CASE),
         "Greatest Hits Album" to Regex("""\bgreatest\s+hits\s+album\b""", RegexOption.IGNORE_CASE),
-        "Discography" to Regex("""\bdiscography\b""", RegexOption.IGNORE_CASE)
+        "Discography" to Regex("""\bdiscography\b""", RegexOption.IGNORE_CASE),
+        "Playlist Compilation" to Regex("""\b(?:(?:top|best|hit|hits|songs?|music|chill|study|sleep|vibes?|party|summer|gym|workout|spotify|apple|tiktok|viral|hindi|punjabi|english|bollywood|lo[\s\-_]*fi)\s+playlist|playlist\s+(?:20\d\d|mix|songs?|hits?|collection|vol(?:ume)?\.?\s*\d+)|playlists)\b""", RegexOption.IGNORE_CASE),
+        "Volume / Edition Collection" to Regex("""\b(?:vol|volume)\.?\s*\d+\b""", RegexOption.IGNORE_CASE),
+        "Trending/Top Hits Year Collection" to Regex("""\b(?:top|best|trending|viral)\s+(?:hits|songs|music)\s+20\d\d\b""", RegexOption.IGNORE_CASE)
     )
 
     /**

@@ -82,7 +82,8 @@ class PipedService(
                             "gl": "US"
                         }
                     },
-                    "query": "${query.replace("\"", "\\\"")}"
+                    "query": "${query.replace("\"", "\\\"")}",
+                    "params": "EgWKAQIIAWoQEAMQBBAJEAoQBRAREBAQFQ%3D%3D"
                 }
             """.trimIndent()
 
