@@ -5,6 +5,8 @@ import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.network.extractor.DualTierStreamExtractor
 import com.aman.auramusic.online.network.piped.PipedService
 import com.aman.auramusic.online.network.saavn.JioSaavnService
+import com.aman.auramusic.online.filter.TrendingFilterConfig
+import com.aman.auramusic.online.filter.TrendingSongFilter
 import android.util.LruCache
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -18,7 +20,8 @@ import kotlinx.coroutines.coroutineScope
 class OnlineMusicRepository(
     private val jioSaavnService: JioSaavnService = JioSaavnService(),
     private val pipedService: PipedService = PipedService(),
-    private val dualTierExtractor: DualTierStreamExtractor = DualTierStreamExtractor(pipedFallback = pipedService)
+    private val dualTierExtractor: DualTierStreamExtractor = DualTierStreamExtractor(pipedFallback = pipedService),
+    val trendingFilter: TrendingSongFilter = TrendingSongFilter()
 ) {
     companion object {
         private val searchCache = LruCache<String, List<OnlineSong>>(100)
@@ -69,14 +72,57 @@ class OnlineMusicRepository(
         val cacheKey = "trending_${source.name}"
         searchCache.get(cacheKey)?.let { return it }
 
-        val list = when (source) {
-            AudioSource.YOUTUBE -> pipedService.searchSongs("Top Global Hits 2026")
-            else -> jioSaavnService.getTrendingSongs()
+        val rawList = mutableListOf<OnlineSong>()
+
+        val filteredResult = when (source) {
+            AudioSource.YOUTUBE -> {
+                val primary = pipedService.searchSongs("Top Global Hits 2026")
+                rawList.addAll(primary)
+                var filtered = trendingFilter.filterSongs(rawList)
+
+                // If filtering removes too many items, try secondary queries with bounded retry
+                if (filtered.size < trendingFilter.config.minResultsAfterFilter) {
+                    val fallbacks = listOf("Trending Songs 2026", "Billboard Hot 100 2026")
+                    for (fallback in fallbacks) {
+                        val secondary = pipedService.searchSongs(fallback)
+                        rawList.addAll(secondary)
+                        filtered = trendingFilter.filterSongs(rawList)
+                        if (filtered.size >= trendingFilter.config.minResultsAfterFilter) break
+                    }
+                }
+                filtered
+            }
+
+            AudioSource.JIOSAAVN -> {
+                val primary = jioSaavnService.getTrendingSongs()
+                rawList.addAll(primary)
+                var filtered = trendingFilter.filterSongs(rawList)
+
+                if (filtered.size < trendingFilter.config.minResultsAfterFilter) {
+                    val secondary = jioSaavnService.searchSongs("Latest Bollywood Hits", limit = 25)
+                    rawList.addAll(secondary)
+                    filtered = trendingFilter.filterSongs(rawList)
+                }
+                filtered
+            }
+
+            else -> {
+                val jio = getTrending(AudioSource.JIOSAAVN)
+                val yt = getTrending(AudioSource.YOUTUBE)
+                val combined = mutableListOf<OnlineSong>()
+                val maxLen = maxOf(jio.size, yt.size)
+                for (i in 0 until maxLen) {
+                    if (i < jio.size) combined.add(jio[i])
+                    if (i < yt.size) combined.add(yt[i])
+                }
+                trendingFilter.deduplicate(combined)
+            }
         }
-        if (list.isNotEmpty()) {
-            searchCache.put(cacheKey, list)
+
+        if (filteredResult.isNotEmpty()) {
+            searchCache.put(cacheKey, filteredResult)
         }
-        return list
+        return filteredResult
     }
 
     suspend fun getCuratedPlaylists(source: AudioSource = AudioSource.ALL): List<com.aman.auramusic.online.model.OnlinePlaylist> {
@@ -153,8 +199,11 @@ class OnlineMusicRepository(
         val jioDeferred = async { jioSaavnService.getTrendingSongs() }
         val ytDeferred = async { pipedService.searchSongs("Billboard Hot 100 2026") }
 
-        val jio = jioDeferred.await()
-        val yt = ytDeferred.await()
+        val rawJio = jioDeferred.await()
+        val rawYt = ytDeferred.await()
+
+        val jio = trendingFilter.filterSongs(rawJio)
+        val yt = trendingFilter.filterSongs(rawYt)
 
         val list = mutableListOf<OnlineSong>()
         val maxLen = maxOf(jio.size, yt.size)
@@ -163,10 +212,11 @@ class OnlineMusicRepository(
             if (i < yt.size) list.add(yt[i])
         }
 
-        if (list.isNotEmpty()) {
-            songFeedCache = now to list
+        val cleanList = trendingFilter.deduplicate(list)
+        if (cleanList.isNotEmpty()) {
+            songFeedCache = now to cleanList
         }
-        list
+        cleanList
     }
 
     suspend fun resolveStream(song: OnlineSong, targetBitrate: String = "320"): OnlineSong {

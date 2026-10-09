@@ -148,6 +148,49 @@ class PipedService(
                                     ?.last()?.asJsonObject?.get("url")?.asString ?: ""
                             } catch (t: Throwable) { "" }
 
+                            // Extract duration from fixedColumns or flexColumns
+                            var durationSeconds = 0L
+                            val fixed = renderer.getAsJsonArray("fixedColumns")
+                            if (fixed != null) {
+                                for (f in fixed) {
+                                    val runs = f.asJsonObject
+                                        .getAsJsonObject("musicResponsiveListItemFixedColumnRenderer")
+                                        ?.getAsJsonObject("text")
+                                        ?.getAsJsonArray("runs")
+                                    if (runs != null) {
+                                        for (r in runs) {
+                                            val t = r.asJsonObject.get("text")?.asString ?: ""
+                                            val sec = com.aman.auramusic.online.filter.TrendingSongFilter.parseDurationToSeconds(t)
+                                            if (sec > 0L) {
+                                                durationSeconds = sec
+                                                break
+                                            }
+                                        }
+                                    }
+                                    if (durationSeconds > 0L) break
+                                }
+                            }
+
+                            if (durationSeconds == 0L && flex != null) {
+                                for (f in flex) {
+                                    val runs = f.asJsonObject
+                                        .getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
+                                        ?.getAsJsonObject("text")
+                                        ?.getAsJsonArray("runs")
+                                    if (runs != null) {
+                                        for (r in runs) {
+                                            val t = r.asJsonObject.get("text")?.asString ?: ""
+                                            val sec = com.aman.auramusic.online.filter.TrendingSongFilter.parseDurationToSeconds(t)
+                                            if (sec > 0L) {
+                                                durationSeconds = sec
+                                                break
+                                            }
+                                        }
+                                    }
+                                    if (durationSeconds > 0L) break
+                                }
+                            }
+
                             songs.add(
                                 OnlineSong(
                                     id = videoId,
@@ -155,7 +198,7 @@ class PipedService(
                                     artist = artist,
                                     album = "YouTube Music",
                                     artworkUrl = ArtworkQualityOptimizer.optimizeUrl(thumb),
-                                    durationSeconds = 0L,
+                                    durationSeconds = durationSeconds,
                                     source = AudioSource.YOUTUBE,
                                     bitrate = "Adaptive",
                                     format = "M4A/Opus"
