@@ -137,6 +137,7 @@ import com.aman.auramusic.online.player.OnlinePlaybackManager
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.model.toSong
 import com.aman.auramusic.online.model.toLyricLines
+import com.aman.auramusic.online.util.LastPlayedStore
 import com.aman.auramusic.online.ui.components.StreamDiagnosticsSheet
 import com.aman.auramusic.data.model.LyricLine
 import com.aman.auramusic.playback.RepeatMode
@@ -257,15 +258,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
 
     var hasAttemptedRestore by remember { mutableStateOf(false) }
 
-    LaunchedEffect(songs) {
-        if (songs.isNotEmpty() && !hasAttemptedRestore) {
-            // Only set default queue if we haven't attempted restore yet
-            playerViewModel.setQueue(songs)
-            playerViewModel.restoreLastState(songs)
-            hasAttemptedRestore = true
-        }
-    }
-
     var selectedTab by remember { mutableStateOf(AppTab.Home) }
     var showPlayer by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
@@ -276,10 +268,51 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     var activeOnlineSong by remember { mutableStateOf<OnlineSong?>(null) }
     var showOnlineDiagnostics by remember { mutableStateOf(false) }
 
+    // Restore online playback if an online song was the last source played
+    LaunchedEffect(Unit) {
+        val lastSource = LastPlayedStore.getLastSourceType(context)
+        if (lastSource == LastPlayedStore.SOURCE_ONLINE) {
+            val lastOnlineSong = LastPlayedStore.getLastOnlineSong(context)
+            if (lastOnlineSong != null) {
+                val lastPos = LastPlayedStore.getLastPosition(context)
+                val lastQueue = LastPlayedStore.getLastOnlineQueue(context)
+
+                isOnlinePlaybackActive = true
+                activeOnlineSong = lastOnlineSong
+
+                onlinePlaybackManager.prepareSong(lastOnlineSong, lastPos, lastQueue)
+
+                playerViewModel.restoreOnlineState(
+                    song = lastOnlineSong,
+                    onPlayPause = { onlinePlaybackManager.togglePlayPause() },
+                    onNext = { onlinePlaybackManager.playNext() },
+                    onPrevious = { onlinePlaybackManager.playPrevious() },
+                    onSeekTo = { onlinePlaybackManager.seekTo(it) }
+                )
+
+                playerViewModel.extractColor(lastOnlineSong.toSong())
+                hasAttemptedRestore = true
+            }
+        }
+    }
+
+    LaunchedEffect(songs) {
+        if (songs.isNotEmpty() && !hasAttemptedRestore) {
+            val lastSource = LastPlayedStore.getLastSourceType(context)
+            if (lastSource != LastPlayedStore.SOURCE_ONLINE) {
+                // Only set default queue and restore offline state if online wasn't the last source
+                playerViewModel.setQueue(songs)
+                playerViewModel.restoreLastState(songs)
+                hasAttemptedRestore = true
+            }
+        }
+    }
+
     DisposableEffect(onlinePlaybackManager) {
         onlinePlaybackManager.eventListener = object : OnlinePlaybackManager.PlaybackEventListener {
             override fun onSongChanged(song: OnlineSong) {
                 activeOnlineSong = song
+                playerViewModel.extractColor(song.toSong())
             }
 
             override fun onPlaybackStateChanged(song: OnlineSong, isPlaying: Boolean, positionMs: Long) {
@@ -377,6 +410,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     }
 
     fun playSong(song: Song, queue: List<Song>, playlistId: Long? = null) {
+        LastPlayedStore.saveOffline(context, song, 0L)
         isOnlinePlaybackActive = false
         activeOnlineSong = null
         onlinePlaybackManager.pause()
@@ -387,6 +421,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     }
 
     fun playOnlineSong(onlineSong: OnlineSong, queue: List<OnlineSong>) {
+        LastPlayedStore.saveOnline(context, onlineSong, 0L, queue)
         isOnlinePlaybackActive = true
         activeOnlineSong = onlineSong
         playerViewModel.pause()
@@ -402,6 +437,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
         onlinePlaybackManager.playbackState.value.currentLyrics?.let { cachedLyrics ->
             playerViewModel.updateOnlineLyrics(onlineSong, cachedLyrics.toLyricLines())
         }
+        playerViewModel.extractColor(onlineSong.toSong())
         showPlayer = true
     }
 

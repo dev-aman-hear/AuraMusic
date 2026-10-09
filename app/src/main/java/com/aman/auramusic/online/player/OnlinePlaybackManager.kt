@@ -16,6 +16,7 @@ import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.model.PlaybackState
 import com.aman.auramusic.online.model.StreamingEngine
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
+import com.aman.auramusic.online.util.LastPlayedStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -61,6 +62,7 @@ class OnlinePlaybackManager(
     var eventListener: PlaybackEventListener? = null
 
     private var isUsingIFramePlayer = false
+    private var hasStartedPlaybackForCurrentSong = false
 
     // 1. AndroidX Media3 ExoPlayer for direct CDN streams (JioSaavn 320k untouched)
     private val httpDataSourceFactory = DefaultHttpDataSource.Factory()
@@ -172,6 +174,9 @@ class OnlinePlaybackManager(
                 }
                 _playbackState.value.currentSong?.let { song ->
                     eventListener?.onProgressUpdate(song, currentMs)
+                    if (currentMs > 0 && currentMs % 5000 < 300) {
+                        LastPlayedStore.updatePosition(context, currentMs)
+                    }
                 }
             }
 
@@ -196,17 +201,63 @@ class OnlinePlaybackManager(
         _playbackState.update { it.copy(selectedEngine = engine) }
     }
 
-    fun playSong(song: OnlineSong, newQueue: List<OnlineSong> = emptyList()) {
+    /**
+     * Prepares an online song from persistent storage so that it appears immediately in
+     * the MiniPlayer, PlayerScreen, and Queue in a clean paused state ready to play.
+     */
+    fun prepareSong(song: OnlineSong, initialPositionMs: Long = 0L, initialQueue: List<OnlineSong> = emptyList()) {
+        hasStartedPlaybackForCurrentSong = false
+        isUsingIFramePlayer = (song.source == AudioSource.YOUTUBE)
+        val finalQueue = if (initialQueue.isNotEmpty()) initialQueue else listOf(song)
+        val index = finalQueue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+
+        _playbackState.update {
+            it.copy(
+                isBuffering = false,
+                isPlaying = false,
+                errorMessage = null,
+                currentSong = song,
+                currentPositionMs = initialPositionMs,
+                durationMs = (song.durationSeconds * 1000L).coerceAtLeast(0L),
+                queue = finalQueue,
+                queueIndex = index,
+                isLoadingLyrics = true
+            )
+        }
+
+        eventListener?.onSongChanged(song)
+        eventListener?.onPlaybackStateChanged(song, false, initialPositionMs)
+
+        lyricsJob?.cancel()
+        lyricsJob = scope.launch {
+            val lyrics = lyricsManager.getOrFetchLyrics(song)
+            _playbackState.update {
+                if (it.currentSong?.id == song.id) {
+                    it.copy(currentLyrics = lyrics, isLoadingLyrics = false)
+                } else it
+            }
+            if (_playbackState.value.currentSong?.id == song.id) {
+                eventListener?.onLyricsLoaded(song, lyrics)
+            }
+        }
+    }
+
+    fun playSong(song: OnlineSong, newQueue: List<OnlineSong> = emptyList(), startPositionMs: Long = 0L) {
+        hasStartedPlaybackForCurrentSong = true
         scope.launch {
+            val effectiveQueue = if (newQueue.isNotEmpty()) newQueue else if (!_playbackState.value.queue.contains(song)) _playbackState.value.queue + song else _playbackState.value.queue
+            LastPlayedStore.saveOnline(context, song, startPositionMs, effectiveQueue)
+
             _playbackState.update {
                 it.copy(
                     isBuffering = true,
                     errorMessage = null,
                     currentSong = song,
+                    currentPositionMs = startPositionMs,
                     currentLyrics = null,
                     activeLyricsLineIndex = -1,
                     isLoadingLyrics = true,
-                    queue = if (newQueue.isNotEmpty()) newQueue else if (!it.queue.contains(song)) it.queue + song else it.queue
+                    queue = effectiveQueue
                 )
             }
 
@@ -261,6 +312,9 @@ class OnlinePlaybackManager(
                     .build()
 
                 exoPlayer.setMediaItem(mediaItem)
+                if (startPositionMs > 0L) {
+                    exoPlayer.seekTo(startPositionMs)
+                }
                 exoPlayer.prepare()
                 exoPlayer.playWhenReady = true
 
@@ -287,7 +341,8 @@ class OnlinePlaybackManager(
                             )
                         }
 
-                        youTubeIFramePlayer.loadAndPlay(song.id, forceWebController = false)
+                        val startSec = startPositionMs / 1000f
+                        youTubeIFramePlayer.loadAndPlay(song.id, forceWebController = false, startSeconds = startSec)
                     }
 
                     StreamingEngine.OBSIDIAN -> {
@@ -309,7 +364,8 @@ class OnlinePlaybackManager(
                             )
                         }
 
-                        youTubeIFramePlayer.loadAndPlay(song.id, forceWebController = true)
+                        val startSec = startPositionMs / 1000f
+                        youTubeIFramePlayer.loadAndPlay(song.id, forceWebController = true, startSeconds = startSec)
                     }
 
                     StreamingEngine.BITCHORD, StreamingEngine.DA_TUNES -> {
@@ -332,6 +388,9 @@ class OnlinePlaybackManager(
                                 .build()
 
                             exoPlayer.setMediaItem(mediaItem)
+                            if (startPositionMs > 0L) {
+                                exoPlayer.seekTo(startPositionMs)
+                            }
                             exoPlayer.prepare()
                             exoPlayer.playWhenReady = true
                         } else {
@@ -354,7 +413,8 @@ class OnlinePlaybackManager(
                                 )
                             }
 
-                            youTubeIFramePlayer.loadAndPlay(song.id)
+                            val startSec = startPositionMs / 1000f
+                            youTubeIFramePlayer.loadAndPlay(song.id, forceWebController = false, startSeconds = startSec)
                         }
                     }
                 }
@@ -363,6 +423,14 @@ class OnlinePlaybackManager(
     }
 
     fun togglePlayPause() {
+        val song = _playbackState.value.currentSong
+        if (song != null && !hasStartedPlaybackForCurrentSong) {
+            val targetPos = _playbackState.value.currentPositionMs.takeIf { it > 0 }
+                ?: LastPlayedStore.getLastPosition(context)
+            playSong(song, _playbackState.value.queue, targetPos)
+            return
+        }
+
         if (isUsingIFramePlayer) {
             if (_playbackState.value.isPlaying) {
                 youTubeIFramePlayer.pause()
@@ -387,21 +455,25 @@ class OnlinePlaybackManager(
         } else {
             exoPlayer.pause()
         }
+        LastPlayedStore.updatePosition(context, _playbackState.value.currentPositionMs)
         _playbackState.value.currentSong?.let { song ->
             eventListener?.onPlaybackStateChanged(song, false, _playbackState.value.currentPositionMs)
         }
     }
 
     fun seekTo(positionMs: Long) {
-        if (isUsingIFramePlayer) {
-            youTubeIFramePlayer.seekTo(positionMs)
-            _playbackState.update { it.copy(currentPositionMs = positionMs) }
-        } else {
-            exoPlayer.seekTo(positionMs.coerceIn(0L, exoPlayer.duration.coerceAtLeast(0L)))
-            _playbackState.update { it.copy(currentPositionMs = positionMs) }
-        }
+        _playbackState.update { it.copy(currentPositionMs = positionMs) }
+        LastPlayedStore.updatePosition(context, positionMs)
         _playbackState.value.currentSong?.let { song ->
             eventListener?.onSeek(song, positionMs)
+        }
+        if (!hasStartedPlaybackForCurrentSong) {
+            return
+        }
+        if (isUsingIFramePlayer) {
+            youTubeIFramePlayer.seekTo(positionMs)
+        } else {
+            exoPlayer.seekTo(positionMs.coerceIn(0L, exoPlayer.duration.coerceAtLeast(0L)))
         }
     }
 
@@ -528,6 +600,9 @@ class OnlinePlaybackManager(
                     }
                     _playbackState.value.currentSong?.let { song ->
                         eventListener?.onProgressUpdate(song, currentPos)
+                        if (currentPos > 0 && currentPos % 5000 < 200) {
+                            LastPlayedStore.updatePosition(context, currentPos)
+                        }
                     }
                 }
                 delay(150)

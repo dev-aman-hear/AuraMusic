@@ -51,6 +51,7 @@ class YouTubeIFramePlayer(
 
     private var currentVideoId: String? = null
     private var pendingVideoId: String? = null
+    private var pendingStartSeconds: Float = 0f
     private var currentDurationSec: Float = 0f
     private var currentPosSec: Float = 0f
 
@@ -85,9 +86,10 @@ class YouTubeIFramePlayer(
                         pendingVideoId?.let { vid ->
                             if (!isUsingWebFallback) {
                                 currentVideoId = vid
-                                youTubePlayer.loadVideo(vid, 0f)
+                                youTubePlayer.loadVideo(vid, pendingStartSeconds)
                             }
                             pendingVideoId = null
+                            pendingStartSeconds = 0f
                         }
                     }
 
@@ -148,23 +150,25 @@ class YouTubeIFramePlayer(
         }
     }
 
-    fun loadAndPlay(videoId: String, forceWebController: Boolean = false) {
+    fun loadAndPlay(videoId: String, forceWebController: Boolean = false, startSeconds: Float = 0f) {
         mainHandler.post {
             currentVideoId = videoId
             pendingVideoId = videoId
+            pendingStartSeconds = startSeconds
 
             if (forceWebController) {
-                switchToDirectWebPlayer(videoId)
+                switchToDirectWebPlayer(videoId, startSeconds)
                 return@post
             }
 
             if (isUsingWebFallback) {
-                loadDirectWebVideo(videoId)
+                loadDirectWebVideo(videoId, startSeconds)
             } else if (isRiPlayReady && activeYouTubePlayer != null) {
-                activeYouTubePlayer?.loadVideo(videoId, 0f)
+                activeYouTubePlayer?.loadVideo(videoId, startSeconds)
                 pendingVideoId = null
+                pendingStartSeconds = 0f
             } else {
-                Log.d(tag, "Queued video $videoId awaiting RiPlay player ready")
+                Log.d(tag, "Queued video $videoId awaiting RiPlay player ready at $startSeconds s")
             }
         }
     }
@@ -201,7 +205,7 @@ class YouTubeIFramePlayer(
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun switchToDirectWebPlayer(videoId: String) {
+    private fun switchToDirectWebPlayer(videoId: String, startSeconds: Float = 0f) {
         isUsingWebFallback = true
         try {
             activeYouTubePlayer?.pause()
@@ -210,7 +214,7 @@ class YouTubeIFramePlayer(
         if (directWebPlayer == null) {
             initDirectWebPlayer()
         }
-        loadDirectWebVideo(videoId)
+        loadDirectWebVideo(videoId, startSeconds)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -246,9 +250,10 @@ class YouTubeIFramePlayer(
         }
     }
 
-    private fun loadDirectWebVideo(videoId: String) {
+    private fun loadDirectWebVideo(videoId: String, startSeconds: Float = 0f) {
         listener.onPlaybackStateChanged(isPlaying = false, isBuffering = true)
-        directWebPlayer?.loadUrl("https://m.youtube.com/watch?v=$videoId")
+        val url = if (startSeconds > 0f) "https://m.youtube.com/watch?v=$videoId&t=${startSeconds.toInt()}s" else "https://m.youtube.com/watch?v=$videoId"
+        directWebPlayer?.loadUrl(url)
     }
 
     private fun startWebPlayerTracker() {

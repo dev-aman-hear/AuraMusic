@@ -1,7 +1,12 @@
 package com.aman.auramusic.viewmodel
 
 import android.app.Application
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
+import coil.ImageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -16,6 +21,8 @@ import com.aman.auramusic.data.repository.LyricsRepository
 import com.aman.auramusic.data.repository.MusicRepository
 import com.aman.auramusic.data.repository.UserPreferencesRepository
 import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.online.util.ArtworkQualityOptimizer
+import com.aman.auramusic.online.util.LastPlayedStore
 import com.aman.auramusic.playback.PlaybackActionRegistry
 import com.aman.auramusic.playback.PlaybackNotificationManager
 import com.aman.auramusic.playback.VlcPlayerManager
@@ -360,7 +367,34 @@ class PlayerViewModel @Inject constructor(
         onPrevious: () -> Unit,
         onSeekTo: ((Long) -> Unit)? = null
     ) {
+        currentSong = null
+        currentSongId = null
         playbackService?.startOnlinePlayback(song, isPlaying, onPlayPause, onNext, onPrevious, onSeekTo)
+    }
+
+    fun restoreOnlineState(
+        song: OnlineSong,
+        onPlayPause: () -> Unit,
+        onNext: () -> Unit,
+        onPrevious: () -> Unit,
+        onSeekTo: ((Long) -> Unit)? = null
+    ) {
+        currentSong = null
+        currentSongId = null
+        if (!isServiceBound) {
+            viewModelScope.launch {
+                var attempts = 0
+                while (!isServiceBound && attempts < 10) {
+                    delay(100)
+                    attempts++
+                }
+                if (isServiceBound) {
+                    playbackService?.startOnlinePlayback(song, false, onPlayPause, onNext, onPrevious, onSeekTo)
+                }
+            }
+        } else {
+            playbackService?.startOnlinePlayback(song, false, onPlayPause, onNext, onPrevious, onSeekTo)
+        }
     }
 
     fun updateOnlinePlaybackState(
@@ -396,11 +430,7 @@ class PlayerViewModel @Inject constructor(
 
     private fun saveLastSong(song: Song, position: Long) {
         viewModelScope.launch(Dispatchers.IO) {
-            val prefs = getApplication<Application>().getSharedPreferences("playback_state", android.content.Context.MODE_PRIVATE)
-            prefs.edit(commit = true) {
-                putLong("last_song_id", song.id)
-                putLong("last_position", position)
-            }
+            LastPlayedStore.saveOffline(getApplication(), song, position)
         }
     }
 
@@ -426,9 +456,15 @@ class PlayerViewModel @Inject constructor(
 
     private fun performRestore(songs: List<Song>) {
         viewModelScope.launch(Dispatchers.IO) {
-            val prefs = getApplication<Application>().getSharedPreferences("playback_state", android.content.Context.MODE_PRIVATE)
-            val lastId = prefs.getLong("last_song_id", -1L)
-            val lastPos = prefs.getLong("last_position", 0L)
+            val context = getApplication<Application>()
+            val lastSource = LastPlayedStore.getLastSourceType(context)
+            if (lastSource == LastPlayedStore.SOURCE_ONLINE) {
+                // Online song was played last, do not restore offline song!
+                return@launch
+            }
+
+            val lastId = LastPlayedStore.getLastOfflineSongId(context)
+            val lastPos = LastPlayedStore.getLastPosition(context)
 
             if (lastId != -1L) {
                 val song = songs.find { it.id == lastId }
@@ -468,11 +504,14 @@ class PlayerViewModel @Inject constructor(
 
     fun pause() {
         if (isPlaying) {
+            currentSong?.let { saveLastSong(it, currentPosition) }
             playerManager?.togglePlayPause()
         }
     }
 
     fun seekTo(position: Long) {
+        currentPosition = position
+        currentSong?.let { saveLastSong(it, position) }
         playerManager?.seekTo(position)
     }
 
@@ -599,15 +638,25 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun extractColor(song: Song) {
+    fun extractColor(song: Song) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val context = getApplication<Application>()
-                
-                val bitmap = if (song.id == -1L) {
+                val artUriStr = song.artworkUri ?: ""
+
+                val bitmap: Bitmap? = if (artUriStr.startsWith("http://") || artUriStr.startsWith("https://")) {
+                    val highResUrl = ArtworkQualityOptimizer.optimizeUrl(artUriStr)
+                    val loader = ImageLoader(context)
+                    val request = ImageRequest.Builder(context)
+                        .data(highResUrl)
+                        .allowHardware(false)
+                        .build()
+                    val result = (loader.execute(request) as? SuccessResult)?.drawable
+                    (result as? BitmapDrawable)?.bitmap
+                } else if (song.id == -1L) {
                     com.aman.auramusic.util.ArtworkExtractor.getArtwork(context, song.uri)
                 } else {
-                    val uri = android.net.Uri.parse(song.artworkUri ?: "")
+                    val uri = android.net.Uri.parse(artUriStr)
                     context.contentResolver.openInputStream(uri)?.use { inputStream ->
                         BitmapFactory.decodeStream(inputStream)
                     }
