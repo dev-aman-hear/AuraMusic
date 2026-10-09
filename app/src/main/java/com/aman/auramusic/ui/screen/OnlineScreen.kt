@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MusicNote
@@ -66,6 +67,7 @@ import com.aman.auramusic.ui.component.SongRow
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.AuraShapes
 import com.aman.auramusic.ui.theme.LocalIsDark
+import com.aman.auramusic.ui.theme.frostedGlass
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -221,9 +223,17 @@ fun OnlineScreen(
                             playlistSongs = emptyList()
                             searchQuery = it
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .frostedGlass(
+                                shape = RoundedCornerShape(18.dp),
+                                isDark = isDark,
+                                elevation = if (isDark) 6.dp else 2.dp,
+                                borderWidth = 1.1.dp,
+                                sheenAlpha = if (isDark) 0.16f else 0.35f
+                            ),
                         singleLine = true,
-                        shape = AuraShapes.Surface,
+                        shape = RoundedCornerShape(18.dp),
                         placeholder = { Text("Search songs, artists, albums", color = mutedText, fontSize = 14.sp) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = mutedText) },
                         trailingIcon = {
@@ -234,10 +244,10 @@ fun OnlineScreen(
                             }
                         },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AuraCoral,
+                            focusedBorderColor = Color.Transparent,
                             unfocusedBorderColor = Color.Transparent,
-                            focusedContainerColor = fieldColor,
-                            unfocusedContainerColor = fieldColor,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
                             cursorColor = AuraCoral
                         )
                     )
@@ -468,11 +478,20 @@ private fun OnlineSourceTabs(
     val sources = listOf(AudioSource.ALL, AudioSource.JIOSAAVN, AudioSource.YOUTUBE)
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(sources, key = { it.name }) { source ->
+            val isDark = LocalIsDark.current
             val selected = selectedSource == source
-            Surface(
-                onClick = { onSourceSelected(source) },
-                shape = AuraShapes.Control,
-                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+            Box(
+                modifier = Modifier
+                    .frostedGlass(
+                        shape = AuraShapes.Control,
+                        isDark = isDark,
+                        tint = if (selected) MaterialTheme.colorScheme.primary else null,
+                        elevation = if (selected) 4.dp else 1.dp,
+                        borderWidth = 1.dp,
+                        sheenAlpha = if (selected) 0.35f else 0.12f
+                    )
+                    .clickable { onSourceSelected(source) }
+                    .padding(horizontal = 14.dp, vertical = 9.dp)
             ) {
                 Text(
                     text = when (source) {
@@ -483,8 +502,7 @@ private fun OnlineSourceTabs(
                     },
                     color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
+                    fontWeight = FontWeight.Bold
                 )
             }
         }

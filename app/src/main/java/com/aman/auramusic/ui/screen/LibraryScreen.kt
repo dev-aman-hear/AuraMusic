@@ -287,11 +287,19 @@ fun LibraryScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Quick Library Filter Search Box
+            // Quick Library Filter Search Box with Frosted Glass
             OutlinedTextField(
                 value = query,
                 onValueChange = onQueryChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .frostedGlass(
+                        shape = RoundedCornerShape(18.dp),
+                        isDark = isDark,
+                        elevation = if (isDark) 6.dp else 2.dp,
+                        borderWidth = 1.1.dp,
+                        sheenAlpha = if (isDark) 0.16f else 0.35f
+                    ),
                 placeholder = {
                     Text(
                         "Filter ${selectedTab.label.lowercase()} in your collection...",
@@ -317,41 +325,37 @@ fun LibraryScreen(
                         }
                     }
                 },
-                shape = AuraShapes.Surface,
+                shape = RoundedCornerShape(18.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = cardBorder,
-                    focusedContainerColor = cardBg,
-                    unfocusedContainerColor = cardBg
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
                 ),
                 singleLine = true
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Segmented Category Tabs (Songs | Albums | Artists | Playlists)
+            // Segmented Category Tabs with Frosted Glass Pills (Songs | Albums | Artists | Playlists)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 LibraryTab.values().forEach { tab ->
                     val isSelected = selectedTab == tab
-                    val chipBg = if (isSelected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        if (isDark) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.05f)
-                    }
                     val chipText = if (isSelected) Color.White else textColor.copy(alpha = 0.85f)
 
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(AuraShapes.Control)
-                            .background(chipBg)
-                            .border(
-                                1.dp,
-                                if (isSelected) MaterialTheme.colorScheme.primary else cardBorder,
-                                AuraShapes.Control
+                            .frostedGlass(
+                                shape = AuraShapes.Control,
+                                isDark = isDark,
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary else null,
+                                elevation = if (isSelected) 4.dp else 1.dp,
+                                borderWidth = 1.dp,
+                                sheenAlpha = if (isSelected) 0.35f else 0.12f
                             )
                             .clickable { selectedTab = tab }
                             .padding(vertical = 10.dp),
@@ -422,25 +426,35 @@ fun LibraryScreen(
                                         Text("Play All (${filteredSongs.size})", fontWeight = FontWeight.Bold)
                                     }
 
-                                    OutlinedButton(
-                                        onClick = {
-                                            if (filteredSongs.isNotEmpty()) {
-                                                val shuffled = filteredSongs.shuffled()
-                                                onSongSelected(shuffled.first(), shuffled)
-                                            }
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(14.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder)
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(40.dp)
+                                            .frostedGlass(
+                                                shape = RoundedCornerShape(14.dp),
+                                                isDark = isDark,
+                                                elevation = 2.dp,
+                                                borderWidth = 1.dp,
+                                                sheenAlpha = if (isDark) 0.16f else 0.35f
+                                            )
+                                            .clickable {
+                                                if (filteredSongs.isNotEmpty()) {
+                                                    val shuffled = filteredSongs.shuffled()
+                                                    onSongSelected(shuffled.first(), shuffled)
+                                                }
+                                            },
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Shuffle,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
-                                            tint = textColor
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Shuffle", color = textColor, fontWeight = FontWeight.SemiBold)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Shuffle,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp),
+                                                tint = textColor
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Shuffle", color = textColor, fontWeight = FontWeight.SemiBold)
+                                        }
                                     }
                                 }
                             }

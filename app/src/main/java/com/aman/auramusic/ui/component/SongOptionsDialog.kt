@@ -19,6 +19,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.ui.theme.LocalIsDark
+import com.aman.auramusic.ui.theme.frostedGlass
 
 @Composable
 fun SongOptionsDialog(
@@ -30,11 +32,18 @@ fun SongOptionsDialog(
     onAddToPlaylist: () -> Unit,
     onAddToQueue: (() -> Unit)? = null
 ) {
+    val isDark = LocalIsDark.current
+
     Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+        Box(
+            modifier = Modifier
+                .frostedGlass(
+                    shape = RoundedCornerShape(24.dp),
+                    isDark = isDark,
+                    elevation = 16.dp,
+                    borderWidth = 1.2.dp,
+                    sheenAlpha = if (isDark) 0.22f else 0.40f
+                )
         ) {
             Column(
                 modifier = Modifier

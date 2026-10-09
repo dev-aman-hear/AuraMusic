@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.ui.theme.frostedGlass
 import com.aman.auramusic.online.model.toSong
 import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.util.formatDuration
@@ -85,23 +86,35 @@ fun SongRow(
     )
     val subtitleColor = if (isDark) Color.White.copy(alpha = 0.58f) else Color.Black.copy(alpha = 0.55f)
 
-    val rowBackground = if (isActive) {
-        activeColor.copy(alpha = if (isDark) 0.12f else 0.08f)
-    } else {
-        Color.Transparent
-    }
-
-    Surface(
-        color = rowBackground,
-        shape = RoundedCornerShape(12.dp),
-        modifier = modifier
+    val rowShape = RoundedCornerShape(14.dp)
+    val rowModifier = if (isActive) {
+        modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 2.dp)
+            .frostedGlass(
+                shape = rowShape,
+                isDark = isDark,
+                tint = activeColor,
+                elevation = 4.dp,
+                borderWidth = 1.dp,
+                sheenAlpha = if (isDark) 0.16f else 0.30f
+            )
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
-    ) {
+    } else {
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 2.dp)
+            .clip(rowShape)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+    }
+
+    Box(modifier = rowModifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

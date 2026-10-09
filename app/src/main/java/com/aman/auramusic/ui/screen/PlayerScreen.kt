@@ -129,6 +129,8 @@ import com.aman.auramusic.data.model.LyricLine
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.playback.RepeatMode
 import com.aman.auramusic.ui.component.SongArtwork
+import com.aman.auramusic.ui.theme.LocalIsDark
+import com.aman.auramusic.ui.theme.frostedGlass
 import com.aman.auramusic.util.audioQuality
 import com.aman.auramusic.util.formatDuration
 import com.aman.auramusic.viewmodel.PlayerViewModel
@@ -801,11 +803,17 @@ private fun SleepTimerDialog(
     onSelect: (Int) -> Unit,
     remainingMs: Long = 0L
 ) {
+    val isDark = LocalIsDark.current
     Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+        Box(
+            modifier = Modifier
+                .frostedGlass(
+                    shape = RoundedCornerShape(28.dp),
+                    isDark = isDark,
+                    elevation = 16.dp,
+                    borderWidth = 1.2.dp,
+                    sheenAlpha = if (isDark) 0.22f else 0.40f
+                )
         ) {
             Column(
                 modifier = Modifier

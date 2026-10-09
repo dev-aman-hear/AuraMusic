@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.ui.theme.AuraShapes
 import com.aman.auramusic.ui.theme.LocalIsDark
+import com.aman.auramusic.ui.theme.frostedGlass
 
 @Composable
 fun MiniPlayer(
@@ -66,11 +67,10 @@ fun MiniPlayer(
     val subtitleColor = if (isDark) Color.White.copy(alpha = 0.65f) else MaterialTheme.colorScheme.onSurfaceVariant
     val iconTint = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
 
-    Surface(
+    androidx.compose.foundation.layout.Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 6.dp)
-            .shadow(if (isDark) 14.dp else 8.dp, AuraShapes.Surface)
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragEnd = {
@@ -91,29 +91,15 @@ fun MiniPlayer(
                     dragY += dragAmount.y
                 }
             }
-            .clickable { onOpen() },
-        shape = AuraShapes.Surface,
-        color = containerColor,
-        border = BorderStroke(
-            1.dp,
-            if (isDark) {
-                androidx.compose.ui.graphics.Brush.linearGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.40f),
-                        dominantColor.copy(alpha = 0.30f),
-                        Color.White.copy(alpha = 0.12f)
-                    )
-                )
-            } else {
-                androidx.compose.ui.graphics.Brush.linearGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.95f),
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.30f)
-                    )
-                )
-            }
-        ),
-        shadowElevation = if (isDark) 12.dp else 6.dp
+            .frostedGlass(
+                shape = AuraShapes.Surface,
+                isDark = isDark,
+                tint = dominantColor,
+                elevation = if (isDark) 16.dp else 10.dp,
+                borderWidth = 1.2.dp,
+                sheenAlpha = if (isDark) 0.22f else 0.45f
+            )
+            .clickable { onOpen() }
     ) {
         Column {
             LinearProgressIndicator(

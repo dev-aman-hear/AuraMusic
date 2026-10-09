@@ -56,7 +56,10 @@ import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.SectionHeader
 import com.aman.auramusic.ui.component.SongRow
 import com.aman.auramusic.ui.theme.AuraCyan
+import com.aman.auramusic.ui.theme.AuraGlass
+import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.LocalIsDark
+import com.aman.auramusic.ui.theme.frostedGlass
 import kotlinx.coroutines.delay
 
 /**
@@ -321,11 +324,9 @@ fun SearchScreen(
         }
     }
 
-    // Base background: Adaptive Dark / Light Canvas
-    Box(
+    // Base background: Adaptive Dark / Light Canvas with ambient color blooms
+    AuraScreenBackground(
         modifier = modifier
-            .fillMaxSize()
-            .background(screenBg)
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -435,10 +436,12 @@ fun SearchScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
-                            .shadow(
-                                elevation = if (isDark) 6.dp else 4.dp,
+                            .frostedGlass(
                                 shape = RoundedCornerShape(26.dp),
-                                spotColor = if (isDark) Color.Black.copy(0.4f) else Color.Black.copy(0.08f)
+                                isDark = isDark,
+                                elevation = if (isDark) 8.dp else 4.dp,
+                                borderWidth = 1.1.dp,
+                                sheenAlpha = if (isDark) 0.16f else 0.35f
                             ),
                         shape = RoundedCornerShape(26.dp),
                         singleLine = true,
@@ -456,10 +459,10 @@ fun SearchScreen(
                             focusedTextColor = textPrimary,
                             unfocusedTextColor = textPrimary,
                             cursorColor = AuraCyan,
-                            focusedBorderColor = AuraCyan,
-                            unfocusedBorderColor = searchBorderColor,
-                            focusedContainerColor = searchContainerBg,
-                            unfocusedContainerColor = searchContainerBg
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
                         )
                     )
 
@@ -493,7 +496,7 @@ fun SearchScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Horizontal recent search pills with adaptive glass styling
+                        // Horizontal recent search pills with frosted glass styling
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -501,19 +504,22 @@ fun SearchScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             recentSearches.forEach { hist ->
-                                Surface(
-                                    color = chipBg,
-                                    shape = RoundedCornerShape(16.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, chipBorder),
-                                    shadowElevation = if (isDark) 2.dp else 1.dp,
-                                    modifier = Modifier.clickable {
-                                        onQueryChange(hist)
-                                        saveRecentSearch(context, hist)
-                                        recentSearches = getRecentSearches(context)
-                                    }
+                                Box(
+                                    modifier = Modifier
+                                        .frostedGlass(
+                                            shape = RoundedCornerShape(16.dp),
+                                            isDark = isDark,
+                                            elevation = 2.dp,
+                                            borderWidth = 1.dp
+                                        )
+                                        .clickable {
+                                            onQueryChange(hist)
+                                            saveRecentSearch(context, hist)
+                                            recentSearches = getRecentSearches(context)
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
@@ -545,7 +551,7 @@ fun SearchScreen(
                         }
                     }
 
-                    // Result Filter Chips when query is active
+                    // Result Filter Chips when query is active with frosted glass styling
                     if (query.isNotBlank()) {
                         Spacer(modifier = Modifier.height(14.dp))
                         Row(
@@ -556,20 +562,18 @@ fun SearchScreen(
                         ) {
                             SearchFilter.values().forEach { filter ->
                                 val isSelected = activeFilter == filter
-                                val activeBg = if (isDark) Color.White else Color(0xFF0F172A)
                                 val activeTextColor = if (isDark) Color.Black else Color.White
-                                val inactiveBg = if (isDark) Color(0xFF18181E) else Color.White
-                                val inactiveTextColor = if (isDark) Color.White.copy(0.8f) else Color(0xFF475569)
-                                val inactiveBorder = if (isDark) Color(0xFF282832) else Color(0xFFE2E8F0)
+                                val inactiveTextColor = if (isDark) Color.White.copy(0.85f) else Color(0xFF334155)
 
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(if (isSelected) activeBg else inactiveBg)
-                                        .border(
-                                            1.dp,
-                                            if (isSelected) activeBg else inactiveBorder,
-                                            RoundedCornerShape(20.dp)
+                                        .frostedGlass(
+                                            shape = RoundedCornerShape(20.dp),
+                                            isDark = isDark,
+                                            tint = if (isSelected) (if (isDark) Color.White else Color(0xFF0F172A)) else null,
+                                            elevation = if (isSelected) 4.dp else 1.dp,
+                                            borderWidth = 1.dp,
+                                            sheenAlpha = if (isSelected) 0.35f else 0.12f
                                         )
                                         .clickable { activeFilter = filter }
                                         .padding(horizontal = 14.dp, vertical = 6.dp)
@@ -1220,25 +1224,24 @@ fun TopArtistResultCard(
     val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
     val textSecondary = if (isDark) Color.White.copy(alpha = 0.6f) else Color(0xFF64748B)
 
-    Card(
+    val cardShape = RoundedCornerShape(20.dp)
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 8.dp)
-            .shadow(
-                elevation = if (isDark) 6.dp else 4.dp,
-                shape = RoundedCornerShape(18.dp),
-                spotColor = if (isDark) Color.Black.copy(0.4f) else Color.Black.copy(0.08f)
+            .frostedGlass(
+                shape = cardShape,
+                isDark = isDark,
+                elevation = if (isDark) 10.dp else 6.dp,
+                borderWidth = 1.2.dp,
+                sheenAlpha = if (isDark) 0.18f else 0.38f
             )
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder)
+            .clickable(onClick = onClick)
+            .padding(16.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AuraArtwork(

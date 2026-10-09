@@ -43,6 +43,8 @@ import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.theme.AuraPrimary
 import com.aman.auramusic.ui.theme.LocalIsDark
+import com.aman.auramusic.ui.theme.AuraGlass
+import com.aman.auramusic.ui.theme.frostedGlass
 import com.aman.auramusic.util.formatDuration
 
 /**
@@ -240,49 +242,26 @@ fun DailyFeaturedCard(
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDark.current
-    val surfaceColor = if (isDark) Color(0xFF141318) else Color(0xFFF6F7F9)
-    val cardBorder = if (isDark) {
-        Brush.verticalGradient(
-            listOf(Color.White.copy(alpha = 0.20f), Color.White.copy(alpha = 0.05f))
-        )
-    } else {
-        Brush.verticalGradient(
-            listOf(Color.Black.copy(alpha = 0.12f), Color.Black.copy(alpha = 0.04f))
-        )
-    }
+    val cardShape = RoundedCornerShape(24.dp)
 
-    Surface(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 8.dp)
-            .shadow(
-                elevation = if (isDark) 12.dp else 6.dp,
-                shape = RoundedCornerShape(22.dp),
-                spotColor = if (isDark) Color.Black else Color(0x33000000)
+            .frostedGlass(
+                shape = cardShape,
+                isDark = isDark,
+                tint = if (isDark) Color(0xFF2C1C28) else Color(0xFFFFEEF4),
+                elevation = if (isDark) 14.dp else 8.dp,
+                borderWidth = 1.2.dp,
+                sheenAlpha = if (isDark) 0.24f else 0.45f
             )
-            .clip(RoundedCornerShape(22.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        color = surfaceColor,
-        border = BorderStroke(1.dp, cardBorder)
+            .clickable(onClick = onClick)
+            .padding(16.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            surfaceColor,
-                            surfaceColor.copy(alpha = 0.95f),
-                            if (isDark) Color(0xFF261A22) else Color(0xFFFFEEF2)
-                        )
-                    )
-                )
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Large high-res artwork
@@ -374,7 +353,6 @@ fun DailyFeaturedCard(
             }
         }
     }
-}
 
 /**
  * B. Trending Songs Horizontal Section (Sourced from YouTube Music / Curated)
@@ -563,14 +541,17 @@ fun ArtistSquareCard(
             .padding(horizontal = 2.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Prominent rounded-square artist portrait matching Trending Now dimensions
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = if (isDark) Color(0xFF1B1920) else Color(0xFFECEEF2),
-            border = BorderStroke(1.dp, ringColor),
+        // Prominent rounded-square artist portrait with frosted glass framing
+        Box(
             modifier = Modifier
                 .size(size)
-                .shadow(6.dp, RoundedCornerShape(20.dp))
+                .frostedGlass(
+                    shape = RoundedCornerShape(20.dp),
+                    isDark = isDark,
+                    elevation = 8.dp,
+                    borderWidth = 1.2.dp,
+                    sheenAlpha = if (isDark) 0.18f else 0.40f
+                )
         ) {
             AuraArtwork(
                 model = artist.artworkModel,
@@ -619,7 +600,7 @@ fun ArtistDetailSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = if (isDark) Color(0xFF141318) else MaterialTheme.colorScheme.surface,
+        containerColor = AuraGlass.containerColor(isDark, 0.94f),
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
@@ -934,14 +915,20 @@ fun QuickHitTrackItem(
         }
     }
 
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = itemBg,
-        border = if (isActive) BorderStroke(1.dp, AuraPrimary.copy(alpha = 0.50f)) else null,
+    val itemShape = RoundedCornerShape(14.dp)
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(60.dp)
+            .frostedGlass(
+                shape = itemShape,
+                isDark = isDark,
+                tint = if (isActive) AuraPrimary else null,
+                elevation = if (isActive) 6.dp else 2.dp,
+                borderWidth = if (isActive) 1.4.dp else 0.8.dp,
+                sheenAlpha = if (isDark) 0.14f else 0.28f
+            )
+            .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier
@@ -1077,67 +1064,45 @@ fun DiscoverCategoryCard(
     cardHeight: Dp = 86.dp
 ) {
     val isDark = LocalIsDark.current
-    val cardBorder = if (isDark) {
-        Brush.verticalGradient(
-            listOf(Color.White.copy(alpha = 0.22f), Color.White.copy(alpha = 0.06f))
-        )
-    } else {
-        Brush.verticalGradient(
-            listOf(Color.Black.copy(alpha = 0.12f), Color.Black.copy(alpha = 0.04f))
-        )
-    }
+    val cardShape = RoundedCornerShape(18.dp)
 
-    Surface(
+    Box(
         modifier = modifier
             .size(width = cardWidth, height = cardHeight)
-            .shadow(
+            .frostedGlass(
+                shape = cardShape,
+                isDark = isDark,
+                tint = category.gradientColors.first(),
                 elevation = 6.dp,
-                shape = RoundedCornerShape(18.dp),
-                spotColor = category.gradientColors.first().copy(alpha = 0.35f)
+                borderWidth = 1.1.dp,
+                sheenAlpha = if (isDark) 0.22f else 0.40f
             )
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.dp, cardBorder)
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            category.gradientColors.first().copy(alpha = if (isDark) 0.65f else 0.40f),
-                            category.gradientColors.getOrElse(1) { category.gradientColors.first() }.copy(alpha = if (isDark) 0.35f else 0.20f),
-                            if (isDark) Color(0xFF100F14) else Color(0xFFF0F1F5)
-                        )
-                    )
-                )
-                .padding(12.dp),
-            contentAlignment = Alignment.Center
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = category.title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDark) Color.White else Color(0xFF15151A),
-                    textAlign = TextAlign.Center,
-                    letterSpacing = 0.sp
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = category.subtitle,
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.60f),
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            Text(
+                text = category.title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isDark) Color.White else Color(0xFF15151A),
+                textAlign = TextAlign.Center,
+                letterSpacing = 0.sp
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = category.subtitle,
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.60f),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -1163,7 +1128,7 @@ fun CategoryDetailSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = if (isDark) Color(0xFF141318) else MaterialTheme.colorScheme.surface,
+        containerColor = AuraGlass.containerColor(isDark, 0.94f),
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(

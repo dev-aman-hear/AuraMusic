@@ -35,6 +35,9 @@ import com.aman.auramusic.ui.theme.LocalIsDark
 import androidx.compose.material.icons.filled.AutoAwesome
 import com.aman.auramusic.BuildConfig
 
+import com.aman.auramusic.ui.theme.AuraGlass
+import com.aman.auramusic.ui.theme.frostedGlass
+
 enum class AppTab(
     val label: String,
     val selectedIcon: ImageVector,
@@ -56,23 +59,7 @@ fun BottomNavBar(
     onTabSelected: (AppTab) -> Unit
 ) {
     val isDark = LocalIsDark.current
-    val navBgColor = if (isDark) Color(0xE6121013) else Color.White.copy(alpha = 0.92f)
-    val navBorderBrush = if (isDark) {
-        Brush.verticalGradient(
-            listOf(
-                            Color.White.copy(alpha = 0.24f),
-                Color.White.copy(alpha = 0.08f)
-            )
-        )
-    } else {
-        Brush.verticalGradient(
-            listOf(
-                Color.White.copy(alpha = 0.95f),
-                Color(0xFFD0D3DC).copy(alpha = 0.55f)
-            )
-        )
-    }
-    val shadowElevation = if (isDark) 14.dp else 8.dp
+    val shadowElevation = if (isDark) 16.dp else 10.dp
     val primaryColor = MaterialTheme.colorScheme.primary
     val isSearchSelected = selectedTab == AppTab.Search
 
@@ -84,19 +71,18 @@ fun BottomNavBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // 1. Floating Capsule for the 3 main tabs: Home, Online, Library
-        Surface(
-            color = navBgColor,
+        // 1. Floating Frosted Glass Capsule for the 3 main tabs: Home, Online, Library
+        Box(
             modifier = Modifier
                 .weight(1f)
-                .height(56.dp)
-                .shadow(
+                .height(58.dp)
+                .frostedGlass(
+                    shape = RoundedCornerShape(26.dp),
+                    isDark = isDark,
                     elevation = shadowElevation,
-                    shape = RoundedCornerShape(30.dp),
-                    spotColor = if (isDark) Color.Black else Color(0x33000000)
-                ),
-            shape = RoundedCornerShape(24.dp),
-            border = BorderStroke(1.dp, navBorderBrush)
+                    borderWidth = 1.2.dp,
+                    sheenAlpha = if (isDark) 0.22f else 0.45f
+                )
         ) {
             Row(
                 modifier = Modifier
@@ -114,14 +100,14 @@ fun BottomNavBar(
                         targetValue = if (selected) {
                             primaryColor
                         } else {
-                            if (isDark) Color.White.copy(alpha = 0.55f) else Color(0xFF75757A)
+                            if (isDark) Color.White.copy(alpha = 0.58f) else Color(0xFF64748B)
                         },
                         animationSpec = tween(220),
                         label = "tabTint_${tab.name}"
                     )
                     val activePillBg by animateColorAsState(
                         targetValue = if (selected) {
-                            primaryColor.copy(alpha = if (isDark) 0.20f else 0.15f)
+                            primaryColor.copy(alpha = if (isDark) 0.22f else 0.16f)
                         } else {
                             Color.Transparent
                         },
@@ -133,7 +119,7 @@ fun BottomNavBar(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .clip(RoundedCornerShape(18.dp))
+                            .clip(RoundedCornerShape(20.dp))
                             .background(activePillBg)
                             .clickable { onTabSelected(tab) },
                         contentAlignment = Alignment.Center
@@ -146,12 +132,12 @@ fun BottomNavBar(
                                 imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
                                 contentDescription = tab.label,
                                 tint = tabTint,
-                                modifier = Modifier.size(if (primaryTabs.size > 3) 19.dp else 21.dp)
+                                modifier = Modifier.size(21.dp)
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = tab.label,
-                                fontSize = if (primaryTabs.size > 3) 9.5.sp else 10.5.sp,
+                                fontSize = 10.5.sp,
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                 color = tabTint,
                                 maxLines = 1,
@@ -163,57 +149,37 @@ fun BottomNavBar(
             }
         }
 
-        // 2. Separate Floating Circular Button for Search
-        val searchBg by animateColorAsState(
-            targetValue = if (isSearchSelected) {
-                primaryColor.copy(alpha = if (isDark) 0.24f else 0.18f)
-            } else {
-                navBgColor
-            },
-            animationSpec = tween(220),
-            label = "searchBg"
-        )
+        // 2. Separate Floating Frosted Glass Orb for Search
         val searchTint by animateColorAsState(
             targetValue = if (isSearchSelected) {
                 primaryColor
             } else {
-                if (isDark) Color.White.copy(alpha = 0.80f) else Color(0xFF2C2C2E)
+                if (isDark) Color.White.copy(alpha = 0.85f) else Color(0xFF1E293B)
             },
             animationSpec = tween(220),
             label = "searchTint"
         )
-        val searchBorder = if (isSearchSelected) {
-            BorderStroke(1.5.dp, primaryColor.copy(alpha = 0.50f))
-        } else {
-            BorderStroke(1.dp, navBorderBrush)
-        }
 
-        Surface(
+        Box(
             modifier = Modifier
-                .size(56.dp)
-                .shadow(
-                    elevation = shadowElevation,
+                .size(58.dp)
+                .frostedGlass(
                     shape = CircleShape,
-                    spotColor = if (isDark) Color.Black else Color(0x33000000)
-                ),
-            shape = CircleShape,
-            color = searchBg,
-            border = searchBorder
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CircleShape)
-                    .clickable { onTabSelected(AppTab.Search) },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Search songs",
-                    tint = searchTint,
-                    modifier = Modifier.size(24.dp)
+                    isDark = isDark,
+                    tint = if (isSearchSelected) primaryColor else null,
+                    elevation = shadowElevation,
+                    borderWidth = if (isSearchSelected) 1.6.dp else 1.2.dp,
+                    sheenAlpha = if (isDark) 0.28f else 0.50f
                 )
-            }
+                .clickable { onTabSelected(AppTab.Search) },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search songs",
+                tint = searchTint,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
