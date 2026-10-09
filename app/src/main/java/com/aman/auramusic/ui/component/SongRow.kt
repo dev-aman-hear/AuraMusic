@@ -59,6 +59,7 @@ fun SongRow(
     isPlaying: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isActive: Boolean = isPlaying,
     isFavorite: Boolean = false,
     trackNumber: Int? = null,
     artworkSize: Dp = 48.dp,
@@ -76,7 +77,7 @@ fun SongRow(
     val activeColor = MaterialTheme.colorScheme.primary
     val titleColor by animateColorAsState(
         targetValue = when {
-            isPlaying -> activeColor
+            isActive -> activeColor
             isDark -> Color.White
             else -> MaterialTheme.colorScheme.onSurface
         },
@@ -84,7 +85,7 @@ fun SongRow(
     )
     val subtitleColor = if (isDark) Color.White.copy(alpha = 0.58f) else Color.Black.copy(alpha = 0.55f)
 
-    val rowBackground = if (isPlaying) {
+    val rowBackground = if (isActive) {
         activeColor.copy(alpha = if (isDark) 0.12f else 0.08f)
     } else {
         Color.Transparent
@@ -113,7 +114,7 @@ fun SongRow(
                     text = trackNumber.toString(),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (isPlaying) activeColor else subtitleColor,
+                    color = if (isActive) activeColor else subtitleColor,
                     modifier = Modifier.width(28.dp),
                     textAlign = TextAlign.Center
                 )
@@ -127,7 +128,7 @@ fun SongRow(
                     size = artworkSize.value.toInt(),
                     modifier = Modifier.size(artworkSize),
                     shape = RoundedCornerShape(10.dp),
-                    elevation = if (isPlaying) 4.dp else 2.dp
+                    elevation = if (isActive) 4.dp else 2.dp
                 )
                 Spacer(modifier = Modifier.width(12.dp))
             }
@@ -137,7 +138,7 @@ fun SongRow(
                 Text(
                     text = song.title,
                     fontSize = 14.5.sp,
-                    fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.SemiBold,
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
                     color = titleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -180,8 +181,10 @@ fun SongRow(
                 )
             }
 
-            // Context Menu Button
-            Box {
+            // Only show an options button when at least one action is available.
+            if (onPlayNow != null || onAddToQueue != null || onAddToPlaylist != null ||
+                onToggleFavorite != null || onRemove != null
+            ) Box {
                 IconButton(
                     onClick = { showMenu = true },
                     modifier = Modifier.size(36.dp)
@@ -307,6 +310,7 @@ fun SongRow(
     isPlaying: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isActive: Boolean = isPlaying,
     isFavorite: Boolean = false,
     trackNumber: Int? = null,
     artworkSize: Dp = 48.dp,
@@ -322,6 +326,7 @@ fun SongRow(
     SongRow(
         song = song,
         isPlaying = isPlaying,
+        isActive = isActive,
         onClick = onClick,
         modifier = modifier,
         isFavorite = isFavorite,
