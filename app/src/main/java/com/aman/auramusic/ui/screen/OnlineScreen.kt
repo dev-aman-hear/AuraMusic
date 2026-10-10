@@ -96,16 +96,17 @@ private data class AlbumCollection(
     val songs: List<OnlineSong>
 )
 
+private fun songDeduplicationKey(song: OnlineSong): String =
+    "${song.title.trim().lowercase()}|${song.artist.trim().lowercase()}"
+
 private fun deduplicateOnlineSongs(songs: List<OnlineSong>): List<OnlineSong> {
     val seenIds = mutableSetOf<String>()
     val seenTitleArtist = mutableSetOf<String>()
     val result = mutableListOf<OnlineSong>()
 
     for (song in songs) {
-        val normTitle = song.title.trim().lowercase()
-        val normArtist = song.artist.trim().lowercase()
         val idKey = "${song.source.name}_${song.id}"
-        val titleArtistKey = "${song.source.name}_${normTitle}_$normArtist"
+        val titleArtistKey = songDeduplicationKey(song)
 
         val isIdDuplicate = song.id.isNotBlank() && !seenIds.add(idKey)
         val isExactDuplicate = !seenTitleArtist.add(titleArtistKey)
@@ -204,7 +205,6 @@ private fun buildMovieAlbums(
         )
     }.filter { it.songs.size >= 4 }.distinctBy { it.id }.take(12)
 }
-
 @Composable
 fun OnlineScreen(
     onlinePlaybackManager: OnlinePlaybackManager,
@@ -232,18 +232,20 @@ fun OnlineScreen(
     }
 
     suspend fun loadMovieSoundtracks(): List<AlbumCollection> = coroutineScope {
-        // Search actual playlist/collection results rather than assuming a song search
-        // contains every track from a movie album.
+        // Search real YouTube Music album/playlist entities and browse each collection
+        // by its provider browse ID. Do not infer albums from song-search metadata.
         val queries = listOf(
-            "Bollywood movie soundtracks",
-            "Hindi movie songs",
-            "Latest Bollywood movie albums",
-            "Punjabi movie soundtracks"
+            "Hindi movie soundtrack",
+            "Bollywood movie soundtrack album",
+            "latest Hindi film album",
+            "Indian film original soundtrack",
+            "Bollywood movie jukebox",
+            "Punjabi movie soundtrack"
         )
-        val playlistResults = queries.map { query ->
+        val collectionResults = queries.map { query ->
             async {
                 try {
-                    repository.searchPlaylists(query, limit = 8)
+                    repository.searchYouTubeMusicCollections(query, limit = 10)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
@@ -252,67 +254,86 @@ fun OnlineScreen(
             }
         }.awaitAll().flatten()
 
-        val candidates = playlistResults
+        val candidates = collectionResults
             .distinctBy { it.id }
-            .filter { playlist ->
-                val title = playlist.title.lowercase()
-                listOf("movie", "soundtrack", "bollywood", "punjabi", "hindi", "film", "songs", "album")
-                    .any(title::contains)
+            .filter { collection ->
+                val title = collection.title.lowercase()
+                val subtitle = collection.subtitle.lowercase()
+                val combined = "$title $subtitle"
+                listOf("movie", "soundtrack", "bollywood", "punjabi", "hindi", "film", "original motion picture", "jukebox")
+                    .any(combined::contains)
             }
-            .take(12)
+            .take(24)
 
-        val fullCollections = candidates.map { playlist ->
+        val collections = candidates.map { collection ->
             async {
                 val tracks = try {
-                    repository.getPlaylistSongs(playlist)
+                    repository.getYouTubeMusicCollectionSongs(collection)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
                     emptyList()
                 }
                 val uniqueTracks = deduplicateOnlineSongs(tracks)
+                    .filter { it.source == AudioSource.YOUTUBE }
                 if (uniqueTracks.size < 4) return@async null
 
                 AlbumCollection(
-                    id = "soundtrack_${playlist.source.name.lowercase()}_${playlist.id}",
-                    title = playlist.title,
-                    subtitle = playlist.subtitle.ifBlank {
-                        uniqueTracks.map { it.artist.trim() }.filter { it.isNotBlank() }.distinct()
-                            .take(2).joinToString(", ")
-                    },
-                    artworkUrl = playlist.artworkUrl.ifBlank {
+                    id = "ytmusic_album_${collection.id.substringAfter("ytmusic:")}",
+                    title = collection.title,
+                    subtitle = collection.subtitle.ifBlank { "YouTube Music • Movie soundtrack" },
+                    artworkUrl = collection.artworkUrl.ifBlank {
                         uniqueTracks.firstOrNull { it.artworkUrl.isNotBlank() }?.artworkUrl.orEmpty()
                     },
-                    source = playlist.source,
+                    source = AudioSource.YOUTUBE,
                     songs = uniqueTracks
                 )
             }
         }.awaitAll().filterNotNull()
 
-        // If the provider doesn't return complete soundtrack playlists, only use
-        // grouped search results that have enough tracks to be a useful album page.
-        (fullCollections + buildMovieAlbums(movieSongs, feedSongs))
-            .distinctBy { "${it.source.name}_${it.title.trim().lowercase()}" }
+        val ytCollections = collections
+            .distinctBy { it.title.trim().lowercase() }
             .sortedByDescending { it.songs.size }
             .take(12)
+
+        if (ytCollections.isNotEmpty()) {
+            ytCollections
+        } else {
+            buildMovieAlbums(movieSongs, feedSongs)
+                .distinctBy { "${it.source.name}_${it.title.trim().lowercase()}" }
+                .sortedByDescending { it.songs.size }
+                .take(12)
+        }
     }
 
     suspend fun loadCatalog() {
         isLoading = true
         loadError = false
         try {
-            feedSongs = repository.getCuratedSongFeed()
-                .distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
-            movieSongs = try {
-                repository.search("Latest Bollywood Movie Songs", AudioSource.ALL)
+            feedSongs = try {
+                repository.getCuratedSongFeed()
                     .distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
                 emptyList()
             }
-            movieAlbums = loadMovieSoundtracks()
-            loadError = feedSongs.isEmpty() && movieSongs.isEmpty()
+            movieSongs = try {
+                repository.search("Latest Bollywood Movie Songs", AudioSource.YOUTUBE)
+                    .let(::deduplicateOnlineSongs)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                emptyList()
+            }
+            movieAlbums = try {
+                loadMovieSoundtracks()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                emptyList()
+            }
+            loadError = feedSongs.isEmpty() && movieSongs.isEmpty() && movieAlbums.isEmpty()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -368,18 +389,24 @@ fun OnlineScreen(
     LaunchedEffect(Unit) { loadCatalog() }
 
     val uniqueSongs = remember(feedSongs, movieSongs) {
-        (movieSongs + feedSongs).distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
+        deduplicateOnlineSongs(movieSongs + feedSongs)
     }
     val featuredSong = movieSongs.firstOrNull() ?: feedSongs.firstOrNull()
-    val trendingSongs = remember(feedSongs, movieSongs) {
-        feedSongs.filterNot { candidate ->
-            movieSongs.any { it.source == candidate.source && it.id == candidate.id }
+    val trendingSongs = remember(feedSongs, movieSongs, featuredSong) {
+        val movieKeys = movieSongs.map(::songDeduplicationKey).toSet()
+        val featuredKey = featuredSong?.let(::songDeduplicationKey)
+        deduplicateOnlineSongs(feedSongs).filterNot { candidate ->
+            val key = songDeduplicationKey(candidate)
+            key == featuredKey || key in movieKeys
         }.take(12)
     }
     val exploreSongs = remember(uniqueSongs, trendingSongs, featuredSong) {
+        val reservedKeys = buildSet {
+            featuredSong?.let { add(songDeduplicationKey(it)) }
+            trendingSongs.forEach { add(songDeduplicationKey(it)) }
+        }
         uniqueSongs.filterNot { candidate ->
-            (featuredSong != null && candidate.source == featuredSong.source && candidate.id == featuredSong.id) ||
-            trendingSongs.any { it.source == candidate.source && it.id == candidate.id }
+            songDeduplicationKey(candidate) in reservedKeys
         }.take(20)
     }
 
@@ -532,7 +559,7 @@ fun OnlineScreen(
                 if (movieAlbums.isNotEmpty()) {
                     item(key = "movie_albums_heading") {
                         SectionHeader(
-                            eyebrow = "SOUNDTRACKS",
+                            eyebrow = if (movieAlbums.all { it.source == AudioSource.YOUTUBE }) "YOUTUBE MUSIC" else "SOUNDTRACKS",
                             title = "Movie Albums",
                             modifier = Modifier.padding(top = 18.dp)
                         )

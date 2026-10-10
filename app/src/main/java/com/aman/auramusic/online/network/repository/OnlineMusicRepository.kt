@@ -192,6 +192,17 @@ class OnlineMusicRepository(
         return jioSaavnService.searchPlaylists(query, limit)
     }
 
+    /** Search real YouTube Music album/playlist entities, not song results. */
+    suspend fun searchYouTubeMusicCollections(
+        query: String,
+        limit: Int = 12
+    ): List<com.aman.auramusic.online.model.OnlinePlaylist> =
+        pipedService.searchMusicCollections(query, limit)
+
+    /** Load tracks by the YouTube Music collection's browse ID. */
+    suspend fun getYouTubeMusicCollectionSongs(
+        collection: com.aman.auramusic.online.model.OnlinePlaylist
+    ): List<OnlineSong> = pipedService.getMusicCollectionSongs(collection)
     suspend fun getCuratedPlaylists(source: AudioSource = AudioSource.ALL): List<com.aman.auramusic.online.model.OnlinePlaylist> {
         val now = System.currentTimeMillis()
         playlistsCache[source]?.let { (timestamp, cached) ->
@@ -238,7 +249,9 @@ class OnlineMusicRepository(
     suspend fun getPlaylistSongs(playlist: com.aman.auramusic.online.model.OnlinePlaylist): List<OnlineSong> {
         playlistSongsCache.get(playlist.id)?.let { return it }
 
-        val songs = if (playlist.id.startsWith("yt_")) {
+        val songs = if (playlist.id.contains("ytmusic:") || (playlist.source == AudioSource.YOUTUBE && !playlist.id.startsWith("yt_"))) {
+            pipedService.getMusicCollectionSongs(playlist)
+        } else if (playlist.id.startsWith("yt_")) {
             pipedService.searchSongs(playlist.title)
         } else if (playlist.id.startsWith("spotify_")) {
             jioSaavnService.searchSongs(playlist.title.replace("Spotify:", "").trim(), limit = 25)
