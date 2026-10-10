@@ -47,7 +47,7 @@ enum class AppTab(
     val unselectedIcon: ImageVector
 ) {
     Home("Home", Icons.Default.Home, Icons.Default.Home),
-    Online("Online", Icons.Default.Sensors, Icons.Default.Sensors),
+    Online("Explore", Icons.Default.Sensors, Icons.Default.Sensors),
     Library("Library", Icons.Default.LibraryMusic, Icons.Default.LibraryMusic),
     Search("Search", Icons.Default.Search, Icons.Default.Search);
 
