@@ -49,25 +49,39 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aman.auramusic.online.model.AudioSource
-import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
 import com.aman.auramusic.online.player.OnlinePlaybackManager
 import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.AuraLoadingState
-import com.aman.auramusic.ui.component.PlaylistCard
 import com.aman.auramusic.ui.component.SectionHeader
 import com.aman.auramusic.ui.component.SongRow
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.AuraShapes
 import com.aman.auramusic.ui.theme.GlassLevel
-import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.ui.theme.liquidGlass
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 private val AuraCoral = Color(0xFFFF5C7A)
+
+private data class MoodCollection(
+    val title: String,
+    val query: String
+)
+
+private val moodCollections = listOf(
+    MoodCollection("Romantic", "Romantic Love Songs"),
+    MoodCollection("Sad", "Sad Songs"),
+    MoodCollection("Party", "Party Hits"),
+    MoodCollection("Chill", "Chill Lofi Songs"),
+    MoodCollection("Workout", "Workout Hits"),
+    MoodCollection("Focus", "Focus Music")
+)
 
 @Composable
 fun OnlineScreen(
@@ -76,281 +90,324 @@ fun OnlineScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = LocalIsDark.current
     val scope = rememberCoroutineScope()
     val repository = remember { OnlineMusicRepository() }
-    val playbackState by onlinePlaybackManager.playbackState.collectAsStateWithLifecycle()
 
-    var selectedSource by remember { mutableStateOf(AudioSource.ALL) }
+    val currentPlayingSongId by remember(onlinePlaybackManager) {
+        onlinePlaybackManager.playbackState
+            .map { it.currentSong?.id }
+            .distinctUntilChanged()
+    }.collectAsStateWithLifecycle(initialValue = null)
+
+    val isPlaying by remember(onlinePlaybackManager) {
+        onlinePlaybackManager.playbackState
+            .map { it.isPlaying }
+            .distinctUntilChanged()
+    }.collectAsStateWithLifecycle(initialValue = false)
+
     var feedSongs by remember { mutableStateOf(emptyList<OnlineSong>()) }
-    var curatedPlaylists by remember { mutableStateOf(emptyList<OnlinePlaylist>()) }
-    var selectedPlaylist by remember { mutableStateOf<OnlinePlaylist?>(null) }
-    var playlistSongs by remember { mutableStateOf(emptyList<OnlineSong>()) }
-    var isLoading by remember { mutableStateOf(false) }
+    var movieSongs by remember { mutableStateOf(emptyList<OnlineSong>()) }
+    var moodResults by remember { mutableStateOf(emptyList<OnlineSong>()) }
+    var activeMood by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var isMoodLoading by remember { mutableStateOf(false) }
     var loadError by remember { mutableStateOf(false) }
+    var moodJob by remember { mutableStateOf<Job?>(null) }
 
-    suspend fun loadCatalog(source: AudioSource = selectedSource) {
+    suspend fun loadCatalog() {
         isLoading = true
         loadError = false
         try {
-            feedSongs = if (source == AudioSource.ALL) {
-                repository.getCuratedSongFeed()
-            } else {
-                repository.getTrending(source)
-            }.distinctBy { "${it.source.name}_${it.id}" }
-
-            curatedPlaylists = try {
-                repository.getCuratedPlaylists(source)
+            feedSongs = repository.getCuratedSongFeed()
+                .distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
+            movieSongs = try {
+                repository.search("Latest Bollywood Movie Songs", AudioSource.ALL)
+                    .distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
                 emptyList()
             }
-            loadError = feedSongs.isEmpty()
+            loadError = feedSongs.isEmpty() && movieSongs.isEmpty()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
             feedSongs = emptyList()
+            movieSongs = emptyList()
             loadError = true
         } finally {
             isLoading = false
         }
     }
 
-    LaunchedEffect(selectedSource) {
-        selectedPlaylist = null
-        playlistSongs = emptyList()
-        loadCatalog(selectedSource)
-    }
+    LaunchedEffect(Unit) { loadCatalog() }
 
-    val displayedSongs = if (selectedPlaylist != null) playlistSongs else feedSongs
-    val heroSong = displayedSongs.firstOrNull() ?: feedSongs.firstOrNull()
-    val quickPicks = remember(feedSongs) { feedSongs.drop(1).take(10) }
-    val chartSongs = remember(feedSongs) { feedSongs.drop(4).take(12) }
-    val deepCuts = remember(feedSongs) { feedSongs.drop(12).take(24) }
+    val uniqueSongs = remember(feedSongs, movieSongs) {
+        (movieSongs + feedSongs).distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
+    }
+    val featuredSong = movieSongs.firstOrNull() ?: feedSongs.firstOrNull()
+    val trendingSongs = remember(feedSongs, movieSongs) {
+        feedSongs.filterNot { candidate ->
+            movieSongs.any { it.source == candidate.source && it.id == candidate.id }
+        }.take(12)
+    }
+    val movieAlbums = remember(movieSongs, feedSongs) {
+        val albumPool = if (movieSongs.any { it.album.isNotBlank() }) movieSongs else feedSongs
+        albumPool.filter { it.album.isNotBlank() }
+            .groupBy { it.album.trim() }
+            .entries
+            .map { entry -> entry.key to entry.value.distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" } }
+            .distinctBy { it.first.lowercase() }
+            .take(12)
+    }
+    val exploreSongs = remember(uniqueSongs, trendingSongs, featuredSong) {
+        uniqueSongs.filterNot { candidate ->
+            (featuredSong != null && candidate.source == featuredSong.source && candidate.id == featuredSong.id) ||
+            trendingSongs.any { it.source == candidate.source && it.id == candidate.id }
+        }.take(20)
+    }
     val textColor = MaterialTheme.colorScheme.onBackground
-    val mutedText = textColor.copy(alpha = 0.62f)
+    val mutedText = MaterialTheme.colorScheme.onSurfaceVariant
 
     AuraScreenBackground(modifier = modifier) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 160.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            item(key = "online_header") {
+            item(key = "explore_header") {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 8.dp)
+                        .padding(start = 20.dp, end = 12.dp, top = 14.dp, bottom = 8.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (selectedPlaylist != null) selectedPlaylist?.title ?: "Online" else "Online",
+                                text = "Explore",
                                 color = textColor,
                                 fontSize = 34.sp,
                                 lineHeight = 38.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.sp
+                                letterSpacing = (-0.5).sp
                             )
                             Text(
-                                text = when {
-                                    selectedPlaylist != null -> selectedPlaylist?.subtitle?.ifBlank { "Curated for streaming" } ?: "Curated for streaming"
-                                    else -> "YouTube and JioSaavn, shaped for Aura"
-                                },
+                                text = "New sounds, moods and movie music",
                                 color = mutedText,
                                 fontSize = 13.sp,
                                 modifier = Modifier.padding(top = 3.dp)
                             )
                         }
-                        IconButton(onClick = { scope.launch { loadCatalog(selectedSource) } }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh catalog", tint = textColor)
+                        IconButton(onClick = {
+                            if (!isLoading) {
+                                scope.launch { loadCatalog() }
+                            }
+                        }) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Refresh Explore", tint = textColor)
                         }
                         IconButton(onClick = onOpenSettings) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings", tint = textColor)
                         }
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(textColor.copy(alpha = 0.08f))
+                    )
                 }
             }
 
-            if (selectedPlaylist == null && heroSong != null) {
-                item(key = "hero") {
-                    FeaturedOnlineCard(
-                        song = heroSong,
-                        sourceLabel = selectedSource.displayName,
-                        onClick = { onOnlineSongSelected(heroSong, feedSongs.ifEmpty { listOf(heroSong) }) },
+            if (featuredSong != null) {
+                item(key = "explore_movie_feature") {
+                    val featuredQueue = remember(movieSongs, feedSongs) {
+                        if (movieSongs.isNotEmpty()) movieSongs else feedSongs
+                    }
+                    FeaturedExploreCard(
+                        song = featuredSong,
+                        onClick = { onOnlineSongSelected(featuredSong, featuredQueue.ifEmpty { listOf(featuredSong) }) },
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                     )
                 }
+            }
 
-                if (curatedPlaylists.isNotEmpty()) {
-                    item(key = "playlist_heading") {
-                        SectionHeader(
-                            eyebrow = "EDITOR'S ROOM",
-                            title = "Featured Playlists",
-                            modifier = Modifier.padding(top = 10.dp)
-                        )
-                    }
-                    item(key = "playlist_rail") {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 20.dp),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            items(curatedPlaylists, key = { "playlist_${it.source.name}_${it.id}" }) { playlist ->
-                                PlaylistCard(
-                                    title = playlist.title,
-                                    songCountText = if (playlist.songCount > 0) "${playlist.songCount} songs" else playlist.subtitle.ifBlank { playlist.source.displayName },
-                                    artworkModel = playlist.artworkUrl,
-                                    onClick = {
-                                        scope.launch {
-                                            selectedPlaylist = playlist
-                                            playlistSongs = emptyList()
-                                            isLoading = true
-                                            loadError = false
-                                            try {
-                                                playlistSongs = repository.getPlaylistSongs(playlist)
-                                                    .distinctBy { "${it.source.name}_${it.id}" }
-                                                loadError = playlistSongs.isEmpty()
-                                            } catch (cancelled: CancellationException) {
-                                                throw cancelled
-                                            } catch (_: Exception) {
-                                                loadError = true
-                                            } finally {
-                                                isLoading = false
-                                            }
+            if (uniqueSongs.isNotEmpty()) {
+                item(key = "mood_heading") {
+                    SectionHeader(
+                        eyebrow = "FIND YOUR VIBE",
+                        title = "Music by Mood",
+                        modifier = Modifier.padding(top = 14.dp)
+                    )
+                }
+                item(key = "mood_carousel") {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        items(moodCollections, key = { it.title }) { mood ->
+                            val artworkSong = uniqueSongs[moodCollections.indexOf(mood) % uniqueSongs.size]
+                            MoodArtworkCard(
+                                mood = mood.title,
+                                artworkUrl = artworkSong.artworkUrl,
+                                onClick = {
+                                    moodJob?.cancel()
+                                    moodJob = scope.launch {
+                                        activeMood = mood.title
+                                        isMoodLoading = true
+                                        moodResults = emptyList()
+                                        try {
+                                            moodResults = repository.search(mood.query, AudioSource.ALL)
+                                                .distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
+                                        } catch (cancelled: CancellationException) {
+                                            throw cancelled
+                                        } catch (_: Exception) {
+                                            moodResults = emptyList()
+                                        } finally {
+                                            isMoodLoading = false
                                         }
                                     }
-                                )
-                            }
+                                }
+                            )
                         }
                     }
                 }
-
-                if (quickPicks.isNotEmpty()) {
-                    item(key = "quick_picks_heading") {
+                if (activeMood != null) {
+                    item(key = "mood_results_heading") {
                         SectionHeader(
-                            eyebrow = "START HERE",
-                            title = "Quick Picks",
-                            modifier = Modifier.padding(top = 18.dp)
+                            eyebrow = "YOUR SELECTED MOOD",
+                            title = activeMood ?: "Mood",
+                            actionText = "Clear",
+                            onActionClick = {
+                                moodJob?.cancel()
+                                activeMood = null
+                                moodResults = emptyList()
+                                isMoodLoading = false
+                            },
+                            modifier = Modifier.padding(top = 12.dp)
                         )
                     }
-                    item(key = "quick_picks") {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 20.dp),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            items(quickPicks, key = { "pick_${it.source.name}_${it.id}" }) { song ->
-                                OnlineArtworkCard(
-                                    song = song,
-                                    onClick = { onOnlineSongSelected(song, feedSongs) }
-                                )
-                            }
+                    if (isMoodLoading && moodResults.isEmpty()) {
+                        item(key = "mood_loading") {
+                            AuraLoadingState(
+                                message = "Finding ${activeMood?.lowercase()} music",
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+                            )
+                        }
+                    } else if (moodResults.isEmpty()) {
+                        item(key = "mood_empty") {
+                            Text(
+                                text = "No songs found for this mood",
+                                color = mutedText,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                            )
+                        }
+                    } else {
+                        items(moodResults.take(5), key = { "mood_${it.source.name}_${it.id.ifBlank { it.title }}" }) { song ->
+                            val isActive = currentPlayingSongId == song.id
+                            SongRow(
+                                onlineSong = song,
+                                isPlaying = isActive && isPlaying,
+                                isActive = isActive,
+                                onClick = { onOnlineSongSelected(song, moodResults) },
+                                onPlayNow = { onOnlineSongSelected(song, moodResults) },
+                                modifier = Modifier.padding(horizontal = 12.dp)
+                            )
                         }
                     }
-                }
-
-                if (chartSongs.isNotEmpty()) {
-                    item(key = "charts_heading") {
-                        SectionHeader(
-                            eyebrow = selectedSource.badgeText,
-                            title = "Charts and New Heat",
-                            modifier = Modifier.padding(top = 18.dp)
-                        )
-                    }
-                    items(chartSongs.take(8), key = { "chart_${it.source.name}_${it.id}" }) { song ->
-                        val isActive = playbackState.currentSong?.id == song.id
-                        SongRow(
-                            onlineSong = song,
-                            isPlaying = isActive && playbackState.isPlaying,
-                            isActive = isActive,
-                            onClick = { onOnlineSongSelected(song, feedSongs) },
-                            onPlayNow = { onOnlineSongSelected(song, feedSongs) },
-                            modifier = Modifier.padding(horizontal = 12.dp)
-                        )
-                    }
-                }
-
-                if (deepCuts.isNotEmpty()) {
-                    item(key = "more_heading") {
-                        SectionHeader(
-                            eyebrow = "KEEP LISTENING",
-                            title = "More to Explore",
-                            modifier = Modifier.padding(top = 18.dp)
-                        )
-                    }
-                }
-            } else if (selectedPlaylist != null) {
-                item(key = "tracks_heading") {
-                    SectionHeader(
-                        eyebrow = selectedPlaylist?.subtitle?.ifBlank { "PLAYLIST" } ?: "PLAYLIST",
-                        title = selectedPlaylist?.title ?: "Curated Tracks",
-                        actionText = "Clear",
-                        onActionClick = { selectedPlaylist = null; playlistSongs = emptyList() },
-                        modifier = Modifier.padding(top = 12.dp)
-                    )
                 }
             }
 
-            if (isLoading && displayedSongs.isEmpty()) {
-                item(key = "loading") {
-                    AuraLoadingState(
-                        message = if (selectedPlaylist != null) "Loading playlist" else "Finding something good",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 30.dp)
+            if (trendingSongs.isNotEmpty()) {
+                item(key = "fresh_heading") {
+                    SectionHeader(
+                        eyebrow = "FRESH FINDS",
+                        title = "Trending & Fresh",
+                        modifier = Modifier.padding(top = 18.dp)
                     )
                 }
-            } else if (displayedSongs.isEmpty()) {
-                item(key = "empty_state") {
+                item(key = "fresh_carousel") {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        items(trendingSongs, key = { "fresh_${it.source.name}_${it.id.ifBlank { it.title }}" }) { song ->
+                            ExploreArtworkCard(
+                                song = song,
+                                onClick = { onOnlineSongSelected(song, trendingSongs) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (movieAlbums.isNotEmpty()) {
+                item(key = "movie_albums_heading") {
+                    SectionHeader(
+                        eyebrow = "SOUNDTRACKS",
+                        title = "Movie Albums",
+                        modifier = Modifier.padding(top = 18.dp)
+                    )
+                }
+                item(key = "movie_albums_carousel") {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        items(movieAlbums, key = { "album_${it.first.lowercase()}" }) { (albumName, albumTracks) ->
+                            ExploreAlbumCard(
+                                title = albumName,
+                                song = albumTracks.first(),
+                                onClick = {
+                                    onOnlineSongSelected(albumTracks.first(), albumTracks)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (exploreSongs.isNotEmpty()) {
+                item(key = "more_explore_heading") {
+                    SectionHeader(
+                        eyebrow = "A LITTLE OF EVERYTHING",
+                        title = "More to Explore",
+                        modifier = Modifier.padding(top = 18.dp)
+                    )
+                }
+                item(key = "more_explore_carousel") {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        items(exploreSongs, key = { "explore_${it.source.name}_${it.id.ifBlank { it.title }}" }) { song ->
+                            ExploreArtworkCard(
+                                song = song,
+                                onClick = { onOnlineSongSelected(song, exploreSongs) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (isLoading && uniqueSongs.isEmpty()) {
+                item(key = "explore_loading") {
+                    AuraLoadingState(
+                        message = "Finding something good",
+                        modifier = Modifier.fillMaxWidth().padding(top = 30.dp)
+                    )
+                }
+            } else if (uniqueSongs.isEmpty()) {
+                item(key = "explore_empty") {
                     AuraEmptyState(
-                        title = when {
-                            selectedPlaylist != null -> "Playlist unavailable"
-                            loadError -> "Couldn't load music"
-                            else -> "Nothing to play yet"
-                        },
-                        message = when {
-                            selectedPlaylist != null -> "This playlist could not be loaded right now. Check your connection and try again."
-                            else -> "Check your connection and refresh the catalog to discover music."
-                        },
+                        title = if (loadError) "Couldn't load music" else "Nothing to explore yet",
+                        message = "Check your connection and refresh to discover online music.",
                         icon = Icons.Default.MusicNote,
                         actionLabel = "Try again",
-                        onAction = {
-                            scope.launch {
-                                if (selectedPlaylist != null) {
-                                    val playlist = selectedPlaylist ?: return@launch
-                                    isLoading = true
-                                    try {
-                                        playlistSongs = repository.getPlaylistSongs(playlist)
-                                        loadError = playlistSongs.isEmpty()
-                                    } catch (cancelled: CancellationException) {
-                                        throw cancelled
-                                    } catch (_: Exception) {
-                                        loadError = true
-                                    } finally {
-                                        isLoading = false
-                                    }
-                                } else {
-                                    loadCatalog(selectedSource)
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 28.dp)
-                    )
-                }
-            } else {
-                val trailingSongs = if (selectedPlaylist == null) deepCuts else displayedSongs
-                items(trailingSongs, key = { "song_${it.source.name}_${it.id}" }) { song ->
-                    val isActive = playbackState.currentSong?.id == song.id
-                    SongRow(
-                        onlineSong = song,
-                        isPlaying = isActive && playbackState.isPlaying,
-                        isActive = isActive,
-                        onClick = { onOnlineSongSelected(song, displayedSongs) },
-                        onPlayNow = { onOnlineSongSelected(song, displayedSongs) },
-                        modifier = Modifier.padding(horizontal = 12.dp)
+                        onAction = { scope.launch { loadCatalog() } },
+                        modifier = Modifier.fillMaxWidth().padding(top = 28.dp)
                     )
                 }
             }
@@ -359,16 +416,15 @@ fun OnlineScreen(
 }
 
 @Composable
-private fun FeaturedOnlineCard(
+private fun FeaturedExploreCard(
     song: OnlineSong,
-    sourceLabel: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(244.dp)
+            .height(258.dp)
             .clickable(onClick = onClick),
         shape = AuraShapes.Surface,
         colors = CardDefaults.cardColors(containerColor = Color(0xFF24171C)),
@@ -385,81 +441,90 @@ private fun FeaturedOnlineCard(
         ) {
             AuraArtwork(
                 model = song.artworkUrl,
-                size = 260,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .size(210.dp),
+                size = 280,
+                modifier = Modifier.align(Alignment.CenterEnd).size(220.dp),
                 shape = AuraShapes.Artwork,
                 elevation = 10.dp
             )
-
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(Color.Black.copy(alpha = 0.62f), Color.Transparent)
-                        )
-                    )
+                modifier = Modifier.fillMaxSize().background(
+                    Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.68f), Color.Transparent))
+                )
             )
-
             Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth(0.72f)
-                    .padding(22.dp),
+                modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(0.76f).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
                 Text(
-                    text = sourceLabel.uppercase(),
+                    text = if (song.album.isNotBlank()) "MOVIE MUSIC SPOTLIGHT" else "FEATURED MUSIC",
                     color = Color(0xFFFFA1B1),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.2.sp
                 )
                 Text(
-                    text = song.title,
+                    text = song.album.ifBlank { song.title },
                     color = Color.White,
-                    fontSize = 27.sp,
-                    lineHeight = 31.sp,
+                    fontSize = 25.sp,
+                    lineHeight = 29.sp,
                     fontWeight = FontWeight.ExtraBold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = song.artist,
-                    color = Color.White.copy(alpha = 0.78f),
-                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.82f),
+                    fontSize = 13.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-
             Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(18.dp)
-                    .size(50.dp)
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).size(48.dp)
                     .liquidGlass(level = GlassLevel.Tinted, shape = CircleShape, tint = AuraCoral),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = "Play featured track", tint = Color.White, modifier = Modifier.size(26.dp))
+                Icon(Icons.Default.PlayArrow, contentDescription = "Play featured music", tint = Color.White, modifier = Modifier.size(26.dp))
             }
         }
     }
 }
 
 @Composable
-private fun OnlineArtworkCard(
+private fun MoodArtworkCard(
+    mood: String,
+    artworkUrl: String,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier.width(132.dp).clip(AuraShapes.Surface).clickable(onClick = onClick).padding(bottom = 6.dp)
+    ) {
+        AuraArtwork(
+            model = artworkUrl,
+            size = 132,
+            modifier = Modifier.size(132.dp),
+            shape = AuraShapes.Artwork,
+            elevation = 5.dp
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = mood,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun ExploreArtworkCard(
     song: OnlineSong,
     onClick: () -> Unit
 ) {
     Column(
-        modifier = Modifier
-            .width(148.dp)
-            .clip(AuraShapes.Surface)
-            .clickable(onClick = onClick)
-            .padding(bottom = 6.dp)
+        modifier = Modifier.width(148.dp).clip(AuraShapes.Surface).clickable(onClick = onClick).padding(bottom = 6.dp)
     ) {
         AuraArtwork(
             model = song.artworkUrl,
@@ -479,6 +544,41 @@ private fun OnlineArtworkCard(
         )
         Text(
             text = song.artist,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun ExploreAlbumCard(
+    title: String,
+    song: OnlineSong,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier.width(148.dp).clip(AuraShapes.Surface).clickable(onClick = onClick).padding(bottom = 6.dp)
+    ) {
+        AuraArtwork(
+            model = song.artworkUrl,
+            size = 148,
+            modifier = Modifier.size(148.dp),
+            shape = AuraShapes.Artwork,
+            elevation = 6.dp
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = title,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = "Album",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             maxLines = 1,
