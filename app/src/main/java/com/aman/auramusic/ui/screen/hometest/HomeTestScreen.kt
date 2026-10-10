@@ -319,7 +319,32 @@ fun HomeTestScreen(
                     }
                 }
 
-                // 6. E. Discover by Category (Compact glowing mesh cards)
+                // 6. E. Listen Again: recent local playback history, newest first.
+                val listenAgainSongs = remember(history, songs) {
+                    history.sortedByDescending { it.playedAt }
+                        .mapNotNull { entry -> songs.find { it.id == entry.songId } }
+                        .distinctBy { it.id }
+                        .take(18)
+                        .map { QuickHitTrack.LocalTrack(it, "Played recently") }
+                        .chunked(3)
+                }
+                if (listenAgainSongs.isNotEmpty()) {
+                    item(key = "hometest_listen_again_section") {
+                        QuickHitsSection(
+                            columns = listenAgainSongs,
+                            currentSongId = currentSongId,
+                            isPlaying = isPlaying,
+                            title = "Listen Again",
+                            eyebrow = "YOUR RECENT LISTENS",
+                            onTrackClick = { track ->
+                                if (track is QuickHitTrack.LocalTrack) onSongSelected(track.song, songs)
+                            },
+                            onOptionsClick = { song -> selectedSongOptions = song }
+                        )
+                    }
+                }
+
+                // 7. F. Discover by Category (Compact glowing mesh cards)
                 if (uiState.categories.isNotEmpty()) {
                     item(key = "hometest_categories_section") {
                         DiscoverCategorySection(
