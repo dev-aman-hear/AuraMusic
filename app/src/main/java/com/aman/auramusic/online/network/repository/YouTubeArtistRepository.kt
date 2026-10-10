@@ -69,33 +69,21 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
             }
         }
 
-        // 2. Fetch from trending tracks and extract real artist channels
+        // If chart search returns too few artists, query YouTube Music's artist
+        // search directly. Never derive an artist avatar from a track thumbnail.
         if (discovered.size < 12) {
-            val trendingSongs = try {
-                onlineRepository.getTrending(AudioSource.YOUTUBE)
-            } catch (_: Exception) {
-                emptyList()
-            }
-
-            trendingSongs.forEach { song ->
-                val clean = extractPrimaryArtistName(song.artist)
-                if (clean.isNotBlank() && seenNames.add(clean.lowercase())) {
-                    discovered.add(
-                        YouTubeArtist(
-                            id = "yt_trend_${clean.hashCode()}",
-                            name = clean,
-                            profileImageUrl = song.artworkUrl,
-                            subscriberCountText = "YouTube Music Chart",
-                            isVerified = true
-                        )
-                    )
+            val popularArtistQueries = listOf(
+                "Arijit Singh", "Shreya Ghoshal", "Diljit Dosanjh", "Karan Aujla",
+                "Taylor Swift", "The Weeknd", "Armaan Malik", "A. R. Rahman",
+                "Pritam", "Anirudh Ravichander", "Billie Eilish", "Bruno Mars"
+            )
+            for (query in popularArtistQueries) {
+                if (discovered.size >= 24) break
+                searchInnerTubeArtists(query).forEach { artist ->
+                    if (seenNames.add(artist.name.lowercase())) discovered.add(artist)
                 }
             }
         }
-
-        // 3. Fallback popular artists to ensure robust cloud presentation even if offline/limited network
-        val fallback = getFallbackPopularArtists().filter { seenNames.add(it.name.lowercase()) }
-        discovered.addAll(fallback)
 
         val result = discovered.take(24)
         if (result.isNotEmpty()) {
@@ -116,42 +104,21 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
             return@withContext results
         }
 
-        // Fallback: search songs and aggregate unique primary artist profiles
-        val songs = try {
-            onlineRepository.search(query, AudioSource.YOUTUBE).take(15)
-        } catch (_: Exception) {
-            emptyList()
-        }
-
-        val seen = mutableSetOf<String>()
-        val derived = songs.mapNotNull { song ->
-            val clean = extractPrimaryArtistName(song.artist)
-            if (clean.isNotBlank() && clean.contains(cleanQuery, ignoreCase = true) && seen.add(clean.lowercase())) {
-                YouTubeArtist(
-                    id = "yt_search_${clean.hashCode()}",
-                    name = clean,
-                    profileImageUrl = song.artworkUrl,
-                    subscriberCountText = "Artist",
-                    isVerified = true
-                )
-            } else null
-        }
-
-        if (derived.isNotEmpty()) {
-            artistSearchCache.put(cleanQuery, derived)
-        }
-        derived
+        // Only return genuine YouTube Music artist entities. Song thumbnails are
+        // release artwork, not artist portraits, so there is deliberately no song fallback.
+        emptyList()
     }
 
     override suspend fun getArtistSongs(artistName: String, artistId: String?): List<OnlineSong> = withContext(Dispatchers.IO) {
         val cacheKey = artistName.trim().lowercase()
         artistSongsCache.get(cacheKey)?.let { return@withContext it }
 
-        // Fetch candidates from YouTube Music
+        // Artist discography results must stay on YouTube Music. Do not silently
+        // switch providers to JioSaavn when the YouTube Music request is empty.
         val candidates = try {
-            val ytSongs = onlineRepository.search("$artistName songs", AudioSource.YOUTUBE).take(30)
-            if (ytSongs.isNotEmpty()) ytSongs
-            else onlineRepository.search(artistName, AudioSource.ALL).take(30)
+            onlineRepository.search("$artistName songs", AudioSource.YOUTUBE)
+                .filter { it.source == AudioSource.YOUTUBE }
+                .take(30)
         } catch (_: Exception) {
             emptyList()
         }
@@ -305,10 +272,15 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
                             } catch (_: Throwable) { "" }
 
                             val cleanName = extractPrimaryArtistName(title)
+                            val browseId = try {
+                                renderer.getAsJsonObject("navigationEndpoint")
+                                    ?.getAsJsonObject("browseEndpoint")
+                                    ?.get("browseId")?.asString.orEmpty()
+                            } catch (_: Exception) { "" }
                             if (cleanName.isNotBlank()) {
                                 artists.add(
                                     YouTubeArtist(
-                                        id = "yt_artist_${cleanName.hashCode()}",
+                                        id = browseId.ifBlank { "yt_artist_${cleanName.hashCode()}" },
                                         name = cleanName,
                                         profileImageUrl = ArtworkQualityOptimizer.optimizeUrl(thumb).ifBlank { null },
                                         subscriberCountText = subtitle.ifBlank { "YouTube Music Artist" },
@@ -360,16 +332,4 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
         return trimmed
     }
 
-    private fun getFallbackPopularArtists(): List<YouTubeArtist> = listOf(
-        YouTubeArtist("yt_arijit", "Arijit Singh", "https://c.saavncdn.com/artists/Arijit_Singh_004_20241118063717_500x500.jpg", "Official Artist Channel", true),
-        YouTubeArtist("yt_theweeknd", "The Weeknd", "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1080&q=85", "Official Artist Channel", true),
-        YouTubeArtist("yt_diljit", "Diljit Dosanjh", "https://c.saavncdn.com/artists/Diljit_Dosanjh_005_20231025073054_500x500.jpg", "Official Artist Channel", true),
-        YouTubeArtist("yt_taylor", "Taylor Swift", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1080&q=85", "Official Artist Channel", true),
-        YouTubeArtist("yt_karan", "Karan Aujla", "https://c.saavncdn.com/artists/Karan_Aujla_005_20260925061936_500x500.jpg", "Official Artist Channel", true),
-        YouTubeArtist("yt_bruno", "Bruno Mars", "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1080&q=85", "Official Artist Channel", true),
-        YouTubeArtist("yt_billie", "Billie Eilish", "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1080&q=85", "Official Artist Channel", true),
-        YouTubeArtist("yt_post", "Post Malone", "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1080&q=85", "Official Artist Channel", true),
-        YouTubeArtist("yt_dualipa", "Dua Lipa", "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1080&q=85", "Official Artist Channel", true),
-        YouTubeArtist("yt_shreya", "Shreya Ghoshal", "https://c.saavncdn.com/artists/Shreya_Ghoshal_007_20241101074144_500x500.jpg", "Official Artist Channel", true)
-    )
 }
