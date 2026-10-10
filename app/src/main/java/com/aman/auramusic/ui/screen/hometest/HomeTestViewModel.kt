@@ -742,12 +742,15 @@ class HomeTestViewModel @Inject constructor(
                 .filter { it.contains(q, ignoreCase = true) }
                 .map { name ->
                     val matchingSongs = localSongs.filter { it.artist.contains(name, ignoreCase = true) }
+                    val matchingOnline = onlineResults.firstOrNull {
+                        it.name.equals(name, ignoreCase = true) && !it.profileImageUrl.isNullOrBlank()
+                    } ?: cachedDiscoveredArtists.firstOrNull {
+                        it.name.equals(name, ignoreCase = true) && !it.profileImageUrl.isNullOrBlank()
+                    }
                     ArtistItem(
                         name = name,
                         songCountText = "${matchingSongs.size} songs",
-                        artworkModel = cachedDiscoveredArtists.firstOrNull {
-                            it.name.equals(name, ignoreCase = true) && !it.profileImageUrl.isNullOrBlank()
-                        }?.profileImageUrl,
+                        artworkModel = matchingOnline?.profileImageUrl?.takeIf { it.isNotBlank() },
                         isOnline = false,
                         artistId = "local_${name.hashCode()}"
                     )
@@ -757,7 +760,7 @@ class HomeTestViewModel @Inject constructor(
                 ArtistItem(
                     name = yt.name,
                     songCountText = yt.subscriberCountText ?: "YouTube Music",
-                    artworkModel = yt.profileImageUrl,
+                    artworkModel = yt.profileImageUrl?.takeIf { it.isNotBlank() },
                     isOnline = true,
                     artistId = yt.id
                 )

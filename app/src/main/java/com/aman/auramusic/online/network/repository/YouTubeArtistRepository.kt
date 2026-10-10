@@ -49,11 +49,6 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
         .readTimeout(8, TimeUnit.SECONDS)
         .build()
 
-    companion object {
-        private val artistCache = LruCache<String, List<YouTubeArtist>>(100)
-        private val artistSongsCache = LruCache<String, List<OnlineSong>>(100)
-        private val artistSearchCache = LruCache<String, List<YouTubeArtist>>(50)
-    }
 
     override suspend fun getTrendingArtists(): List<YouTubeArtist> = withContext(Dispatchers.IO) {
         artistCache.get("trending_artists")?.let { return@withContext it }
@@ -187,22 +182,283 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
             .take(25)
     }
 
+    companion object {
+        private val artistCache = LruCache<String, List<YouTubeArtist>>(100)
+        private val artistSongsCache = LruCache<String, List<OnlineSong>>(100)
+        private val artistSearchCache = LruCache<String, List<YouTubeArtist>>(50)
+
+        fun parseInnerTubeArtistResults(jsonString: String): List<YouTubeArtist> {
+            val artists = mutableListOf<YouTubeArtist>()
+            val seenIds = mutableSetOf<String>()
+            try {
+                val root = JsonParser.parseString(jsonString).asJsonObject
+                fun textOf(element: com.google.gson.JsonElement?): String {
+                    if (element == null || !element.isJsonObject) return ""
+                    val obj = element.asJsonObject
+                    obj.get("simpleText")?.let { return it.asString.replace('\u00A0', ' ').trim() }
+                    val runs = obj.getAsJsonArray("runs") ?: return ""
+                    return runs.mapNotNull { it.asJsonObject.get("text")?.asString }
+                        .joinToString("")
+                        .replace('\u00A0', ' ')
+                        .trim()
+                }
+
+                fun searchElements(elem: com.google.gson.JsonElement) {
+                    if (elem.isJsonObject) {
+                        val obj = elem.asJsonObject
+
+                        // 1. musicCardShelfRenderer (Top spotlight artist card)
+                        if (obj.has("musicCardShelfRenderer")) {
+                            val renderer = obj.getAsJsonObject("musicCardShelfRenderer")
+                            val title = textOf(renderer.getAsJsonObject("title"))
+                            val subtitle = textOf(renderer.getAsJsonObject("subtitle"))
+                            val nav = renderer.getAsJsonObject("title")
+                                ?.getAsJsonArray("runs")?.firstOrNull()?.asJsonObject
+                                ?.getAsJsonObject("navigationEndpoint")?.getAsJsonObject("browseEndpoint")
+                                ?: renderer.getAsJsonObject("navigationEndpoint")?.getAsJsonObject("browseEndpoint")
+                            val browseId = nav?.get("browseId")?.asString.orEmpty()
+                            val pageType = nav?.getAsJsonObject("browseEndpointContextSupportedConfigs")
+                                ?.getAsJsonObject("browseEndpointContextMusicConfig")
+                                ?.get("pageType")?.asString.orEmpty()
+
+                            val isNotSongOrAlbum = !pageType.contains("SONG", ignoreCase = true) &&
+                                    !pageType.contains("VIDEO", ignoreCase = true) &&
+                                    !pageType.contains("ALBUM", ignoreCase = true) &&
+                                    !pageType.contains("PLAYLIST", ignoreCase = true)
+
+                            val isArtist = isNotSongOrAlbum && (
+                                pageType.contains("ARTIST", ignoreCase = true) ||
+                                subtitle.contains("Artist", ignoreCase = true) ||
+                                subtitle.contains("monthly audience", ignoreCase = true) ||
+                                (browseId.startsWith("UC") && subtitle.contains("subscribers", ignoreCase = true))
+                            )
+
+                            if (isArtist && title.isNotBlank()) {
+                                val cleanName = extractPrimaryArtistName(title)
+                                if (cleanName.isNotBlank()) {
+                                    val thumbs = renderer.getAsJsonObject("thumbnail")
+                                        ?.getAsJsonObject("musicThumbnailRenderer")
+                                        ?.getAsJsonObject("thumbnail")
+                                        ?.getAsJsonArray("thumbnails")
+                                        ?: renderer.getAsJsonObject("thumbnailRenderer")
+                                            ?.getAsJsonObject("musicThumbnailRenderer")
+                                            ?.getAsJsonObject("thumbnail")
+                                            ?.getAsJsonArray("thumbnails")
+                                    val thumbUrl = try { thumbs?.last()?.asJsonObject?.get("url")?.asString?.trim().orEmpty() } catch (_: Throwable) { "" }
+                                    val finalThumb = if (thumbUrl.isNotBlank()) ArtworkQualityOptimizer.optimizeUrl(thumbUrl).ifBlank { null } else null
+
+                                    val artistId = browseId.ifBlank { "yt_artist_${cleanName.hashCode()}" }
+                                    if (seenIds.add(artistId)) {
+                                        artists.add(
+                                            YouTubeArtist(
+                                                id = artistId,
+                                                name = cleanName,
+                                                profileImageUrl = finalThumb,
+                                                subscriberCountText = subtitle.ifBlank { "YouTube Music Artist" },
+                                                isVerified = true
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2. musicTwoRowItemRenderer (Artist grid items)
+                        if (obj.has("musicTwoRowItemRenderer")) {
+                            val renderer = obj.getAsJsonObject("musicTwoRowItemRenderer")
+                            val title = textOf(renderer.getAsJsonObject("title"))
+                            val subtitle = textOf(renderer.getAsJsonObject("subtitle"))
+                            val nav = renderer.getAsJsonObject("navigationEndpoint")?.getAsJsonObject("browseEndpoint")
+                                ?: renderer.getAsJsonObject("title")?.getAsJsonArray("runs")?.firstOrNull()?.asJsonObject
+                                    ?.getAsJsonObject("navigationEndpoint")?.getAsJsonObject("browseEndpoint")
+                            val browseId = nav?.get("browseId")?.asString.orEmpty()
+                            val pageType = nav?.getAsJsonObject("browseEndpointContextSupportedConfigs")
+                                ?.getAsJsonObject("browseEndpointContextMusicConfig")
+                                ?.get("pageType")?.asString.orEmpty()
+
+                            val isNotSongOrAlbum = !pageType.contains("SONG", ignoreCase = true) &&
+                                    !pageType.contains("VIDEO", ignoreCase = true) &&
+                                    !pageType.contains("ALBUM", ignoreCase = true) &&
+                                    !pageType.contains("PLAYLIST", ignoreCase = true)
+
+                            val isArtist = isNotSongOrAlbum && (
+                                pageType.contains("ARTIST", ignoreCase = true) ||
+                                subtitle.contains("Artist", ignoreCase = true) ||
+                                subtitle.contains("monthly audience", ignoreCase = true) ||
+                                (browseId.startsWith("UC") && subtitle.contains("subscribers", ignoreCase = true))
+                            )
+
+                            if (isArtist && title.isNotBlank()) {
+                                val cleanName = extractPrimaryArtistName(title)
+                                if (cleanName.isNotBlank()) {
+                                    val thumbs = renderer.getAsJsonObject("thumbnailRenderer")
+                                        ?.getAsJsonObject("musicThumbnailRenderer")
+                                        ?.getAsJsonObject("thumbnail")
+                                        ?.getAsJsonArray("thumbnails")
+                                    val thumbUrl = try { thumbs?.last()?.asJsonObject?.get("url")?.asString?.trim().orEmpty() } catch (_: Throwable) { "" }
+                                    val finalThumb = if (thumbUrl.isNotBlank()) ArtworkQualityOptimizer.optimizeUrl(thumbUrl).ifBlank { null } else null
+
+                                    val artistId = browseId.ifBlank { "yt_artist_${cleanName.hashCode()}" }
+                                    if (seenIds.add(artistId)) {
+                                        artists.add(
+                                            YouTubeArtist(
+                                                id = artistId,
+                                                name = cleanName,
+                                                profileImageUrl = finalThumb,
+                                                subscriberCountText = subtitle.ifBlank { "YouTube Music Artist" },
+                                                isVerified = true
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. musicResponsiveListItemRenderer
+                        if (obj.has("musicResponsiveListItemRenderer")) {
+                            val renderer = obj.getAsJsonObject("musicResponsiveListItemRenderer")
+
+                            // Check if this is a track/song entity (must never treat song results as artists)
+                            val isSongEntity = renderer.has("playlistItemData") ||
+                                    renderer.getAsJsonObject("overlay")
+                                        ?.getAsJsonObject("musicItemThumbnailOverlayRenderer")
+                                        ?.getAsJsonObject("content")
+                                        ?.has("musicPlayButtonRenderer") == true
+
+                            if (!isSongEntity) {
+                                val flex = renderer.getAsJsonArray("flexColumns")
+                                val title = if (flex != null && flex.size() > 0) {
+                                    textOf(flex[0].asJsonObject.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")?.getAsJsonObject("text"))
+                                } else ""
+                                val subtitle = if (flex != null && flex.size() > 1) {
+                                    textOf(flex[1].asJsonObject.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")?.getAsJsonObject("text"))
+                                } else ""
+
+                                val nav = renderer.getAsJsonObject("navigationEndpoint")?.getAsJsonObject("browseEndpoint")
+                                    ?: flex?.firstOrNull()?.asJsonObject
+                                        ?.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
+                                        ?.getAsJsonObject("text")
+                                        ?.getAsJsonArray("runs")?.firstOrNull()?.asJsonObject
+                                        ?.getAsJsonObject("navigationEndpoint")
+                                        ?.getAsJsonObject("browseEndpoint")
+
+                                val browseId = nav?.get("browseId")?.asString.orEmpty()
+                                val pageType = nav?.getAsJsonObject("browseEndpointContextSupportedConfigs")
+                                    ?.getAsJsonObject("browseEndpointContextMusicConfig")
+                                    ?.get("pageType")?.asString.orEmpty()
+
+                                val isNotSongOrAlbum = !pageType.contains("SONG", ignoreCase = true) &&
+                                        !pageType.contains("VIDEO", ignoreCase = true) &&
+                                        !pageType.contains("ALBUM", ignoreCase = true) &&
+                                        !pageType.contains("PLAYLIST", ignoreCase = true)
+
+                                val isArtist = isNotSongOrAlbum && (
+                                    pageType.contains("ARTIST", ignoreCase = true) ||
+                                    subtitle.contains("Artist", ignoreCase = true) ||
+                                    subtitle.contains("monthly audience", ignoreCase = true) ||
+                                    (browseId.startsWith("UC") && subtitle.contains("subscribers", ignoreCase = true))
+                                )
+
+                                if (isArtist && title.isNotBlank()) {
+                                    val cleanName = extractPrimaryArtistName(title)
+                                    if (cleanName.isNotBlank()) {
+                                        val thumbs = renderer.getAsJsonObject("thumbnail")
+                                            ?.getAsJsonObject("musicThumbnailRenderer")
+                                            ?.getAsJsonObject("thumbnail")
+                                            ?.getAsJsonArray("thumbnails")
+                                            ?: renderer.getAsJsonObject("thumbnail")
+                                                ?.getAsJsonObject("croppedSquareThumbnailRenderer")
+                                                ?.getAsJsonObject("thumbnail")
+                                                ?.getAsJsonArray("thumbnails")
+                                        val thumbUrl = try { thumbs?.last()?.asJsonObject?.get("url")?.asString?.trim().orEmpty() } catch (_: Throwable) { "" }
+                                        val finalThumb = if (thumbUrl.isNotBlank()) ArtworkQualityOptimizer.optimizeUrl(thumbUrl).ifBlank { null } else null
+
+                                        val artistId = browseId.ifBlank { "yt_artist_${cleanName.hashCode()}" }
+                                        if (seenIds.add(artistId)) {
+                                            artists.add(
+                                                YouTubeArtist(
+                                                    id = artistId,
+                                                    name = cleanName,
+                                                    profileImageUrl = finalThumb,
+                                                    subscriberCountText = subtitle.ifBlank { "YouTube Music Artist" },
+                                                    isVerified = true
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        for (entry in obj.entrySet()) {
+                            searchElements(entry.value)
+                        }
+                    } else if (elem.isJsonArray) {
+                        for (child in elem.asJsonArray) {
+                            searchElements(child)
+                        }
+                    }
+                }
+                searchElements(root)
+            } catch (_: Exception) {}
+            return artists
+        }
+
+        fun extractPrimaryArtistName(raw: String): String {
+            var clean = raw
+                .replace(" - Topic", "", ignoreCase = true)
+                .replace("Official", "", ignoreCase = true)
+                .replace("VEVO", "", ignoreCase = true)
+                .trim()
+
+            clean = clean.split(Regex(""",|;|&|/|\||\s+feat\.?\s+|\s+ft\.?\s+|\s+with\s+|\s+and\s+|\s+x\s+""", RegexOption.IGNORE_CASE))
+                .firstOrNull()?.trim() ?: clean
+
+            val trimmed = clean.trim('"', '\'', '(', ')', '[', ']', '{', '}', '-', '_', '.', '~')
+            val lower = trimmed.lowercase()
+
+            val invalidNames = setOf(
+                "unknown", "unknown artist", "various", "various artists", "various artist",
+                "soundtrack", "ost", "compilation", "audio", "music", "video", "videos",
+                "official video", "official audio", "clip", "channel", "top hits", "hits", "mix", "best of",
+                "song", "songs", "track", "tracks", "album", "single", "singles"
+            )
+
+            if (invalidNames.contains(lower) || lower.startsWith("top ") || lower.endsWith(" hits") || lower.contains("202")) {
+                return ""
+            }
+
+            return trimmed
+        }
+    }
+
     /**
      * InnerTube API query targeting YouTube Music artists.
      */
     private fun searchInnerTubeArtists(query: String): List<YouTubeArtist> {
+        val directResults = queryInnerTube(query, filterArtists = true)
+        if (directResults.isNotEmpty()) return directResults
+        return queryInnerTube(query, filterArtists = false)
+    }
+
+    private fun queryInnerTube(query: String, filterArtists: Boolean): List<YouTubeArtist> {
         return try {
+            val paramsClause = if (filterArtists) {
+                """"params": "EgWKAQIgAWoQEAMQBBAJEAoQBRAREBAQFQ%3D%3D","""
+            } else ""
+
             val payload = """
                 {
                     "context": {
                         "client": {
                             "clientName": "WEB_REMIX",
-                            "clientVersion": "1.20240101.01.00",
+                            "clientVersion": "1.20250601.01.00",
                             "hl": "en",
-                            "gl": "US"
+                            "gl": "IN"
                         }
                     },
-                    "query": "${query.replace("\"", "\\\"")}"
+                    $paramsClause
+                    "query": "${query.replace("\\", "\\\\").replace("\"", "\\\"")}"
                 }
             """.trimIndent()
 
@@ -211,7 +467,7 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
                 .url("https://music.youtube.com/youtubei/v1/search?prettyPrint=false")
                 .post(body)
                 .header("Content-Type", "application/json")
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36")
                 .header("Origin", "https://music.youtube.com")
                 .header("Referer", "https://music.youtube.com/")
                 .build()
@@ -225,111 +481,4 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
             emptyList()
         }
     }
-
-    private fun parseInnerTubeArtistResults(jsonString: String): List<YouTubeArtist> {
-        val artists = mutableListOf<YouTubeArtist>()
-        try {
-            val root = JsonParser.parseString(jsonString).asJsonObject
-            fun searchElements(elem: com.google.gson.JsonElement) {
-                if (elem.isJsonObject) {
-                    val obj = elem.asJsonObject
-                    if (obj.has("musicResponsiveListItemRenderer")) {
-                        val renderer = obj.getAsJsonObject("musicResponsiveListItemRenderer")
-                        val flex = renderer.getAsJsonArray("flexColumns")
-                        var title = ""
-                        var subtitle = ""
-
-                        if (flex != null && flex.size() > 0) {
-                            try {
-                                title = flex[0].asJsonObject
-                                    .getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
-                                    .getAsJsonObject("text")
-                                    .getAsJsonArray("runs")[0].asJsonObject
-                                    .get("text").asString
-                            } catch (_: Throwable) {}
-                        }
-
-                        if (flex != null && flex.size() > 1) {
-                            try {
-                                subtitle = flex[1].asJsonObject
-                                    .getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
-                                    .getAsJsonObject("text")
-                                    .getAsJsonArray("runs")[0].asJsonObject
-                                    .get("text").asString
-                            } catch (_: Throwable) {}
-                        }
-
-                        val isArtistType = subtitle.contains("Artist", ignoreCase = true) ||
-                                subtitle.contains("Subscribers", ignoreCase = true)
-
-                        if (isArtistType && title.isNotBlank()) {
-                            val thumb = try {
-                                renderer.getAsJsonObject("thumbnail")
-                                    ?.getAsJsonObject("musicThumbnailRenderer")
-                                    ?.getAsJsonObject("thumbnail")
-                                    ?.getAsJsonArray("thumbnails")
-                                    ?.last()?.asJsonObject?.get("url")?.asString ?: ""
-                            } catch (_: Throwable) { "" }
-
-                            val cleanName = extractPrimaryArtistName(title)
-                            val browseId = try {
-                                renderer.getAsJsonObject("navigationEndpoint")
-                                    ?.getAsJsonObject("browseEndpoint")
-                                    ?.get("browseId")?.asString.orEmpty()
-                            } catch (_: Exception) { "" }
-                            if (cleanName.isNotBlank()) {
-                                artists.add(
-                                    YouTubeArtist(
-                                        id = browseId.ifBlank { "yt_artist_${cleanName.hashCode()}" },
-                                        name = cleanName,
-                                        profileImageUrl = ArtworkQualityOptimizer.optimizeUrl(thumb).ifBlank { null },
-                                        subscriberCountText = subtitle.ifBlank { "YouTube Music Artist" },
-                                        isVerified = true
-                                    )
-                                )
-                            }
-                        }
-                    } else {
-                        for (entry in obj.entrySet()) {
-                            searchElements(entry.value)
-                        }
-                    }
-                } else if (elem.isJsonArray) {
-                    for (child in elem.asJsonArray) {
-                        searchElements(child)
-                    }
-                }
-            }
-            searchElements(root)
-        } catch (_: Exception) {}
-        return artists
-    }
-
-    private fun extractPrimaryArtistName(raw: String): String {
-        var clean = raw
-            .replace(" - Topic", "", ignoreCase = true)
-            .replace("Official", "", ignoreCase = true)
-            .replace("VEVO", "", ignoreCase = true)
-            .trim()
-
-        clean = clean.split(Regex(""",|;|&|/|\||\s+feat\.?\s+|\s+ft\.?\s+|\s+with\s+|\s+and\s+|\s+x\s+""", RegexOption.IGNORE_CASE))
-            .firstOrNull()?.trim() ?: clean
-
-        val trimmed = clean.trim('"', '\'', '(', ')', '[', ']', '{', '}', '-', '_', '.', '~')
-        val lower = trimmed.lowercase()
-
-        val invalidNames = setOf(
-            "unknown", "unknown artist", "various", "various artists", "various artist",
-            "soundtrack", "ost", "compilation", "audio", "music", "video", "videos",
-            "official video", "official audio", "clip", "channel", "top hits", "hits", "mix", "best of",
-            "song", "songs", "track", "tracks", "album", "single", "singles"
-        )
-
-        if (invalidNames.contains(lower) || lower.startsWith("top ") || lower.endsWith(" hits") || lower.contains("202")) {
-            return ""
-        }
-
-        return trimmed
-    }
-
 }

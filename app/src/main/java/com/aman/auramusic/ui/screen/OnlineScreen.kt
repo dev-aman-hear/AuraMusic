@@ -96,18 +96,17 @@ private data class AlbumCollection(
     val songs: List<OnlineSong>
 )
 
+private fun songDeduplicationKey(song: OnlineSong): String =
+    "${song.title.trim().lowercase()}|${song.artist.trim().lowercase()}"
+
 private fun deduplicateOnlineSongs(songs: List<OnlineSong>): List<OnlineSong> {
     val seenIds = mutableSetOf<String>()
     val seenTitleArtist = mutableSetOf<String>()
     val result = mutableListOf<OnlineSong>()
 
     for (song in songs) {
-        val normTitle = song.title.trim().lowercase()
-        val normArtist = song.artist.trim().lowercase()
         val idKey = "${song.source.name}_${song.id}"
-        // Same recording may be returned by multiple providers; don't show it twice
-        // just because its source differs. Prefer exact title + artist matching.
-        val titleArtistKey = "${normTitle}_$normArtist"
+        val titleArtistKey = songDeduplicationKey(song)
 
         val isIdDuplicate = song.id.isNotBlank() && !seenIds.add(idKey)
         val isExactDuplicate = !seenTitleArtist.add(titleArtistKey)
@@ -117,94 +116,6 @@ private fun deduplicateOnlineSongs(songs: List<OnlineSong>): List<OnlineSong> {
         }
     }
     return result
-}
-
-private fun buildMovieAlbums(
-    movieSongs: List<OnlineSong>,
-    feedSongs: List<OnlineSong>
-): List<AlbumCollection> {
-    val pool = (movieSongs + feedSongs).filter { song ->
-        val album = song.album.trim()
-        album.isNotBlank() && !album.equals("Unknown", ignoreCase = true) && !album.equals("Unknown Album", ignoreCase = true)
-    }
-
-    val groups = mutableListOf<MutableList<OnlineSong>>()
-
-    for (song in pool) {
-        val normAlbum = song.album.trim().replace(Regex("\\s+"), " ")
-        val isGeneric = normAlbum.equals("Single", ignoreCase = true) ||
-            normAlbum.equals("Singles", ignoreCase = true) ||
-            normAlbum.equals("Greatest Hits", ignoreCase = true) ||
-            normAlbum.equals("Best of", ignoreCase = true) ||
-            normAlbum.equals("Live", ignoreCase = true) ||
-            normAlbum.equals(song.title.trim(), ignoreCase = true)
-
-        val songArtists = song.artist.split(",", "&", "feat.", "ft.", "/", ";")
-            .map { it.trim().lowercase() }
-            .filter { it.isNotBlank() }
-            .toSet()
-
-        val match = groups.firstOrNull { group ->
-            val first = group.first()
-            val firstAlbum = first.album.trim().replace(Regex("\\s+"), " ")
-            if (!firstAlbum.equals(normAlbum, ignoreCase = true)) return@firstOrNull false
-            if (first.source != song.source) return@firstOrNull false
-
-            if (isGeneric) {
-                val firstArtists = first.artist.split(",", "&", "feat.", "ft.", "/", ";")
-                    .map { it.trim().lowercase() }
-                    .filter { it.isNotBlank() }
-                    .toSet()
-                firstArtists.intersect(songArtists).isNotEmpty()
-            } else {
-                val sameArtwork = first.artworkUrl.isNotBlank() && first.artworkUrl == song.artworkUrl
-                val artistsOverlap = group.any { s ->
-                    val sArtists = s.artist.split(",", "&", "feat.", "ft.", "/", ";")
-                        .map { it.trim().lowercase() }
-                        .filter { it.isNotBlank() }
-                        .toSet()
-                    sArtists.intersect(songArtists).isNotEmpty()
-                }
-                val sameYear = first.year.isNotBlank() && song.year.isNotBlank() && first.year == song.year
-                sameArtwork || artistsOverlap || sameYear || (first.year.isBlank() && song.year.isBlank())
-            }
-        }
-
-        if (match != null) {
-            match.add(song)
-        } else {
-            groups.add(mutableListOf(song))
-        }
-    }
-
-    return groups.mapNotNull { rawTracks ->
-        val deduplicatedTracks = deduplicateOnlineSongs(rawTracks)
-        if (deduplicatedTracks.isEmpty()) return@mapNotNull null
-
-        val firstTrack = deduplicatedTracks.first()
-        val albumTitle = firstTrack.album.trim().replace(Regex("\\s+"), " ")
-        val artwork = deduplicatedTracks.firstOrNull { it.artworkUrl.isNotBlank() }?.artworkUrl.orEmpty()
-
-        val distinctArtists = deduplicatedTracks.map { it.artist.trim() }.filter { it.isNotBlank() }.distinct()
-        val subtitle = when {
-            distinctArtists.size == 1 -> distinctArtists.first()
-            distinctArtists.size in 2..3 -> distinctArtists.joinToString(", ")
-            distinctArtists.size > 3 -> "${distinctArtists.take(2).joinToString(", ")} & more"
-            else -> "Soundtrack"
-        }
-
-        val slug = albumTitle.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')
-        val albumId = "album_${slug}_${firstTrack.source.name.lowercase()}"
-
-        AlbumCollection(
-            id = albumId,
-            title = albumTitle,
-            subtitle = subtitle,
-            artworkUrl = artwork,
-            source = firstTrack.source,
-            songs = deduplicatedTracks
-        )
-    }.filter { it.songs.size >= 4 }.distinctBy { it.id }.take(12)
 }
 
 @Composable
@@ -281,7 +192,7 @@ fun OnlineScreen(
                 if (uniqueTracks.size < 4) return@async null
 
                 AlbumCollection(
-                    id = "ytmusic_album_${collection.id}",
+                    id = "ytmusic_album_${collection.id.substringAfter("ytmusic:")}",
                     title = collection.title,
                     subtitle = collection.subtitle.ifBlank { "YouTube Music • Movie soundtrack" },
                     artworkUrl = collection.artworkUrl.ifBlank {
@@ -303,8 +214,14 @@ fun OnlineScreen(
         isLoading = true
         loadError = false
         try {
-            feedSongs = repository.getCuratedSongFeed()
-                .distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
+            feedSongs = try {
+                repository.getCuratedSongFeed()
+                    .distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                emptyList()
+            }
             movieSongs = try {
                 repository.search("Latest Bollywood Movie Songs", AudioSource.YOUTUBE)
                     .let(::deduplicateOnlineSongs)
@@ -313,8 +230,14 @@ fun OnlineScreen(
             } catch (_: Exception) {
                 emptyList()
             }
-            movieAlbums = loadMovieSoundtracks()
-            loadError = feedSongs.isEmpty() && movieSongs.isEmpty()
+            movieAlbums = try {
+                loadMovieSoundtracks()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                emptyList()
+            }
+            loadError = feedSongs.isEmpty() && movieSongs.isEmpty() && movieAlbums.isEmpty()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -373,20 +296,21 @@ fun OnlineScreen(
         deduplicateOnlineSongs(movieSongs + feedSongs)
     }
     val featuredSong = movieSongs.firstOrNull() ?: feedSongs.firstOrNull()
-    val trendingSongs = remember(feedSongs, movieSongs) {
-        val movieKeys = movieSongs.map { "${it.title.trim().lowercase()}|${it.artist.trim().lowercase()}" }.toSet()
+    val trendingSongs = remember(feedSongs, movieSongs, featuredSong) {
+        val movieKeys = movieSongs.map(::songDeduplicationKey).toSet()
+        val featuredKey = featuredSong?.let(::songDeduplicationKey)
         deduplicateOnlineSongs(feedSongs).filterNot { candidate ->
-            val key = "${candidate.title.trim().lowercase()}|${candidate.artist.trim().lowercase()}"
-            key in movieKeys
+            val key = songDeduplicationKey(candidate)
+            key == featuredKey || key in movieKeys
         }.take(12)
     }
     val exploreSongs = remember(uniqueSongs, trendingSongs, featuredSong) {
         val reservedKeys = buildSet {
-            featuredSong?.let { add("${it.title.trim().lowercase()}|${it.artist.trim().lowercase()}") }
-            trendingSongs.forEach { add("${it.title.trim().lowercase()}|${it.artist.trim().lowercase()}") }
+            featuredSong?.let { add(songDeduplicationKey(it)) }
+            trendingSongs.forEach { add(songDeduplicationKey(it)) }
         }
         uniqueSongs.filterNot { candidate ->
-            "${candidate.title.trim().lowercase()}|${candidate.artist.trim().lowercase()}" in reservedKeys
+            songDeduplicationKey(candidate) in reservedKeys
         }.take(20)
     }
 

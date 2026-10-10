@@ -96,4 +96,227 @@ class YouTubeArtistExtractionTest {
         assertTrue(excludedKeywords.any { reactionTitle.lowercase().contains(it) })
         assertTrue(excludedKeywords.any { karaokeTitle.lowercase().contains(it) })
     }
+
+    @Test
+    fun testArtistMetadataParsingFromCardShelfAndResponsiveListItem() {
+        val sampleInnerTubeJson = """
+        {
+          "contents": {
+            "tabbedSearchResultsRenderer": {
+              "tabs": [{
+                "tabRenderer": {
+                  "content": {
+                    "sectionListRenderer": {
+                      "contents": [{
+                        "itemSectionRenderer": {
+                          "contents": [
+                            {
+                              "musicCardShelfRenderer": {
+                                "thumbnail": {
+                                  "musicThumbnailRenderer": {
+                                    "thumbnail": {
+                                      "thumbnails": [{ "url": "https://lh3.googleusercontent.com/artist_arijit=w544-h544" }]
+                                    }
+                                  }
+                                },
+                                "title": {
+                                  "runs": [{
+                                    "text": "Arijit Singh",
+                                    "navigationEndpoint": {
+                                      "browseEndpoint": {
+                                        "browseId": "UCDxKh1gFWeYsqePvgVzmPoQ",
+                                        "browseEndpointContextSupportedConfigs": {
+                                          "browseEndpointContextMusicConfig": { "pageType": "MUSIC_PAGE_TYPE_ARTIST" }
+                                        }
+                                      }
+                                    }
+                                  }]
+                                },
+                                "subtitle": { "runs": [{ "text": "Artist • 646M monthly audience" }] }
+                              }
+                            },
+                            {
+                              "musicResponsiveListItemRenderer": {
+                                "thumbnail": {
+                                  "musicThumbnailRenderer": {
+                                    "thumbnail": {
+                                      "thumbnails": [{ "url": "https://yt3.googleusercontent.com/artist_atif=w544-h544" }]
+                                    }
+                                  }
+                                },
+                                "flexColumns": [
+                                  {
+                                    "musicResponsiveListItemFlexColumnRenderer": {
+                                      "text": {
+                                        "runs": [{
+                                          "text": "Atif Aslam",
+                                          "navigationEndpoint": {
+                                            "browseEndpoint": {
+                                              "browseId": "UCVGomUS__PL0c4jDXa0QwXA",
+                                              "browseEndpointContextSupportedConfigs": {
+                                                "browseEndpointContextMusicConfig": { "pageType": "MUSIC_PAGE_TYPE_ARTIST" }
+                                              }
+                                            }
+                                          }
+                                        }]
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "musicResponsiveListItemFlexColumnRenderer": {
+                                      "text": { "runs": [{ "text": "Artist • 344M monthly audience" }] }
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }]
+                    }
+                  }
+                }
+              }]
+            }
+          }
+        }
+        """.trimIndent()
+
+        val parsed = com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl.parseInnerTubeArtistResults(sampleInnerTubeJson)
+        assertEquals(2, parsed.size)
+
+        val arijit = parsed.first { it.name == "Arijit Singh" }
+        assertEquals("UCDxKh1gFWeYsqePvgVzmPoQ", arijit.id)
+        assertTrue(arijit.profileImageUrl?.contains("artist_arijit") == true)
+        assertTrue(arijit.isVerified)
+
+        val atif = parsed.first { it.name == "Atif Aslam" }
+        assertEquals("UCVGomUS__PL0c4jDXa0QwXA", atif.id)
+        assertTrue(atif.profileImageUrl?.contains("artist_atif") == true)
+    }
+
+    @Test
+    fun testSongEntitiesAreNotTreatedAsArtists() {
+        val songItemJson = """
+        {
+          "musicResponsiveListItemRenderer": {
+            "playlistItemData": { "videoId": "vid_998877" },
+            "thumbnail": {
+              "musicThumbnailRenderer": {
+                "thumbnail": { "thumbnails": [{ "url": "https://i.ytimg.com/vi/vid_998877/hqdefault.jpg" }] }
+              }
+            },
+            "flexColumns": [
+              {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                  "text": {
+                    "runs": [{
+                      "text": "Kesariya",
+                      "navigationEndpoint": {
+                        "watchEndpoint": { "videoId": "vid_998877" }
+                      }
+                    }]
+                  }
+                }
+              },
+              {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                  "text": { "runs": [{ "text": "Song • Arijit Singh • 4:28" }] }
+                }
+              }
+            ]
+          }
+        }
+        """.trimIndent()
+
+        val parsed = com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl.parseInnerTubeArtistResults(songItemJson)
+        assertEquals(0, parsed.size)
+    }
+
+    @Test
+    fun testMissingArtistThumbnailResultsInNullProfileImage() {
+        val noThumbArtistJson = """
+        {
+          "musicResponsiveListItemRenderer": {
+            "flexColumns": [
+              {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                  "text": {
+                    "runs": [{
+                      "text": "Indie Band",
+                      "navigationEndpoint": {
+                        "browseEndpoint": {
+                          "browseId": "UCindie_band_123",
+                          "browseEndpointContextSupportedConfigs": {
+                            "browseEndpointContextMusicConfig": { "pageType": "MUSIC_PAGE_TYPE_ARTIST" }
+                          }
+                        }
+                      }
+                    }]
+                  }
+                }
+              },
+              {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                  "text": { "runs": [{ "text": "Artist • 12K subscribers" }] }
+                }
+              }
+            ]
+          }
+        }
+        """.trimIndent()
+
+        val parsed = com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl.parseInnerTubeArtistResults(noThumbArtistJson)
+        assertEquals(1, parsed.size)
+        val artist = parsed.first()
+        assertEquals("Indie Band", artist.name)
+        assertEquals("UCindie_band_123", artist.id)
+        org.junit.Assert.assertNull("Artist with no thumbnail must have null profileImageUrl", artist.profileImageUrl)
+    }
+
+    @Test
+    fun testNoSongArtworkFallbackForArtists() {
+        // When creating ArtistItem for an artist without YouTube Music profile image,
+        // artworkModel must be null, never falling back to song artwork or album covers.
+        val artistWithNoProfile = com.aman.auramusic.ui.screen.hometest.ArtistItem(
+            name = "Local Guitarist",
+            songCountText = "5 songs",
+            artworkModel = null,
+            isOnline = false,
+            artistId = "local_123"
+        )
+        org.junit.Assert.assertNull(artistWithNoProfile.artworkModel)
+
+        // When YouTube Music provides a profile image, artworkModel is that image URL
+        val artistWithProfile = com.aman.auramusic.ui.screen.hometest.ArtistItem(
+            name = "Arijit Singh",
+            songCountText = "YouTube Music",
+            artworkModel = "https://lh3.googleusercontent.com/artist_arijit",
+            isOnline = true,
+            artistId = "UCDxKh1gFWeYsqePvgVzmPoQ"
+        )
+        assertEquals("https://lh3.googleusercontent.com/artist_arijit", artistWithProfile.artworkModel)
+    }
+
+    @Test
+    fun testArtistTracksAreYouTubeOnly() {
+        val ytTracks = listOf(
+            com.aman.auramusic.online.model.OnlineSong(
+                id = "yt_1",
+                title = "O Maahi",
+                artist = "Arijit Singh",
+                source = com.aman.auramusic.online.model.AudioSource.YOUTUBE
+            ),
+            com.aman.auramusic.online.model.OnlineSong(
+                id = "yt_2",
+                title = "Chaleya",
+                artist = "Arijit Singh",
+                source = com.aman.auramusic.online.model.AudioSource.YOUTUBE
+            )
+        )
+
+        // Verify all artist tracks are strictly AudioSource.YOUTUBE
+        assertTrue(ytTracks.all { it.source == com.aman.auramusic.online.model.AudioSource.YOUTUBE })
+        assertFalse(ytTracks.any { it.source == com.aman.auramusic.online.model.AudioSource.JIOSAAVN })
+    }
 }

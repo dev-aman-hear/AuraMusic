@@ -100,20 +100,27 @@ class PipedService(
                     fun textOf(element: com.google.gson.JsonElement?): String {
                         if (element == null || !element.isJsonObject) return ""
                         val obj = element.asJsonObject
-                        obj.get("simpleText")?.let { return it.asString }
+                        obj.get("simpleText")?.let { return it.asString.replace('\u00A0', ' ').trim() }
                         val runs = obj.getAsJsonArray("runs") ?: return ""
-                        return runs.mapNotNull { it.asJsonObject.get("text")?.asString }.joinToString("")
+                        return runs.mapNotNull { it.asJsonObject.get("text")?.asString }
+                            .joinToString("")
+                            .replace('\u00A0', ' ')
+                            .trim()
                     }
                     fun walk(element: com.google.gson.JsonElement) {
                         if (found.size >= limit * 3) return
                         if (element.isJsonObject) {
                             val obj = element.asJsonObject
+
+                            // 1. musicTwoRowItemRenderer (standard album/playlist grid cards)
                             val renderer = obj.getAsJsonObject("musicTwoRowItemRenderer")
                             if (renderer != null) {
                                 val title = textOf(renderer.getAsJsonObject("title"))
                                 val subtitle = textOf(renderer.getAsJsonObject("subtitle"))
                                 val navigation = renderer.getAsJsonObject("navigationEndpoint")
                                     ?.getAsJsonObject("browseEndpoint")
+                                    ?: renderer.getAsJsonObject("title")?.getAsJsonArray("runs")?.firstOrNull()?.asJsonObject
+                                        ?.getAsJsonObject("navigationEndpoint")?.getAsJsonObject("browseEndpoint")
                                 val browseId = navigation?.get("browseId")?.asString.orEmpty()
                                 val pageType = navigation?.getAsJsonObject("browseEndpointContextSupportedConfigs")
                                     ?.getAsJsonObject("browseEndpointContextMusicConfig")
@@ -138,6 +145,87 @@ class PipedService(
                                     ))
                                 }
                             }
+
+                            // 2. musicCardShelfRenderer (Top result album spotlight card)
+                            val cardRenderer = obj.getAsJsonObject("musicCardShelfRenderer")
+                            if (cardRenderer != null) {
+                                val nav = cardRenderer.getAsJsonObject("title")
+                                    ?.getAsJsonArray("runs")?.firstOrNull()?.asJsonObject
+                                    ?.getAsJsonObject("navigationEndpoint")?.getAsJsonObject("browseEndpoint")
+                                    ?: cardRenderer.getAsJsonObject("navigationEndpoint")?.getAsJsonObject("browseEndpoint")
+                                val bId = nav?.get("browseId")?.asString.orEmpty()
+                                val pType = nav?.getAsJsonObject("browseEndpointContextSupportedConfigs")
+                                    ?.getAsJsonObject("browseEndpointContextMusicConfig")
+                                    ?.get("pageType")?.asString.orEmpty()
+                                val isCollection = bId.isNotBlank() && (
+                                    pType.contains("ALBUM", true) || pType.contains("PLAYLIST", true) ||
+                                    bId.startsWith("MPRE") || bId.startsWith("VL") || bId.startsWith("OLAK")
+                                )
+                                if (isCollection) {
+                                    val title = textOf(cardRenderer.getAsJsonObject("title"))
+                                    val subtitle = textOf(cardRenderer.getAsJsonObject("subtitle"))
+                                    val thumbs = cardRenderer.getAsJsonObject("thumbnail")
+                                        ?.getAsJsonObject("musicThumbnailRenderer")
+                                        ?.getAsJsonObject("thumbnail")
+                                        ?.getAsJsonArray("thumbnails")
+                                    val artwork = try { thumbs?.last()?.asJsonObject?.get("url")?.asString.orEmpty() } catch (_: Exception) { "" }
+                                    if (title.isNotBlank()) {
+                                        found.putIfAbsent(bId, OnlinePlaylist(
+                                            id = "ytmusic:$bId",
+                                            title = title,
+                                            subtitle = subtitle,
+                                            artworkUrl = ArtworkQualityOptimizer.optimizeUrl(artwork),
+                                            songCount = 0,
+                                            source = AudioSource.YOUTUBE
+                                        ))
+                                    }
+                                }
+                            }
+
+                            // 3. musicResponsiveListItemRenderer (list item collections)
+                            val responsiveRenderer = obj.getAsJsonObject("musicResponsiveListItemRenderer")
+                            if (responsiveRenderer != null) {
+                                val nav = responsiveRenderer.getAsJsonObject("navigationEndpoint")
+                                    ?.getAsJsonObject("browseEndpoint")
+                                    ?: responsiveRenderer.getAsJsonArray("flexColumns")?.firstOrNull()?.asJsonObject
+                                        ?.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
+                                        ?.getAsJsonObject("text")
+                                        ?.getAsJsonArray("runs")?.firstOrNull()?.asJsonObject
+                                        ?.getAsJsonObject("navigationEndpoint")
+                                        ?.getAsJsonObject("browseEndpoint")
+                                val bId = nav?.get("browseId")?.asString.orEmpty()
+                                val pType = nav?.getAsJsonObject("browseEndpointContextSupportedConfigs")
+                                    ?.getAsJsonObject("browseEndpointContextMusicConfig")
+                                    ?.get("pageType")?.asString.orEmpty()
+                                val isCollection = bId.isNotBlank() && (
+                                    pType.contains("ALBUM", true) || pType.contains("PLAYLIST", true) ||
+                                    bId.startsWith("MPRE") || bId.startsWith("VL") || bId.startsWith("OLAK")
+                                )
+                                if (isCollection) {
+                                    val flex = responsiveRenderer.getAsJsonArray("flexColumns")
+                                    val title = if (flex != null && flex.size() > 0) {
+                                        textOf(flex[0].asJsonObject.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")?.getAsJsonObject("text"))
+                                    } else ""
+                                    val subtitle = if (flex != null && flex.size() > 1) {
+                                        textOf(flex[1].asJsonObject.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")?.getAsJsonObject("text"))
+                                    } else ""
+                                    val thumbs = responsiveRenderer.getAsJsonObject("thumbnail")
+                                        ?.getAsJsonObject("musicThumbnailRenderer")
+                                        ?.getAsJsonObject("thumbnail")
+                                        ?.getAsJsonArray("thumbnails")
+                                    val artwork = try { thumbs?.last()?.asJsonObject?.get("url")?.asString.orEmpty() } catch (_: Exception) { "" }
+                                    if (title.isNotBlank()) {
+                                        found.putIfAbsent(bId, OnlinePlaylist(
+                                            id = "ytmusic:$bId",
+                                            title = title,
+                                            subtitle = subtitle,
+                                            artworkUrl = ArtworkQualityOptimizer.optimizeUrl(artwork),
+                                            songCount = 0,
+                                            source = AudioSource.YOUTUBE
+                                        ))
+                                    }
+                                }
+                            }
                             for ((_, child) in obj.entrySet()) walk(child)
                         } else if (element.isJsonArray) {
                             element.asJsonArray.forEach(::walk)
@@ -154,7 +242,7 @@ class PipedService(
     /** Browse a YouTube Music album/playlist and return the tracks actually in it. */
     suspend fun getMusicCollectionSongs(collection: OnlinePlaylist): List<OnlineSong> =
         withContext(Dispatchers.IO) {
-            val browseId = collection.id.removePrefix("ytmusic:")
+            val browseId = collection.id.substringAfter("ytmusic:").trim()
             if (browseId.isBlank()) return@withContext emptyList()
             try {
                 val payload = """
@@ -174,8 +262,47 @@ class PipedService(
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) return@withContext emptyList()
                     val json = response.body?.string() ?: return@withContext emptyList()
+
+                    val headerArtwork = try {
+                        val rootObj = JsonParser.parseString(json).asJsonObject
+                        var art = ""
+                        fun findHeaderArt(el: com.google.gson.JsonElement) {
+                            if (art.isNotBlank()) return
+                            if (el.isJsonObject) {
+                                val o = el.asJsonObject
+                                if (o.has("musicDetailHeaderRenderer") || o.has("musicResponsiveHeaderRenderer") || o.has("musicVisualHeaderRenderer")) {
+                                    val header = o.getAsJsonObject("musicDetailHeaderRenderer")
+                                        ?: o.getAsJsonObject("musicResponsiveHeaderRenderer")
+                                        ?: o.getAsJsonObject("musicVisualHeaderRenderer")
+                                    val thumbs = header?.getAsJsonObject("thumbnail")
+                                        ?.getAsJsonObject("musicThumbnailRenderer")
+                                        ?.getAsJsonObject("thumbnail")
+                                        ?.getAsJsonArray("thumbnails")
+                                        ?: header?.getAsJsonObject("thumbnail")
+                                            ?.getAsJsonObject("croppedSquareThumbnailRenderer")
+                                            ?.getAsJsonObject("thumbnail")
+                                            ?.getAsJsonArray("thumbnails")
+                                    art = thumbs?.lastOrNull()?.asJsonObject?.get("url")?.asString.orEmpty()
+                                }
+                                if (art.isBlank()) {
+                                    for ((_, child) in o.entrySet()) findHeaderArt(child)
+                                }
+                            }
+                        }
+                        findHeaderArt(rootObj)
+                        ArtworkQualityOptimizer.optimizeUrl(art)
+                    } catch (_: Exception) { "" }
+
+                    val fallbackArt = collection.artworkUrl.ifBlank { headerArtwork }
+
                     parseInnertubeSearch(json).distinctBy { it.id }.map {
-                        it.copy(album = collection.title, source = AudioSource.YOUTUBE)
+                        val trackArt = it.artworkUrl.ifBlank { fallbackArt }
+                            .ifBlank { "https://i.ytimg.com/vi/${it.id}/hqdefault.jpg" }
+                        it.copy(
+                            album = collection.title,
+                            artworkUrl = trackArt,
+                            source = AudioSource.YOUTUBE
+                        )
                     }
                 }
             } catch (_: Exception) {
@@ -230,27 +357,90 @@ class PipedService(
                     val obj = elem.asJsonObject
                     if (obj.has("musicResponsiveListItemRenderer")) {
                         val renderer = obj.getAsJsonObject("musicResponsiveListItemRenderer")
-                        val videoId = renderer.getAsJsonObject("playlistItemData")?.get("videoId")?.asString ?: ""
+                        var videoId = renderer.getAsJsonObject("playlistItemData")?.get("videoId")?.asString.orEmpty()
+                        if (videoId.isBlank()) {
+                            videoId = renderer.getAsJsonObject("navigationEndpoint")
+                                ?.getAsJsonObject("watchEndpoint")
+                                ?.get("videoId")?.asString.orEmpty()
+                        }
+                        if (videoId.isBlank()) {
+                            videoId = renderer.getAsJsonObject("overlay")
+                                ?.getAsJsonObject("musicItemThumbnailOverlayRenderer")
+                                ?.getAsJsonObject("content")
+                                ?.getAsJsonObject("musicPlayButtonRenderer")
+                                ?.getAsJsonObject("playNavigationEndpoint")
+                                ?.getAsJsonObject("watchEndpoint")
+                                ?.get("videoId")?.asString.orEmpty()
+                        }
+                        if (videoId.isBlank()) {
+                            val flex = renderer.getAsJsonArray("flexColumns")
+                            if (flex != null) {
+                                for (f in flex) {
+                                    val runs = f.asJsonObject
+                                        .getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
+                                        ?.getAsJsonObject("text")
+                                        ?.getAsJsonArray("runs")
+                                    if (runs != null) {
+                                        for (r in runs) {
+                                            val v = r.asJsonObject.getAsJsonObject("navigationEndpoint")
+                                                ?.getAsJsonObject("watchEndpoint")
+                                                ?.get("videoId")?.asString.orEmpty()
+                                            if (v.isNotBlank()) {
+                                                videoId = v
+                                                break
+                                            }
+                                        }
+                                    }
+                                    if (videoId.isNotBlank()) break
+                                }
+                            }
+                        }
+
                         if (videoId.isNotBlank()) {
                             val flex = renderer.getAsJsonArray("flexColumns")
                             var title = "Unknown Title"
                             var artist = "YouTube Artist"
                             if (flex != null && flex.size() > 0) {
                                 try {
-                                    title = flex[0].asJsonObject
+                                    val textObj = flex[0].asJsonObject
                                         .getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
-                                        .getAsJsonObject("text")
-                                        .getAsJsonArray("runs")[0].asJsonObject
-                                        .get("text").asString
+                                        ?.getAsJsonObject("text")
+                                    val simple = textObj?.get("simpleText")?.asString
+                                    if (!simple.isNullOrBlank()) {
+                                        title = simple.replace('\u00A0', ' ').trim()
+                                    } else {
+                                        val runs = textObj?.getAsJsonArray("runs")
+                                        if (runs != null && runs.size() > 0) {
+                                            title = runs.mapNotNull { it.asJsonObject.get("text")?.asString }
+                                                .joinToString("")
+                                                .replace('\u00A0', ' ')
+                                                .trim()
+                                        }
+                                    }
                                 } catch (t: Throwable) {}
                             }
                             if (flex != null && flex.size() > 1) {
                                 try {
-                                    artist = flex[1].asJsonObject
+                                    val runs = flex[1].asJsonObject
                                         .getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
-                                        .getAsJsonObject("text")
-                                        .getAsJsonArray("runs")[0].asJsonObject
-                                        .get("text").asString
+                                        ?.getAsJsonObject("text")
+                                        ?.getAsJsonArray("runs")
+                                    if (runs != null && runs.size() > 0) {
+                                        val artistSb = StringBuilder()
+                                        for (r in runs) {
+                                            val t = r.asJsonObject.get("text")?.asString.orEmpty()
+                                            val trimmed = t.trim()
+                                            if (trimmed == "•" || trimmed == "·" || trimmed == "|") break
+                                            artistSb.append(t)
+                                        }
+                                        val parsedArtist = artistSb.toString()
+                                            .replace('\u00A0', ' ')
+                                            .trim()
+                                            .trimEnd(',', '&', ' ')
+                                        if (parsedArtist.isNotBlank()) {
+                                            artist = parsedArtist
+                                        }
+                                    }
                                 } catch (t: Throwable) {}
                             }
 
@@ -267,10 +457,18 @@ class PipedService(
                             val fixed = renderer.getAsJsonArray("fixedColumns")
                             if (fixed != null) {
                                 for (f in fixed) {
-                                    val runs = f.asJsonObject
+                                    val textObj = f.asJsonObject
                                         .getAsJsonObject("musicResponsiveListItemFixedColumnRenderer")
                                         ?.getAsJsonObject("text")
-                                        ?.getAsJsonArray("runs")
+                                    val simple = textObj?.get("simpleText")?.asString
+                                    if (!simple.isNullOrBlank()) {
+                                        val sec = com.aman.auramusic.online.filter.TrendingSongFilter.parseDurationToSeconds(simple)
+                                        if (sec > 0L) {
+                                            durationSeconds = sec
+                                            break
+                                        }
+                                    }
+                                    val runs = textObj?.getAsJsonArray("runs")
                                     if (runs != null) {
                                         for (r in runs) {
                                             val t = r.asJsonObject.get("text")?.asString ?: ""
@@ -287,10 +485,18 @@ class PipedService(
 
                             if (durationSeconds == 0L && flex != null) {
                                 for (f in flex) {
-                                    val runs = f.asJsonObject
+                                    val textObj = f.asJsonObject
                                         .getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
                                         ?.getAsJsonObject("text")
-                                        ?.getAsJsonArray("runs")
+                                    val simple = textObj?.get("simpleText")?.asString
+                                    if (!simple.isNullOrBlank()) {
+                                        val sec = com.aman.auramusic.online.filter.TrendingSongFilter.parseDurationToSeconds(simple)
+                                        if (sec > 0L) {
+                                            durationSeconds = sec
+                                            break
+                                        }
+                                    }
+                                    val runs = textObj?.getAsJsonArray("runs")
                                     if (runs != null) {
                                         for (r in runs) {
                                             val t = r.asJsonObject.get("text")?.asString ?: ""
@@ -311,7 +517,8 @@ class PipedService(
                                     title = title,
                                     artist = artist,
                                     album = "YouTube Music",
-                                    artworkUrl = ArtworkQualityOptimizer.optimizeUrl(thumb),
+                                    artworkUrl = ArtworkQualityOptimizer.optimizeUrl(thumb)
+                                        .ifBlank { "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" },
                                     durationSeconds = durationSeconds,
                                     source = AudioSource.YOUTUBE,
                                     bitrate = "Adaptive",
