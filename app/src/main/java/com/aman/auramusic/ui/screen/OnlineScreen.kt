@@ -292,7 +292,7 @@ fun OnlineScreen(
         // If the provider doesn't return complete soundtrack playlists, only use
         // grouped search results that have enough tracks to be a useful album page.
         (fullCollections + buildMovieAlbums(movieSongs, feedSongs))
-            .distinctBy { it.id }
+            .distinctBy { "${it.source.name}_${it.title.trim().lowercase()}" }
             .sortedByDescending { it.songs.size }
             .take(12)
     }
