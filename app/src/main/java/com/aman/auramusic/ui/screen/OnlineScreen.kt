@@ -60,9 +60,11 @@ import com.aman.auramusic.ui.component.SongRow
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.AuraShapes
 import com.aman.auramusic.ui.theme.GlassLevel
-import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.ui.theme.liquidGlass
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 private val AuraCoral = Color(0xFFFF5C7A)
@@ -88,28 +90,39 @@ fun OnlineScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = LocalIsDark.current
     val scope = rememberCoroutineScope()
     val repository = remember { OnlineMusicRepository() }
-    val playbackState by onlinePlaybackManager.playbackState.collectAsStateWithLifecycle()
+
+    val currentPlayingSongId by remember(onlinePlaybackManager) {
+        onlinePlaybackManager.playbackState
+            .map { it.currentSong?.id }
+            .distinctUntilChanged()
+    }.collectAsStateWithLifecycle(initialValue = null)
+
+    val isPlaying by remember(onlinePlaybackManager) {
+        onlinePlaybackManager.playbackState
+            .map { it.isPlaying }
+            .distinctUntilChanged()
+    }.collectAsStateWithLifecycle(initialValue = false)
 
     var feedSongs by remember { mutableStateOf(emptyList<OnlineSong>()) }
     var movieSongs by remember { mutableStateOf(emptyList<OnlineSong>()) }
     var moodResults by remember { mutableStateOf(emptyList<OnlineSong>()) }
     var activeMood by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
     var isMoodLoading by remember { mutableStateOf(false) }
     var loadError by remember { mutableStateOf(false) }
+    var moodJob by remember { mutableStateOf<Job?>(null) }
 
     suspend fun loadCatalog() {
         isLoading = true
         loadError = false
         try {
             feedSongs = repository.getCuratedSongFeed()
-                .distinctBy { "${it.source.name}_${it.id}" }
+                .distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
             movieSongs = try {
                 repository.search("Latest Bollywood Movie Songs", AudioSource.ALL)
-                    .distinctBy { "${it.source.name}_${it.id}" }
+                    .distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -130,7 +143,7 @@ fun OnlineScreen(
     LaunchedEffect(Unit) { loadCatalog() }
 
     val uniqueSongs = remember(feedSongs, movieSongs) {
-        (movieSongs + feedSongs).distinctBy { "${it.source.name}_${it.id}" }
+        (movieSongs + feedSongs).distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
     }
     val featuredSong = movieSongs.firstOrNull() ?: feedSongs.firstOrNull()
     val trendingSongs = remember(feedSongs, movieSongs) {
@@ -138,18 +151,20 @@ fun OnlineScreen(
             movieSongs.any { it.source == candidate.source && it.id == candidate.id }
         }.take(12)
     }
-    val movieAlbums = remember(movieSongs) {
-        movieSongs.filter { it.album.isNotBlank() }
+    val movieAlbums = remember(movieSongs, feedSongs) {
+        val albumPool = if (movieSongs.any { it.album.isNotBlank() }) movieSongs else feedSongs
+        albumPool.filter { it.album.isNotBlank() }
             .groupBy { it.album.trim() }
             .entries
-            .map { entry -> entry.key to entry.value.distinctBy { "${it.source.name}_${it.id}" } }
+            .map { entry -> entry.key to entry.value.distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" } }
             .distinctBy { it.first.lowercase() }
             .take(12)
     }
-    val exploreSongs = remember(uniqueSongs, trendingSongs) {
-        (uniqueSongs.filterNot { candidate ->
+    val exploreSongs = remember(uniqueSongs, trendingSongs, featuredSong) {
+        uniqueSongs.filterNot { candidate ->
+            (featuredSong != null && candidate.source == featuredSong.source && candidate.id == featuredSong.id) ||
             trendingSongs.any { it.source == candidate.source && it.id == candidate.id }
-        }).take(20)
+        }.take(20)
     }
     val textColor = MaterialTheme.colorScheme.onBackground
     val mutedText = MaterialTheme.colorScheme.onSurfaceVariant
@@ -184,7 +199,11 @@ fun OnlineScreen(
                                 modifier = Modifier.padding(top = 3.dp)
                             )
                         }
-                        IconButton(onClick = { scope.launch { loadCatalog() } }) {
+                        IconButton(onClick = {
+                            if (!isLoading) {
+                                scope.launch { loadCatalog() }
+                            }
+                        }) {
                             Icon(Icons.Default.Refresh, contentDescription = "Refresh Explore", tint = textColor)
                         }
                         IconButton(onClick = onOpenSettings) {
@@ -203,9 +222,12 @@ fun OnlineScreen(
 
             if (featuredSong != null) {
                 item(key = "explore_movie_feature") {
+                    val featuredQueue = remember(movieSongs, feedSongs) {
+                        if (movieSongs.isNotEmpty()) movieSongs else feedSongs
+                    }
                     FeaturedExploreCard(
                         song = featuredSong,
-                        onClick = { onOnlineSongSelected(featuredSong, movieSongs.ifEmpty { listOf(featuredSong) }) },
+                        onClick = { onOnlineSongSelected(featuredSong, featuredQueue.ifEmpty { listOf(featuredSong) }) },
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                     )
                 }
@@ -230,13 +252,14 @@ fun OnlineScreen(
                                 mood = mood.title,
                                 artworkUrl = artworkSong.artworkUrl,
                                 onClick = {
-                                    scope.launch {
+                                    moodJob?.cancel()
+                                    moodJob = scope.launch {
                                         activeMood = mood.title
                                         isMoodLoading = true
                                         moodResults = emptyList()
                                         try {
                                             moodResults = repository.search(mood.query, AudioSource.ALL)
-                                                .distinctBy { "${it.source.name}_${it.id}" }
+                                                .distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
                                         } catch (cancelled: CancellationException) {
                                             throw cancelled
                                         } catch (_: Exception) {
@@ -256,7 +279,12 @@ fun OnlineScreen(
                             eyebrow = "YOUR SELECTED MOOD",
                             title = activeMood ?: "Mood",
                             actionText = "Clear",
-                            onActionClick = { activeMood = null; moodResults = emptyList() },
+                            onActionClick = {
+                                moodJob?.cancel()
+                                activeMood = null
+                                moodResults = emptyList()
+                                isMoodLoading = false
+                            },
                             modifier = Modifier.padding(top = 12.dp)
                         )
                     }
@@ -267,12 +295,21 @@ fun OnlineScreen(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
                             )
                         }
+                    } else if (moodResults.isEmpty()) {
+                        item(key = "mood_empty") {
+                            Text(
+                                text = "No songs found for this mood",
+                                color = mutedText,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                            )
+                        }
                     } else {
-                        items(moodResults.take(5), key = { "mood_${it.source.name}_${it.id}" }) { song ->
-                            val isActive = playbackState.currentSong?.id == song.id
+                        items(moodResults.take(5), key = { "mood_${it.source.name}_${it.id.ifBlank { it.title }}" }) { song ->
+                            val isActive = currentPlayingSongId == song.id
                             SongRow(
                                 onlineSong = song,
-                                isPlaying = isActive && playbackState.isPlaying,
+                                isPlaying = isActive && isPlaying,
                                 isActive = isActive,
                                 onClick = { onOnlineSongSelected(song, moodResults) },
                                 onPlayNow = { onOnlineSongSelected(song, moodResults) },
@@ -296,7 +333,7 @@ fun OnlineScreen(
                         contentPadding = PaddingValues(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        items(trendingSongs, key = { "fresh_${it.source.name}_${it.id}" }) { song ->
+                        items(trendingSongs, key = { "fresh_${it.source.name}_${it.id.ifBlank { it.title }}" }) { song ->
                             ExploreArtworkCard(
                                 song = song,
                                 onClick = { onOnlineSongSelected(song, trendingSongs) }
@@ -345,7 +382,7 @@ fun OnlineScreen(
                         contentPadding = PaddingValues(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        items(exploreSongs, key = { "explore_${it.source.name}_${it.id}" }) { song ->
+                        items(exploreSongs, key = { "explore_${it.source.name}_${it.id.ifBlank { it.title }}" }) { song ->
                             ExploreArtworkCard(
                                 song = song,
                                 onClick = { onOnlineSongSelected(song, exploreSongs) }
