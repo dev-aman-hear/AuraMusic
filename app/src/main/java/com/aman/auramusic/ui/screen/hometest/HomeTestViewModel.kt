@@ -474,29 +474,40 @@ class HomeTestViewModel @Inject constructor(
      * Interleaves both offline (local) and online songs (trending & category top hits).
      * Chunked into columns of 3 so the user can drag horizontally from right to left smoothly.
      */
+    private fun normalizedOnlineId(song: OnlineSong): String? =
+        song.id.trim().takeIf { it.isNotEmpty() }?.lowercase()
+
+    private fun normalizedSongMetadata(title: String, artist: String): String =
+        "${title.trim().lowercase().replace(Regex("\\s+"), " ")}::${artist.trim().lowercase().replace(Regex("\\s+"), " ")}"
+
     private fun buildQuickHitsFeed(
         localSongs: List<Song>,
         history: List<PlaybackHistoryEntry>,
         trendingOnline: List<OnlineSong>,
         curatedFeed: List<OnlineSong>
     ): List<List<QuickHitTrack>> {
-        val historySongs = history.mapNotNull { entry -> localSongs.find { it.id == entry.songId } }.distinct()
-        val allLocalPool = if (historySongs.isNotEmpty()) {
-            (historySongs + (localSongs - historySongs.toSet())).distinctBy { it.id }
-        } else {
-            localSongs
-        }
+        val historySongs = history.sortedByDescending { it.playedAt }
+            .mapNotNull { entry -> localSongs.find { it.id == entry.songId } }
+            .distinctBy { it.id }
 
-        val localTracks = allLocalPool.map { song ->
-            val badge = if (historySongs.contains(song)) "Recent Hit" else "Local"
-            QuickHitTrack.LocalTrack(song, badge)
-        }
+        // Keep Quick Hits distinct from Trending Now, including songs with alternate IDs.
+        val trendingIds = trendingOnline.mapNotNull { normalizedOnlineId(it) }.toSet()
+        val trendingMetadata = trendingOnline.map { normalizedSongMetadata(it.title, it.artist) }.toSet()
 
-        val categoryBadges = listOf("Pop Hit", "Top Chart", "Billboard", "Rock Hit", "Bollywood", "Electronic", "Trending")
-        val onlineTracks = (trendingOnline + curatedFeed).distinctBy { "${it.source.name}_${it.id}" }
+        val localTracks = localSongs.distinctBy { it.id }
+            .filterNot { normalizedSongMetadata(it.title, it.artist) in trendingMetadata }
+            .map { song ->
+                val badge = if (historySongs.any { it.id == song.id }) "Recent Hit" else "Local"
+                QuickHitTrack.LocalTrack(song, badge)
+            }
+
+        val categoryBadges = listOf("Pop Hit", "Top Chart", "Billboard", "Rock Hit", "Bollywood", "Electronic", "Discovery")
+        val onlineTracks = curatedFeed
+            .filterNot { normalizedOnlineId(it) in trendingIds ||
+                normalizedSongMetadata(it.title, it.artist) in trendingMetadata }
+            .distinctBy { normalizedOnlineId(it) ?: normalizedSongMetadata(it.title, it.artist) }
             .mapIndexed { index, os ->
-                val badge = if (index < trendingOnline.size) "Trending" else categoryBadges[index % categoryBadges.size]
-                QuickHitTrack.OnlineTrack(os, badge)
+                QuickHitTrack.OnlineTrack(os, categoryBadges[index % categoryBadges.size])
             }
 
         val unified = mutableListOf<QuickHitTrack>()
