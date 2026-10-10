@@ -1141,20 +1141,6 @@ fun QuickHitTrackItem(
                     )
                 }
             }
-
-            if (track is QuickHitTrack.LocalTrack) {
-                IconButton(
-                    onClick = onOptionsClick,
-                    modifier = Modifier.size(30.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
-                        tint = if (isDark) Color.White.copy(alpha = 0.50f) else Color.Black.copy(alpha = 0.45f),
-                        modifier = Modifier.size(17.dp)
-                    )
-                }
-            }
         }
     }
 }
