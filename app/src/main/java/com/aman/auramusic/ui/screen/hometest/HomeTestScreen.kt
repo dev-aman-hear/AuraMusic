@@ -265,7 +265,26 @@ fun HomeTestScreen(
                     }
                 }
 
-                // 2.5 Listen Again (Populated from actual playback history, Quick Hit style 2*x)
+                // 3. B. Trending Songs (Horizontally swipeable, YouTube Music / Curated)
+                if (uiState.trendingTracks.isNotEmpty()) {
+                    item(key = "hometest_trending_section") {
+                        TrendingSongsSection(
+                            tracks = uiState.trendingTracks,
+                            onTrackClick = { item ->
+                                if (item.isLocalAvailable && item.localMatch != null) {
+                                    onSongSelected(item.localMatch, songs)
+                                } else {
+                                    onOnlineSongSelected(
+                                        item.onlineSong,
+                                        uiState.trendingTracks.map { it.onlineSong }
+                                    )
+                                }
+                            }
+                        )
+                    }
+                }
+
+                // 3.5 Listen Again (Populated from actual playback history, Quick Hit style 2*x)
                 if (uiState.listenAgainColumns.isNotEmpty()) {
                     item(key = "hometest_listen_again_section") {
                         val allOnlineListenAgain = remember(uiState.listenAgainColumns) {
@@ -285,25 +304,6 @@ fun HomeTestScreen(
                                 }
                             },
                             onOptionsClick = { song -> selectedSongOptions = song }
-                        )
-                    }
-                }
-
-                // 3. B. Trending Songs (Horizontally swipeable, YouTube Music / Curated)
-                if (uiState.trendingTracks.isNotEmpty()) {
-                    item(key = "hometest_trending_section") {
-                        TrendingSongsSection(
-                            tracks = uiState.trendingTracks,
-                            onTrackClick = { item ->
-                                if (item.isLocalAvailable && item.localMatch != null) {
-                                    onSongSelected(item.localMatch, songs)
-                                } else {
-                                    onOnlineSongSelected(
-                                        item.onlineSong,
-                                        uiState.trendingTracks.map { it.onlineSong }
-                                    )
-                                }
-                            }
                         )
                     }
                 }
