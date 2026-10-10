@@ -63,6 +63,9 @@ import com.aman.auramusic.ui.theme.AuraShapes
 import com.aman.auramusic.ui.theme.GlassLevel
 import com.aman.auramusic.ui.theme.liquidGlass
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -199,7 +202,7 @@ private fun buildMovieAlbums(
             source = firstTrack.source,
             songs = deduplicatedTracks
         )
-    }.distinctBy { it.id }.take(12)
+    }.filter { it.songs.size >= 4 }.distinctBy { it.id }.take(12)
 }
 
 @Composable
@@ -214,6 +217,7 @@ fun OnlineScreen(
 
     var feedSongs by remember { mutableStateOf(emptyList<OnlineSong>()) }
     var movieSongs by remember { mutableStateOf(emptyList<OnlineSong>()) }
+    var movieAlbums by remember { mutableStateOf(emptyList<AlbumCollection>()) }
     var activeMood by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isMoodLoading by remember { mutableStateOf(false) }
@@ -225,6 +229,72 @@ fun OnlineScreen(
 
     BackHandler(enabled = selectedCollection != null) {
         selectedCollection = null
+    }
+
+    suspend fun loadMovieSoundtracks(): List<AlbumCollection> = coroutineScope {
+        // Search actual playlist/collection results rather than assuming a song search
+        // contains every track from a movie album.
+        val queries = listOf(
+            "Bollywood movie soundtracks",
+            "Hindi movie songs",
+            "Latest Bollywood movie albums",
+            "Punjabi movie soundtracks"
+        )
+        val playlistResults = queries.map { query ->
+            async {
+                try {
+                    repository.searchPlaylists(query, limit = 8)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            }
+        }.awaitAll().flatten()
+
+        val candidates = playlistResults
+            .distinctBy { it.id }
+            .filter { playlist ->
+                val title = playlist.title.lowercase()
+                listOf("movie", "soundtrack", "bollywood", "punjabi", "hindi", "film", "songs", "album")
+                    .any(title::contains)
+            }
+            .take(12)
+
+        val fullCollections = candidates.map { playlist ->
+            async {
+                val tracks = try {
+                    repository.getPlaylistSongs(playlist)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                val uniqueTracks = deduplicateOnlineSongs(tracks)
+                if (uniqueTracks.size < 4) return@async null
+
+                AlbumCollection(
+                    id = "soundtrack_${playlist.source.name.lowercase()}_${playlist.id}",
+                    title = playlist.title,
+                    subtitle = playlist.subtitle.ifBlank {
+                        uniqueTracks.map { it.artist.trim() }.filter { it.isNotBlank() }.distinct()
+                            .take(2).joinToString(", ")
+                    },
+                    artworkUrl = playlist.artworkUrl.ifBlank {
+                        uniqueTracks.firstOrNull { it.artworkUrl.isNotBlank() }?.artworkUrl.orEmpty()
+                    },
+                    source = playlist.source,
+                    songs = uniqueTracks
+                )
+            }
+        }.awaitAll().filterNotNull()
+
+        // If the provider doesn't return complete soundtrack playlists, only use
+        // grouped search results that have enough tracks to be a useful album page.
+        (fullCollections + buildMovieAlbums(movieSongs, feedSongs))
+            .distinctBy { it.id }
+            .sortedByDescending { it.songs.size }
+            .take(12)
     }
 
     suspend fun loadCatalog() {
@@ -241,12 +311,14 @@ fun OnlineScreen(
             } catch (_: Exception) {
                 emptyList()
             }
+            movieAlbums = loadMovieSoundtracks()
             loadError = feedSongs.isEmpty() && movieSongs.isEmpty()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
             feedSongs = emptyList()
             movieSongs = emptyList()
+            movieAlbums = emptyList()
             loadError = true
         } finally {
             isLoading = false
@@ -303,9 +375,6 @@ fun OnlineScreen(
         feedSongs.filterNot { candidate ->
             movieSongs.any { it.source == candidate.source && it.id == candidate.id }
         }.take(12)
-    }
-    val movieAlbums = remember(movieSongs, feedSongs) {
-        buildMovieAlbums(movieSongs, feedSongs)
     }
     val exploreSongs = remember(uniqueSongs, trendingSongs, featuredSong) {
         uniqueSongs.filterNot { candidate ->
