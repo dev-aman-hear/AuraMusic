@@ -518,7 +518,11 @@ class HomeTestViewModel @Inject constructor(
                 ArtistItem(
                     name = artistName,
                     songCountText = "${songList.size} songs",
-                    artworkModel = songList.firstOrNull { it.artworkUri != null }?.artworkUri,
+                    // Artist portraits come from YouTube Music artist metadata only.
+                    // Never substitute a local track's album artwork for an artist photo.
+                    artworkModel = discoveredOnline.firstOrNull {
+                        it.name.equals(artistName, ignoreCase = true) && !it.profileImageUrl.isNullOrBlank()
+                    }?.profileImageUrl,
                     isOnline = false,
                     artistId = "local_${artistName.hashCode()}"
                 )
@@ -741,7 +745,9 @@ class HomeTestViewModel @Inject constructor(
                     ArtistItem(
                         name = name,
                         songCountText = "${matchingSongs.size} songs",
-                        artworkModel = matchingSongs.firstOrNull { it.artworkUri != null }?.artworkUri,
+                        artworkModel = cachedDiscoveredArtists.firstOrNull {
+                            it.name.equals(name, ignoreCase = true) && !it.profileImageUrl.isNullOrBlank()
+                        }?.profileImageUrl,
                         isOnline = false,
                         artistId = "local_${name.hashCode()}"
                     )
