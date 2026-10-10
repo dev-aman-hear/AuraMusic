@@ -2,6 +2,7 @@ package com.aman.auramusic.online.network.piped
 
 import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
@@ -69,6 +70,118 @@ class PipedService(
         }
         emptyList()
     }
+
+    /**
+     * Search actual YouTube Music album/playlist cards via InnerTube.
+     * Unlike song search, this preserves the provider's collection ID so we can
+     * browse the collection and load its real track list.
+     */
+    suspend fun searchMusicCollections(query: String, limit: Int = 12): List<OnlinePlaylist> =
+        withContext(Dispatchers.IO) {
+            try {
+                val payload = """
+                    {
+                      "context": {"client": {"clientName":"WEB_REMIX","clientVersion":"1.20250601.01.00","hl":"en","gl":"IN"}},
+                      "query": "${query.replace("\\", "\\\\").replace("\"", "\\\"")}"
+                    }
+                """.trimIndent()
+                val request = Request.Builder()
+                    .url("https://music.youtube.com/youtubei/v1/search?prettyPrint=false")
+                    .post(payload.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull()))
+                    .header("Content-Type", "application/json")
+                    .header("Origin", "https://music.youtube.com")
+                    .header("Referer", "https://music.youtube.com/")
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36")
+                    .build()
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@withContext emptyList()
+                    val root = JsonParser.parseString(response.body?.string() ?: return@withContext emptyList())
+                    val found = linkedMapOf<String, OnlinePlaylist>()
+                    fun textOf(element: com.google.gson.JsonElement?): String {
+                        if (element == null || !element.isJsonObject) return ""
+                        val obj = element.asJsonObject
+                        obj.get("simpleText")?.let { return it.asString }
+                        val runs = obj.getAsJsonArray("runs") ?: return ""
+                        return runs.mapNotNull { it.asJsonObject.get("text")?.asString }.joinToString("")
+                    }
+                    fun walk(element: com.google.gson.JsonElement) {
+                        if (found.size >= limit * 3) return
+                        if (element.isJsonObject) {
+                            val obj = element.asJsonObject
+                            val renderer = obj.getAsJsonObject("musicTwoRowItemRenderer")
+                            if (renderer != null) {
+                                val title = textOf(renderer.getAsJsonObject("title"))
+                                val subtitle = textOf(renderer.getAsJsonObject("subtitle"))
+                                val navigation = renderer.getAsJsonObject("navigationEndpoint")
+                                    ?.getAsJsonObject("browseEndpoint")
+                                val browseId = navigation?.get("browseId")?.asString.orEmpty()
+                                val pageType = navigation?.getAsJsonObject("browseEndpointContextSupportedConfigs")
+                                    ?.getAsJsonObject("browseEndpointContextMusicConfig")
+                                    ?.get("pageType")?.asString.orEmpty()
+                                val thumbnails = renderer.getAsJsonObject("thumbnailRenderer")
+                                    ?.getAsJsonObject("musicThumbnailRenderer")
+                                    ?.getAsJsonObject("thumbnail")
+                                    ?.getAsJsonArray("thumbnails")
+                                val artwork = try { thumbnails?.last()?.asJsonObject?.get("url")?.asString.orEmpty() } catch (_: Exception) { "" }
+                                val looksLikeCollection = browseId.isNotBlank() &&
+                                    (pageType.contains("ALBUM", true) || pageType.contains("PLAYLIST", true) ||
+                                     browseId.startsWith("MPRE") || browseId.startsWith("VL") ||
+                                     browseId.startsWith("OLAK"))
+                                if (looksLikeCollection && title.isNotBlank()) {
+                                    found.putIfAbsent(browseId, OnlinePlaylist(
+                                        id = "ytmusic:$browseId",
+                                        title = title,
+                                        subtitle = subtitle,
+                                        artworkUrl = ArtworkQualityOptimizer.optimizeUrl(artwork),
+                                        songCount = 0,
+                                        source = AudioSource.YOUTUBE
+                                    ))
+                                }
+                            }
+                            for ((_, child) in obj.entrySet()) walk(child)
+                        } else if (element.isJsonArray) {
+                            element.asJsonArray.forEach(::walk)
+                        }
+                    }
+                    walk(root)
+                    found.values.take(limit)
+                }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+
+    /** Browse a YouTube Music album/playlist and return the tracks actually in it. */
+    suspend fun getMusicCollectionSongs(collection: OnlinePlaylist): List<OnlineSong> =
+        withContext(Dispatchers.IO) {
+            val browseId = collection.id.removePrefix("ytmusic:")
+            if (browseId.isBlank()) return@withContext emptyList()
+            try {
+                val payload = """
+                    {
+                      "context": {"client": {"clientName":"WEB_REMIX","clientVersion":"1.20250601.01.00","hl":"en","gl":"IN"}},
+                      "browseId": "${browseId.replace("\\", "\\\\").replace("\"", "\\\"")}"
+                    }
+                """.trimIndent()
+                val request = Request.Builder()
+                    .url("https://music.youtube.com/youtubei/v1/browse?prettyPrint=false")
+                    .post(payload.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull()))
+                    .header("Content-Type", "application/json")
+                    .header("Origin", "https://music.youtube.com")
+                    .header("Referer", "https://music.youtube.com/")
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36")
+                    .build()
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@withContext emptyList()
+                    val json = response.body?.string() ?: return@withContext emptyList()
+                    parseInnertubeSearch(json).distinctBy { it.id }.map {
+                        it.copy(album = collection.title, source = AudioSource.YOUTUBE)
+                    }
+                }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
 
     private fun searchInnertube(query: String): List<OnlineSong> {
         return try {
