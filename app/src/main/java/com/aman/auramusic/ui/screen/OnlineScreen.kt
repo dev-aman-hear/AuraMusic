@@ -234,21 +234,20 @@ fun OnlineScreen(
     }
 
     suspend fun loadMovieSoundtracks(): List<AlbumCollection> = coroutineScope {
-        // Movie collections are sourced exclusively from YouTube/Piped search results.
-        // Search several focused phrases so album metadata can group tracks into real
-        // movie soundtracks instead of relying on JioSaavn playlist results.
+        // Search real YouTube Music album/playlist entities and browse each collection
+        // by its provider browse ID. Do not infer albums from song-search metadata.
         val queries = listOf(
-            "Hindi movie soundtrack full album",
-            "Bollywood movie songs soundtrack",
-            "latest Hindi movie album songs",
-            "Indian film original motion picture soundtrack",
-            "Bollywood movie jukebox full songs",
-            "Punjabi movie soundtrack album"
+            "Hindi movie soundtrack",
+            "Bollywood movie soundtrack album",
+            "latest Hindi film album",
+            "Indian film original soundtrack",
+            "Bollywood movie jukebox",
+            "Punjabi movie soundtrack"
         )
-        val searchResults = queries.map { query ->
+        val collectionResults = queries.map { query ->
             async {
                 try {
-                    repository.search(query, AudioSource.YOUTUBE)
+                    repository.searchYouTubeMusicCollections(query, limit = 10)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
@@ -257,19 +256,44 @@ fun OnlineScreen(
             }
         }.awaitAll().flatten()
 
-        val youtubeMovieSongs = deduplicateOnlineSongs(searchResults)
-            .filter { it.source == AudioSource.YOUTUBE }
-            .filter { song ->
-                val album = song.album.trim()
-                album.isNotBlank() &&
-                    !album.equals("Unknown", ignoreCase = true) &&
-                    !album.equals("Unknown Album", ignoreCase = true) &&
-                    !album.equals("Single", ignoreCase = true) &&
-                    !album.equals("Singles", ignoreCase = true)
+        val candidates = collectionResults
+            .distinctBy { it.id }
+            .filter { collection ->
+                val title = collection.title.lowercase()
+                val subtitle = collection.subtitle.lowercase()
+                val combined = title + " " + subtitle
+                listOf("movie", "soundtrack", "bollywood", "punjabi", "hindi", "film", "original motion picture", "jukebox")
+                    .any(combined::contains)
             }
+            .take(24)
 
-        buildMovieAlbums(youtubeMovieSongs, emptyList())
-            .filter { collection -> collection.source == AudioSource.YOUTUBE }
+        val collections = candidates.map { collection ->
+            async {
+                val tracks = try {
+                    repository.getYouTubeMusicCollectionSongs(collection)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                val uniqueTracks = deduplicateOnlineSongs(tracks)
+                    .filter { it.source == AudioSource.YOUTUBE }
+                if (uniqueTracks.size < 4) return@async null
+
+                AlbumCollection(
+                    id = "ytmusic_album_${collection.id}",
+                    title = collection.title,
+                    subtitle = collection.subtitle.ifBlank { "YouTube Music • Movie soundtrack" },
+                    artworkUrl = collection.artworkUrl.ifBlank {
+                        uniqueTracks.firstOrNull { it.artworkUrl.isNotBlank() }?.artworkUrl.orEmpty()
+                    },
+                    source = AudioSource.YOUTUBE,
+                    songs = uniqueTracks
+                )
+            }
+        }.awaitAll().filterNotNull()
+
+        collections
             .distinctBy { it.title.trim().lowercase() }
             .sortedByDescending { it.songs.size }
             .take(12)
