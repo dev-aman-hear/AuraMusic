@@ -532,8 +532,8 @@ fun OnlineScreen(
                 if (movieAlbums.isNotEmpty()) {
                     item(key = "movie_albums_heading") {
                         SectionHeader(
-                            eyebrow = "SOUNDTRACKS",
-                            title = "Movie Albums",
+                            eyebrow = "FROM JIOSAAVN & MORE",
+                            title = "Albums & Collections",
                             modifier = Modifier.padding(top = 18.dp)
                         )
                     }
@@ -809,7 +809,7 @@ private fun ExploreAlbumCard(
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            text = subtitle.ifBlank { "Album" },
+            text = subtitle.ifBlank { "Music collection" },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             maxLines = 1,
