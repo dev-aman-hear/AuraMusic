@@ -118,6 +118,93 @@ private fun deduplicateOnlineSongs(songs: List<OnlineSong>): List<OnlineSong> {
     return result
 }
 
+private fun buildMovieAlbums(
+    movieSongs: List<OnlineSong>,
+    feedSongs: List<OnlineSong>
+): List<AlbumCollection> {
+    val pool = (movieSongs + feedSongs).filter { song ->
+        val album = song.album.trim()
+        album.isNotBlank() && !album.equals("Unknown", ignoreCase = true) && !album.equals("Unknown Album", ignoreCase = true)
+    }
+
+    val groups = mutableListOf<MutableList<OnlineSong>>()
+
+    for (song in pool) {
+        val normAlbum = song.album.trim().replace(Regex("\\s+"), " ")
+        val isGeneric = normAlbum.equals("Single", ignoreCase = true) ||
+            normAlbum.equals("Singles", ignoreCase = true) ||
+            normAlbum.equals("Greatest Hits", ignoreCase = true) ||
+            normAlbum.equals("Best of", ignoreCase = true) ||
+            normAlbum.equals("Live", ignoreCase = true) ||
+            normAlbum.equals(song.title.trim(), ignoreCase = true)
+
+        val songArtists = song.artist.split(",", "&", "feat.", "ft.", "/", ";")
+            .map { it.trim().lowercase() }
+            .filter { it.isNotBlank() }
+            .toSet()
+
+        val match = groups.firstOrNull { group ->
+            val first = group.first()
+            val firstAlbum = first.album.trim().replace(Regex("\\s+"), " ")
+            if (!firstAlbum.equals(normAlbum, ignoreCase = true)) return@firstOrNull false
+            if (first.source != song.source) return@firstOrNull false
+
+            if (isGeneric) {
+                val firstArtists = first.artist.split(",", "&", "feat.", "ft.", "/", ";")
+                    .map { it.trim().lowercase() }
+                    .filter { it.isNotBlank() }
+                    .toSet()
+                firstArtists.intersect(songArtists).isNotEmpty()
+            } else {
+                val sameArtwork = first.artworkUrl.isNotBlank() && first.artworkUrl == song.artworkUrl
+                val artistsOverlap = group.any { s ->
+                    val sArtists = s.artist.split(",", "&", "feat.", "ft.", "/", ";")
+                        .map { it.trim().lowercase() }
+                        .filter { it.isNotBlank() }
+                        .toSet()
+                    sArtists.intersect(songArtists).isNotEmpty()
+                }
+                val sameYear = first.year.isNotBlank() && song.year.isNotBlank() && first.year == song.year
+                sameArtwork || artistsOverlap || sameYear || (first.year.isBlank() && song.year.isBlank())
+            }
+        }
+
+        if (match != null) {
+            match.add(song)
+        } else {
+            groups.add(mutableListOf(song))
+        }
+    }
+
+    return groups.mapNotNull { rawTracks ->
+        val deduplicatedTracks = deduplicateOnlineSongs(rawTracks)
+        if (deduplicatedTracks.isEmpty()) return@mapNotNull null
+
+        val firstTrack = deduplicatedTracks.first()
+        val albumTitle = firstTrack.album.trim().replace(Regex("\\s+"), " ")
+        val artwork = deduplicatedTracks.firstOrNull { it.artworkUrl.isNotBlank() }?.artworkUrl.orEmpty()
+
+        val distinctArtists = deduplicatedTracks.map { it.artist.trim() }.filter { it.isNotBlank() }.distinct()
+        val subtitle = when {
+            distinctArtists.size == 1 -> distinctArtists.first()
+            distinctArtists.size in 2..3 -> distinctArtists.joinToString(", ")
+            distinctArtists.size > 3 -> "${distinctArtists.take(2).joinToString(", ")} & more"
+            else -> "Soundtrack"
+        }
+
+        val slug = albumTitle.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')
+        val albumId = "album_${slug}_${firstTrack.source.name.lowercase()}"
+
+        AlbumCollection(
+            id = albumId,
+            title = albumTitle,
+            subtitle = subtitle,
+            artworkUrl = artwork,
+            source = firstTrack.source,
+            songs = deduplicatedTracks
+        )
+    }.filter { it.songs.size >= 4 }.distinctBy { it.id }.take(12)
+}
 @Composable
 fun OnlineScreen(
     onlinePlaybackManager: OnlinePlaybackManager,
@@ -172,7 +259,7 @@ fun OnlineScreen(
             .filter { collection ->
                 val title = collection.title.lowercase()
                 val subtitle = collection.subtitle.lowercase()
-                val combined = title + " " + subtitle
+                val combined = "$title $subtitle"
                 listOf("movie", "soundtrack", "bollywood", "punjabi", "hindi", "film", "original motion picture", "jukebox")
                     .any(combined::contains)
             }
@@ -204,10 +291,19 @@ fun OnlineScreen(
             }
         }.awaitAll().filterNotNull()
 
-        collections
+        val ytCollections = collections
             .distinctBy { it.title.trim().lowercase() }
             .sortedByDescending { it.songs.size }
             .take(12)
+
+        if (ytCollections.isNotEmpty()) {
+            ytCollections
+        } else {
+            buildMovieAlbums(movieSongs, feedSongs)
+                .distinctBy { "${it.source.name}_${it.title.trim().lowercase()}" }
+                .sortedByDescending { it.songs.size }
+                .take(12)
+        }
     }
 
     suspend fun loadCatalog() {
@@ -463,7 +559,7 @@ fun OnlineScreen(
                 if (movieAlbums.isNotEmpty()) {
                     item(key = "movie_albums_heading") {
                         SectionHeader(
-                            eyebrow = "YOUTUBE MUSIC",
+                            eyebrow = if (movieAlbums.all { it.source == AudioSource.YOUTUBE }) "YOUTUBE MUSIC" else "SOUNDTRACKS",
                             title = "Movie Albums",
                             modifier = Modifier.padding(top = 18.dp)
                         )
@@ -740,7 +836,7 @@ private fun ExploreAlbumCard(
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            text = subtitle.ifBlank { "Music collection" },
+            text = subtitle.ifBlank { "Album" },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             maxLines = 1,
