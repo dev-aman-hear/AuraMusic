@@ -80,14 +80,14 @@ fun OnlinePlaylistDetailScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                        .padding(horizontal = 24.dp, vertical = 22.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     AuraArtwork(
                         model = playlist.artworkUrl,
-                        size = 200,
-                        shape = RoundedCornerShape(18.dp),
-                        elevation = 12.dp
+                        size = 280,
+                        shape = RoundedCornerShape(22.dp),
+                        elevation = 16.dp
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -102,10 +102,22 @@ fun OnlinePlaylistDetailScreen(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
+                    if (playlist.subtitle.isNotBlank()) {
+                        Text(
+                            text = playlist.subtitle,
+                            fontSize = 15.sp,
+                            color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.72f),
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+
                     Text(
-                        text = "${songs.size.ifZero(playlist.songCount)} Songs",
-                        fontSize = 14.sp,
-                        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
+                        text = "${songs.size.ifZero(playlist.songCount)} songs • AuraMusic",
+                        fontSize = 13.sp,
+                        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.55f),
                         textAlign = TextAlign.Center
                     )
 
