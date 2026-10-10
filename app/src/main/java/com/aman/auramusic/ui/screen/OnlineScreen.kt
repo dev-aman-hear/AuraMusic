@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
 import com.aman.auramusic.online.player.OnlinePlaybackManager
 import com.aman.auramusic.ui.component.AuraArtwork
@@ -113,6 +114,8 @@ fun OnlineScreen(
     var isMoodLoading by remember { mutableStateOf(false) }
     var loadError by remember { mutableStateOf(false) }
     var moodJob by remember { mutableStateOf<Job?>(null) }
+    var selectedCollection by remember { mutableStateOf<OnlinePlaylist?>(null) }
+    var selectedCollectionSongs by remember { mutableStateOf<List<OnlineSong>>(emptyList()) }
 
     suspend fun loadCatalog() {
         isLoading = true
@@ -166,6 +169,17 @@ fun OnlineScreen(
             trendingSongs.any { it.source == candidate.source && it.id == candidate.id }
         }.take(20)
     }
+    if (selectedCollection != null) {
+        OnlinePlaylistDetailScreen(
+            playlist = selectedCollection!!,
+            songs = selectedCollectionSongs,
+            isLoading = false,
+            onBack = { selectedCollection = null },
+            onSongSelected = onOnlineSongSelected
+        )
+        return
+    }
+
     val textColor = MaterialTheme.colorScheme.onBackground
     val mutedText = MaterialTheme.colorScheme.onSurfaceVariant
 
@@ -260,6 +274,18 @@ fun OnlineScreen(
                                         try {
                                             moodResults = repository.search(mood.query, AudioSource.ALL)
                                                 .distinctBy { "${it.source.name}_${it.id.ifBlank { it.title }}" }
+                                            if (moodResults.isNotEmpty()) {
+                                                selectedCollectionSongs = moodResults
+                                                selectedCollection = OnlinePlaylist(
+                                                    id = "mood_${mood.title.lowercase()}",
+                                                    title = "${mood.title} Mix",
+                                                    subtitle = "AuraMusic • Music by Mood",
+                                                    artworkUrl = moodResults.first().artworkUrl,
+                                                    songCount = moodResults.size,
+                                                    source = AudioSource.ALL,
+                                                    songs = moodResults
+                                                )
+                                            }
                                         } catch (cancelled: CancellationException) {
                                             throw cancelled
                                         } catch (_: Exception) {
@@ -361,7 +387,16 @@ fun OnlineScreen(
                                 title = albumName,
                                 song = albumTracks.first(),
                                 onClick = {
-                                    onOnlineSongSelected(albumTracks.first(), albumTracks)
+                                    selectedCollectionSongs = albumTracks
+                                    selectedCollection = OnlinePlaylist(
+                                        id = "album_${albumName.lowercase().replace(Regex("[^a-z0-9]+"), "_")}",
+                                        title = albumName,
+                                        subtitle = albumTracks.firstOrNull()?.artist.orEmpty(),
+                                        artworkUrl = albumTracks.firstOrNull()?.artworkUrl.orEmpty(),
+                                        songCount = albumTracks.size,
+                                        source = albumTracks.firstOrNull()?.source ?: AudioSource.ALL,
+                                        songs = albumTracks
+                                    )
                                 }
                             )
                         }
