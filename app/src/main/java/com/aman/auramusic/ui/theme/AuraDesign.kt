@@ -126,37 +126,23 @@ object AuraGlass {
  * 4. Specular beveled glass border
  * 5. Shape clipping
  */
+@Composable
 fun Modifier.frostedGlass(
     shape: Shape = AuraShapes.Surface,
-    isDark: Boolean,
+    isDark: Boolean = LocalIsDark.current,
     tint: Color? = null,
     borderWidth: Dp = 1.dp,
     elevation: Dp = 8.dp,
     sheenAlpha: Float = if (isDark) 0.16f else 0.35f
-): Modifier = this
-    .shadow(
-        elevation = elevation,
-        shape = shape,
-        spotColor = if (isDark) Color.Black.copy(alpha = 0.55f) else Color(0x33000000),
-        ambientColor = if (isDark) Color.Black.copy(alpha = 0.4f) else Color(0x22000000)
-    )
-    .clip(shape)
-    .background(AuraGlass.glassBrush(isDark, tint))
-    .drawBehind {
-        val h = size.height
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(
-                    Color.White.copy(alpha = sheenAlpha),
-                    Color.White.copy(alpha = sheenAlpha * 0.3f),
-                    Color.Transparent
-                ),
-                startY = 0f,
-                endY = h * 0.45f
-            )
-        )
-    }
-    .border(AuraGlass.borderStroke(isDark, borderWidth), shape)
+): Modifier = this.liquidGlass(
+    shape = shape,
+    level = if (tint != null) GlassLevel.Tinted else GlassLevel.Regular,
+    isDark = isDark,
+    tint = tint,
+    borderWidth = borderWidth,
+    elevation = elevation,
+    sheenAlpha = sheenAlpha
+)
 
 @Composable
 fun AuraScreenBackground(

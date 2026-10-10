@@ -39,15 +39,17 @@ class VlcPlayerManager(context: Context) {
     private var pendingSeekMs: Long? = null
     private var shouldResumeOnFocusGain = false
     var smartAudioFocusEnabled = true
+    var isTransitioning: Boolean = false
+        private set
 
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
-        Log.d("AuraMusicFocus", "Focus changed: $focusChange")
+        Log.d("AuraPlaybackDebug", "Audio focus changed: $focusChange")
         if (!smartAudioFocusEnabled || mediaPlayer.isReleased) return@OnAudioFocusChangeListener
         
         try {
             when (focusChange) {
                 AudioManager.AUDIOFOCUS_GAIN -> {
-                    Log.d("AuraMusicFocus", "Focus gained, shouldResume: $shouldResumeOnFocusGain")
+                    Log.d("AuraPlaybackDebug", "Audio focus gained, shouldResume: $shouldResumeOnFocusGain")
                     if (shouldResumeOnFocusGain) {
                         mediaPlayer.play()
                         shouldResumeOnFocusGain = false
@@ -55,7 +57,7 @@ class VlcPlayerManager(context: Context) {
                     mediaPlayer.volume = 100
                 }
                 AudioManager.AUDIOFOCUS_LOSS -> {
-                    Log.d("AuraMusicFocus", "Focus lost permanently")
+                    Log.d("AuraPlaybackDebug", "Audio focus lost permanently")
                     shouldResumeOnFocusGain = false
                     if (mediaPlayer.isPlaying) {
                         mediaPlayer.pause()
@@ -65,7 +67,7 @@ class VlcPlayerManager(context: Context) {
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK,
                 -> {
-                    Log.d("AuraMusicFocus", "Focus lost transiently")
+                    Log.d("AuraPlaybackDebug", "Audio focus lost transiently")
                     if (mediaPlayer.isPlaying) {
                         shouldResumeOnFocusGain = true
                         if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
@@ -77,7 +79,7 @@ class VlcPlayerManager(context: Context) {
                 }
             }
         } catch (e: Exception) {
-            Log.e("AuraMusicFocus", "Error handling focus change", e)
+            Log.e("AuraPlaybackDebug", "Error handling focus change", e)
         }
     }
 
@@ -100,6 +102,8 @@ class VlcPlayerManager(context: Context) {
                     updatePlaybackState()
                 }
                 MediaPlayer.Event.Playing -> {
+                    Log.d("AuraPlaybackDebug", "VLC Event.Playing (was transitioning: $isTransitioning)")
+                    isTransitioning = false
                     listeners.forEach { it.onPlaybackState(true) }
                     updatePlaybackState()
                     // Apply pending seek if any
@@ -109,14 +113,23 @@ class VlcPlayerManager(context: Context) {
                     }
                 }
                 MediaPlayer.Event.Paused, MediaPlayer.Event.Stopped -> {
-                    listeners.forEach { it.onPlaybackState(false) }
-                    updatePlaybackState()
+                    val eventName = if (event.type == MediaPlayer.Event.Paused) "Paused" else "Stopped"
+                    Log.d("AuraPlaybackDebug", "VLC Event.$eventName (isTransitioning: $isTransitioning)")
+                    if (!isTransitioning) {
+                        listeners.forEach { it.onPlaybackState(false) }
+                        updatePlaybackState()
+                    } else {
+                        Log.d("AuraPlaybackDebug", "Suppressing $eventName callback during track transition")
+                    }
                 }
                 MediaPlayer.Event.EndReached -> {
+                    Log.d("AuraPlaybackDebug", "VLC Event.EndReached")
+                    isTransitioning = true
                     listeners.forEach { it.onEnd() }
                 }
                 MediaPlayer.Event.EncounteredError -> {
-                    Log.e("VlcPlayerManager", "VLC Error encountered")
+                    Log.e("AuraPlaybackDebug", "VLC Error encountered")
+                    isTransitioning = false
                     listeners.forEach { it.onPlaybackState(false) }
                 }
             }
@@ -194,12 +207,21 @@ class VlcPlayerManager(context: Context) {
     }
 
     fun play(path: String) {
-        Log.d("VlcPlayerManager", "Playing: $path")
+        Log.d("AuraPlaybackDebug", "VlcPlayerManager.play() called: $path")
+        isTransitioning = true
         pendingSeekMs = null
         shouldResumeOnFocusGain = false
 
         if (smartAudioFocusEnabled) {
             requestAudioFocus()
+        }
+
+        try {
+            if (mediaPlayer.isPlaying) {
+                mediaPlayer.stop()
+            }
+        } catch (e: Exception) {
+            Log.e("AuraPlaybackDebug", "Error stopping active media before transition", e)
         }
 
         val media = createMedia(path)
@@ -235,6 +257,8 @@ class VlcPlayerManager(context: Context) {
     }
 
     fun pause() {
+        Log.d("AuraPlaybackDebug", "VlcPlayerManager.pause() called")
+        isTransitioning = false
         if (isPlaying()) {
             shouldResumeOnFocusGain = false
             mediaPlayer.pause()
@@ -245,6 +269,8 @@ class VlcPlayerManager(context: Context) {
     }
 
     fun togglePlayPause() {
+        Log.d("AuraPlaybackDebug", "VlcPlayerManager.togglePlayPause() called, currently isPlaying=${mediaPlayer.isPlaying}")
+        isTransitioning = false
         if (mediaPlayer.isPlaying) {
             shouldResumeOnFocusGain = false
             mediaPlayer.pause()
@@ -291,6 +317,8 @@ class VlcPlayerManager(context: Context) {
     }
 
     fun release() {
+        Log.d("AuraPlaybackDebug", "VlcPlayerManager.release() called")
+        isTransitioning = false
         mediaSession.release()
         mediaPlayer.release()
         libVLC.release()

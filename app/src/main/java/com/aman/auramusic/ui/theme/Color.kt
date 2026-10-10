@@ -4,7 +4,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 // --- Core Aura Brand Colors ---
-val AuraPrimary = Color(0xFFFF2D55)        // Signature Electric Rose / Coral
+val AppleMusicAccent = Color(0xFFFA2D48)   // Apple Music signature Coral-Red
+val AuraPrimary = Color(0xFFFA2D48)        // Updated to Apple Music Coral-Red (#FA2D48)
 val AuraPrimaryVariant = Color(0xFFFF375F) // Luminous Crimson
 val AuraSecondary = Color(0xFFFF6B8A)      // Soft Rose
 val AuraTertiary = Color(0xFF7A3E4C)       // Muted wine accent

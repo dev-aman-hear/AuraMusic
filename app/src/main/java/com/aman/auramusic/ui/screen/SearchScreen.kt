@@ -330,7 +330,7 @@ fun SearchScreen(
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 110.dp)
+            contentPadding = PaddingValues(bottom = 140.dp)
         ) {
             // ==========================================
             // HEADER & SEARCH FIELD (Adaptive Glassmorphism)

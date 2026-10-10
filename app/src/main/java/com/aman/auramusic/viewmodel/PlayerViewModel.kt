@@ -118,11 +118,12 @@ class PlayerViewModel @Inject constructor(
         
         val song = service.currentSong
         if (song != null) {
+            hasTriggeredEarlyNext = false
             currentSong = song
             currentSongId = song.id
             isPlaying = pm.isPlaying()
             currentPosition = pm.position()
-            duration = pm.duration()
+            duration = if (pm.duration() > 0L) pm.duration() else song.duration
             
             loadLyrics(song)
             extractColor(song)
@@ -226,6 +227,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     private var playerListener: VlcPlayerManager.PlayerListener? = null
+    private var hasTriggeredEarlyNext = false
 
     private fun setupListeners() {
         val pm = playerManager ?: return
@@ -243,10 +245,12 @@ class PlayerViewModel @Inject constructor(
                 
                 if (duration > 0) {
                     val remaining = duration - position
-                    if (appSettings.skipSilence && remaining in 1..800L) {
+                    if (appSettings.skipSilence && remaining in 1..800L && !hasTriggeredEarlyNext) {
+                        hasTriggeredEarlyNext = true
                         playNext()
                     }
-                    if (appSettings.crossfadeEnabled && remaining in 1..3000L) {
+                    if (appSettings.crossfadeEnabled && remaining in 1..3000L && !hasTriggeredEarlyNext) {
+                        hasTriggeredEarlyNext = true
                         playNext()
                     }
                 }
@@ -267,11 +271,6 @@ class PlayerViewModel @Inject constructor(
 
                 currentSong?.let { song ->
                     notificationManager?.show(song, playing, pm.getSessionToken())
-                    if (playing) {
-                        playbackService?.startAsForeground(song, true)
-                    } else {
-                        playbackService?.stopAsForeground(false)
-                    }
                 }
             }
 
@@ -337,6 +336,7 @@ class PlayerViewModel @Inject constructor(
 
 
     fun play(song: Song, startPosition: Long = 0L) {
+        hasTriggeredEarlyNext = false
         val pm = playerManager ?: return
         val service = playbackService ?: return
         

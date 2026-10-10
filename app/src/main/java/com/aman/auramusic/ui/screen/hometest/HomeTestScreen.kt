@@ -22,6 +22,7 @@ import com.aman.auramusic.online.model.toSong
 import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.SongOptionsDialog
 import com.aman.auramusic.ui.theme.AuraPrimary
+import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.LocalIsDark
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -71,16 +72,19 @@ fun HomeTestScreen(
     }
 
     // Dynamic greeting based on time of day
-    val greeting = remember(username) {
+    val timeGreeting = remember {
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        val timeGreeting = when (hour) {
+        when (hour) {
             in 5..11 -> "Good morning"
             in 12..16 -> "Good afternoon"
             in 17..21 -> "Good evening"
             else -> "Good night"
         }
-        val cleanName = username.trim()
-        if (cleanName.isNotBlank() && cleanName != "Master") "$timeGreeting, $cleanName" else timeGreeting
+    }
+
+    val cleanName = remember(username) {
+        val trimmed = username.trim()
+        if (trimmed.isNotBlank() && trimmed != "Master") trimmed else ""
     }
 
     val dateHeader = remember {
@@ -89,7 +93,8 @@ fun HomeTestScreen(
     }
 
     val userInitial = remember(username) {
-        username.trim().firstOrNull()?.uppercase() ?: "A"
+        val trimmed = username.trim()
+        if (trimmed.isNotBlank() && trimmed != "Master") trimmed.first().uppercase() else "A"
     }
 
     // Background gradient: Sophisticated charcoal layered surfaces
@@ -190,10 +195,8 @@ fun HomeTestScreen(
         )
     }
 
-    Box(
+    AuraScreenBackground(
         modifier = modifier
-            .fillMaxSize()
-            .background(bgGradient)
     ) {
         if (uiState.isLoading && songs.isEmpty() && uiState.trendingTracks.isEmpty()) {
             Box(
@@ -213,12 +216,13 @@ fun HomeTestScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 124.dp)
+                contentPadding = PaddingValues(bottom = 160.dp)
             ) {
                 // 1. Top Header
                 item(key = "hometest_header") {
                     HomeTestHeader(
-                        greeting = greeting,
+                        timeGreeting = timeGreeting,
+                        username = cleanName,
                         dateText = dateHeader,
                         userInitial = userInitial,
                         isOffline = uiState.isOffline,

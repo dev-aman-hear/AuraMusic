@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -16,7 +17,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Equalizer
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -41,6 +44,7 @@ import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.component.SongArtwork
+import com.aman.auramusic.ui.theme.AppleMusicAccent
 import com.aman.auramusic.ui.theme.AuraPrimary
 import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.ui.theme.AuraGlass
@@ -48,11 +52,12 @@ import com.aman.auramusic.ui.theme.frostedGlass
 import com.aman.auramusic.util.formatDuration
 
 /**
- * Editorial top bar for the redesigned Home Test experience.
+ * Editorial top bar for the Apple Music Liquid Glass Home experience.
  */
 @Composable
 fun HomeTestHeader(
-    greeting: String,
+    timeGreeting: String,
+    username: String,
     dateText: String,
     userInitial: String,
     isOffline: Boolean,
@@ -61,7 +66,7 @@ fun HomeTestHeader(
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDark.current
-    val titleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
+    val titleColor = if (isDark) Color.White else Color(0xFF111111)
 
     Column(
         modifier = modifier
@@ -78,26 +83,39 @@ fun HomeTestHeader(
                 Text(
                     text = dateText.uppercase(),
                     fontSize = 11.5.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = AuraPrimary,
-                    letterSpacing = 1.1.sp
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF8E8E93),
+                    letterSpacing = 1.0.sp
                 )
                 Spacer(modifier = Modifier.height(2.dp))
+                val formattedGreeting = if (username.isNotBlank()) "$timeGreeting," else timeGreeting
                 Text(
-                    text = greeting,
-                    fontSize = 20.sp,
-                    lineHeight = 24.sp,
+                    text = formattedGreeting,
+                    fontSize = 28.sp,
+                    lineHeight = 32.sp,
                     fontWeight = FontWeight.Bold,
                     color = titleColor,
-                    letterSpacing = (-0.2).sp,
+                    letterSpacing = (-0.5).sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (username.isNotBlank()) {
+                    Text(
+                        text = username,
+                        fontSize = 28.sp,
+                        lineHeight = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppleMusicAccent,
+                        letterSpacing = (-0.5).sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (isOffline) {
                     Surface(
@@ -127,31 +145,52 @@ fun HomeTestHeader(
                     }
                 }
 
-                IconButton(
-                    onClick = onRefresh,
-                    modifier = Modifier.size(40.dp)
+                // Apple Music translucent glass notification bell button with red badge dot
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)
+                        )
+                        .border(
+                            1.dp,
+                            if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f),
+                            CircleShape
+                        )
+                        .clickable(onClick = onRefresh),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh Feed",
-                        tint = if (isDark) Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.6f),
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Notifications",
+                        tint = if (isDark) Color.White else Color(0xFF111111),
                         modifier = Modifier.size(20.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 9.dp, end = 9.dp)
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(AppleMusicAccent)
                     )
                 }
 
+                // Apple Music coral profile avatar button
                 Surface(
                     onClick = onOpenSettings,
                     modifier = Modifier
-                        .size(42.dp)
-                        .shadow(8.dp, CircleShape),
+                        .size(40.dp)
+                        .shadow(6.dp, CircleShape),
                     shape = CircleShape,
-                    color = AuraPrimary
+                    color = AppleMusicAccent
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = userInitial,
                             color = Color.White,
-                            fontSize = 17.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -161,19 +200,41 @@ fun HomeTestHeader(
     }
 }
 
+@Composable
+fun HomeTestHeader(
+    greeting: String,
+    dateText: String,
+    userInitial: String,
+    isOffline: Boolean,
+    onOpenSettings: () -> Unit,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    HomeTestHeader(
+        timeGreeting = greeting,
+        username = "",
+        dateText = dateText,
+        userInitial = userInitial,
+        isOffline = isOffline,
+        onOpenSettings = onOpenSettings,
+        onRefresh = onRefresh,
+        modifier = modifier
+    )
+}
+
 /**
- * Editorial Section Header with optional eyebrow and action.
+ * Editorial Section Header with Apple Music typography and signature accent.
  */
 @Composable
 fun HomeSectionHeader(
     title: String,
     modifier: Modifier = Modifier,
     eyebrow: String? = null,
-    actionText: String? = null,
+    actionText: String? = "See All",
     onActionClick: (() -> Unit)? = null
 ) {
     val isDark = LocalIsDark.current
-    val titleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
+    val titleColor = if (isDark) Color.White else Color(0xFF111111)
 
     Column(
         modifier = modifier
@@ -185,8 +246,8 @@ fun HomeSectionHeader(
                 text = eyebrow.uppercase(),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = AuraPrimary,
-                letterSpacing = 1.1.sp
+                color = Color(0xFF8E8E93),
+                letterSpacing = 1.0.sp
             )
             Spacer(modifier = Modifier.height(2.dp))
         }
@@ -198,31 +259,31 @@ fun HomeSectionHeader(
         ) {
             Text(
                 text = title,
-                fontSize = 21.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = titleColor,
-                letterSpacing = (-0.3).sp,
+                letterSpacing = (-0.4).sp,
                 modifier = Modifier.weight(1f, fill = false)
             )
 
-            if (onActionClick != null) {
+            if (onActionClick != null || !actionText.isNullOrBlank()) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable(onClick = onActionClick)
+                    modifier = Modifier.clickable(enabled = onActionClick != null, onClick = { onActionClick?.invoke() })
                 ) {
                     if (!actionText.isNullOrBlank()) {
                         Text(
                             text = actionText,
-                            fontSize = 13.sp,
+                            fontSize = 13.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = AuraPrimary
+                            color = AppleMusicAccent
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                     }
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = "See more",
-                        tint = if (isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.5f),
+                        tint = AppleMusicAccent,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -234,6 +295,7 @@ fun HomeSectionHeader(
 /**
  * A. Daily Featured Album or Playlist Card
  * Refresh selection once per calendar day (via DailyFeaturedCache).
+ * Apple Music Liquid Glass layout with high-res artwork, DAILY pill, and coral play button.
  */
 @Composable
 fun DailyFeaturedCard(
@@ -251,112 +313,133 @@ fun DailyFeaturedCard(
             .frostedGlass(
                 shape = cardShape,
                 isDark = isDark,
-                tint = if (isDark) Color(0xFF2C1C28) else Color(0xFFFFEEF4),
-                elevation = if (isDark) 14.dp else 8.dp,
-                borderWidth = 1.2.dp,
-                sheenAlpha = if (isDark) 0.24f else 0.45f
+                tint = if (isDark) Color(0xFF18151A) else Color(0xFFFFFFFF),
+                elevation = if (isDark) 10.dp else 4.dp,
+                borderWidth = 1.dp,
+                sheenAlpha = if (isDark) 0.16f else 0.40f
             )
             .clickable(onClick = onClick)
-            .padding(16.dp)
+            .padding(14.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Large high-res artwork
-                AuraArtwork(
-                    model = item.artworkUrl,
-                    size = 118,
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = 8.dp,
-                    modifier = Modifier.size(118.dp)
-                )
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // High-res artwork
+            AuraArtwork(
+                model = item.artworkUrl,
+                size = 114,
+                shape = RoundedCornerShape(18.dp),
+                elevation = 6.dp,
+                modifier = Modifier.size(114.dp)
+            )
 
-                // Info details
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Center
+            // Info details
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                // Top row with DAILY badge and options
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Badge
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = AuraPrimary.copy(alpha = if (isDark) 0.22f else 0.15f),
-                        border = BorderStroke(1.dp, AuraPrimary.copy(alpha = 0.40f)),
-                        modifier = Modifier.height(24.dp)
+                        shape = RoundedCornerShape(6.dp),
+                        color = AppleMusicAccent.copy(alpha = if (isDark) 0.18f else 0.12f),
+                        modifier = Modifier.height(22.dp)
                     ) {
                         Text(
-                            text = item.badgeLabel,
+                            text = item.badgeLabel.uppercase(),
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = AuraPrimary,
+                            color = AppleMusicAccent,
                             letterSpacing = 0.8.sp,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = item.title,
-                        fontSize = 17.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        letterSpacing = (-0.2).sp
+                    Icon(
+                        imageVector = Icons.Default.MoreHoriz,
+                        contentDescription = "Options",
+                        tint = if (isDark) Color.White.copy(alpha = 0.40f) else Color.Black.copy(alpha = 0.35f),
+                        modifier = Modifier.size(20.dp)
                     )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = item.subtitle,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = if (isDark) Color.White.copy(alpha = 0.65f) else Color.Black.copy(alpha = 0.60f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    if (item.songCountText.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = item.songCountText,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = AuraPrimary.copy(alpha = 0.90f)
-                        )
-                    }
                 }
 
-                // Floating circular Play Button
-                Surface(
-                    shape = CircleShape,
-                    color = AuraPrimary,
-                    modifier = Modifier
-                        .size(46.dp)
-                        .shadow(8.dp, CircleShape),
-                    shadowElevation = 8.dp
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = item.title,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDark) Color.White else Color(0xFF111111),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    letterSpacing = (-0.2).sp
+                )
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                Text(
+                    text = item.subtitle,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = if (isDark) Color(0xFF8E8E93) else Color(0xFF6E6E73),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Play Featured",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                    if (item.songCountText.isNotBlank()) {
+                        Text(
+                            text = item.songCountText,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AppleMusicAccent
                         )
+                    } else {
+                        Spacer(modifier = Modifier.width(1.dp))
+                    }
+
+                    // Floating circular Play Button
+                    Surface(
+                        shape = CircleShape,
+                        color = AppleMusicAccent,
+                        modifier = Modifier
+                            .size(42.dp)
+                            .shadow(6.dp, CircleShape),
+                        shadowElevation = 6.dp
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Play Featured",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
             }
         }
     }
+}
 
 /**
  * B. Trending Songs Horizontal Section (Sourced from YouTube Music / Curated)
- * Distinguishes local vs online availability.
+ * Distinguishes local vs online availability with Apple Music carousel cards.
  */
 @Composable
 fun TrendingSongsSection(
@@ -393,16 +476,15 @@ fun TrendingTrackCard(
     item: TrendingSongItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    cardWidth: Dp = 148.dp
+    cardWidth: Dp = 142.dp
 ) {
     val isDark = LocalIsDark.current
-    val titleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
-    val subtitleColor = if (isDark) Color.White.copy(alpha = 0.58f) else Color.Black.copy(alpha = 0.55f)
+    val titleColor = if (isDark) Color.White else Color(0xFF111111)
+    val subtitleColor = if (isDark) Color(0xFF8E8E93) else Color(0xFF6E6E73)
 
     Column(
         modifier = modifier
             .width(cardWidth)
-            .clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onClick)
             .padding(bottom = 6.dp)
     ) {
@@ -415,15 +497,15 @@ fun TrendingTrackCard(
                 model = item.onlineSong.artworkUrl,
                 size = cardWidth.value.toInt(),
                 modifier = Modifier.fillMaxSize(),
-                shape = RoundedCornerShape(18.dp),
-                elevation = 6.dp
+                shape = RoundedCornerShape(20.dp),
+                elevation = 4.dp
             )
 
             // Availability Badge
             val (badgeBg, badgeText, badgeColor) = if (item.isLocalAvailable) {
                 Triple(Color(0xE610B981), "LOCAL", Color.White)
             } else {
-                Triple(Color(0xD9000000), "STREAM", Color(0xFF00E5FF))
+                Triple(Color(0xCC000000), "STREAM", Color.White)
             }
 
             Surface(
@@ -462,13 +544,32 @@ fun TrendingTrackCard(
                     )
                 }
             }
+
+            // Floating circular translucent glass play button overlay in bottom right corner
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Play",
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = item.onlineSong.title,
-            fontSize = 13.5.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             color = titleColor,
             maxLines = 1,
@@ -490,7 +591,7 @@ fun TrendingTrackCard(
 
 /**
  * C. Artists Section
- * Rounded-square artwork cards arranged horizontally with artist name beneath.
+ * Circular artwork portraits arranged horizontally with artist name beneath (Apple Music style).
  */
 @Composable
 fun ArtistsSection(
@@ -500,7 +601,7 @@ fun ArtistsSection(
 ) {
     if (artists.isEmpty()) return
 
-    Column(modifier = modifier.padding(top = 26.dp)) {
+    Column(modifier = modifier.padding(top = 24.dp)) {
         HomeSectionHeader(
             eyebrow = "ARTIST CLOUD",
             title = "Artist Discovery"
@@ -510,7 +611,7 @@ fun ArtistsSection(
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(artists, key = { "artist_${it.artistId}_${it.name}" }) { artist ->
                 ArtistSquareCard(
@@ -527,37 +628,34 @@ fun ArtistSquareCard(
     artist: ArtistItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    size: Dp = 148.dp
+    size: Dp = 94.dp
 ) {
     val isDark = LocalIsDark.current
-    val titleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
-    val ringColor = if (isDark) Color.White.copy(alpha = 0.14f) else Color.Black.copy(alpha = 0.08f)
+    val titleColor = if (isDark) Color.White else Color(0xFF111111)
 
     Column(
         modifier = modifier
             .width(size)
-            .clip(RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 2.dp, vertical = 4.dp),
+            .padding(horizontal = 2.dp, vertical = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Prominent rounded-square artist portrait with frosted glass framing
+        // Circular artist portrait with delicate 1dp liquid glass border
         Box(
             modifier = Modifier
                 .size(size)
-                .frostedGlass(
-                    shape = RoundedCornerShape(20.dp),
-                    isDark = isDark,
-                    elevation = 8.dp,
-                    borderWidth = 1.2.dp,
-                    sheenAlpha = if (isDark) 0.18f else 0.40f
+                .clip(CircleShape)
+                .border(
+                    width = 1.dp,
+                    color = if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f),
+                    shape = CircleShape
                 )
         ) {
             AuraArtwork(
                 model = artist.artworkModel,
                 size = size.value.toInt(),
                 modifier = Modifier.fillMaxSize(),
-                shape = RoundedCornerShape(20.dp),
+                shape = CircleShape,
                 elevation = 0.dp,
                 fallbackIcon = Icons.Default.Person
             )
@@ -565,10 +663,10 @@ fun ArtistSquareCard(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Strictly single artist name with clean typography (song counter removed)
+        // Clean typography artist name
         Text(
             text = artist.name,
-            fontSize = 14.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             color = titleColor,
             maxLines = 1,
@@ -1060,46 +1158,47 @@ fun DiscoverCategoryCard(
     category: CategoryDiscoverItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    cardWidth: Dp = 142.dp,
-    cardHeight: Dp = 86.dp
+    cardWidth: Dp = 154.dp,
+    cardHeight: Dp = 92.dp
 ) {
     val isDark = LocalIsDark.current
-    val cardShape = RoundedCornerShape(18.dp)
+    val cardShape = RoundedCornerShape(22.dp)
 
     Box(
         modifier = modifier
             .size(width = cardWidth, height = cardHeight)
-            .frostedGlass(
-                shape = cardShape,
-                isDark = isDark,
-                tint = category.gradientColors.first(),
-                elevation = 6.dp,
-                borderWidth = 1.1.dp,
-                sheenAlpha = if (isDark) 0.22f else 0.40f
+            .clip(cardShape)
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        category.gradientColors.first().copy(alpha = if (isDark) 0.85f else 0.90f),
+                        category.gradientColors.last().copy(alpha = if (isDark) 0.60f else 0.75f)
+                    )
+                )
+            )
+            .border(
+                1.dp,
+                Color.White.copy(alpha = if (isDark) 0.18f else 0.35f),
+                cardShape
             )
             .clickable(onClick = onClick)
-            .padding(12.dp),
-        contentAlignment = Alignment.Center
+            .padding(14.dp),
+        contentAlignment = Alignment.BottomStart
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
+        Column {
             Text(
                 text = category.title,
-                fontSize = 15.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isDark) Color.White else Color(0xFF15151A),
-                textAlign = TextAlign.Center,
-                letterSpacing = 0.sp
+                color = Color.White,
+                letterSpacing = (-0.2).sp
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = category.subtitle,
-                fontSize = 10.5.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
-                color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.60f),
-                textAlign = TextAlign.Center,
+                color = Color.White.copy(alpha = 0.75f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

@@ -394,7 +394,7 @@ fun LibraryScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 120.dp)
+                            contentPadding = PaddingValues(bottom = 140.dp)
                         ) {
                             // Quick Action Header: Play All & Shuffle
                             item {
@@ -490,7 +490,7 @@ fun LibraryScreen(
                         LazyVerticalGrid(
                             columns = GridCells.Adaptive(150.dp),
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 120.dp),
+                            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 140.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
@@ -520,7 +520,7 @@ fun LibraryScreen(
                         LazyVerticalGrid(
                             columns = GridCells.Adaptive(110.dp),
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 120.dp),
+                            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 140.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
@@ -541,7 +541,7 @@ fun LibraryScreen(
                 LibraryTab.PLAYLISTS -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 120.dp)
+                        contentPadding = PaddingValues(bottom = 140.dp)
                     ) {
                         // User Playlists Header with Create button
                         item {

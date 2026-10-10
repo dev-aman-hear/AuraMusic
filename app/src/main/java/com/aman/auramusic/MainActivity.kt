@@ -184,7 +184,8 @@ class MainActivity : ComponentActivity() {
             AuraMusicTheme(
                 themeMode = appSettings.themeMode,
                 dynamicColor = appSettings.dynamicColors,
-                amoledMode = appSettings.amoledMode
+                amoledMode = appSettings.amoledMode,
+                liquidGlassConfig = appSettings.liquidGlass
             ) {
                 MusicScreen(musicViewModel)
             }
@@ -529,8 +530,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                     )
                 )
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Box(modifier = Modifier.weight(1f)) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.fillMaxSize()) {
                     when {
                         showSettings -> {
                             SettingsScreen(
@@ -562,7 +563,18 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 onExportPlaylist = { showExportPlaylistDialog = true },
                                 onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
                                 onBack = { showSettings = false },
-                                onShowAbout = { showAboutDialog = true }
+                                onShowAbout = { showAboutDialog = true },
+                                onLiquidGlassPresetChange = { musicViewModel.setLiquidGlassPreset(it) },
+                                onLiquidGlassIntensityChange = { musicViewModel.setLiquidGlassIntensity(it) },
+                                onLiquidGlassBlurRadiusChange = { musicViewModel.setLiquidGlassBlurRadius(it) },
+                                onLiquidGlassHighlightStrengthChange = { musicViewModel.setLiquidGlassHighlightStrength(it) },
+                                onLiquidGlassShadowElevationChange = { musicViewModel.setLiquidGlassShadowElevation(it) },
+                                onLiquidGlassCornerRadiusChange = { musicViewModel.setLiquidGlassCornerRadius(it) },
+                                onLiquidGlassTintHexChange = { musicViewModel.setLiquidGlassTintHex(it) },
+                                onLiquidGlassAccentTintChange = { musicViewModel.setLiquidGlassAccentTintEnabled(it) },
+                                onLiquidGlassReduceTransparencyChange = { musicViewModel.setLiquidGlassReduceTransparency(it) },
+                                onLiquidGlassReduceMotionChange = { musicViewModel.setLiquidGlassReduceMotion(it) },
+                                onResetLiquidGlass = { musicViewModel.resetLiquidGlassConfig() }
                             )
                         }
                         selectedPlaylistId != null -> {
@@ -725,51 +737,59 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                     }
                 }
 
+                // Floating Liquid Glass Navigation & Playback Pod
                 if (!showPlayer) {
-                    val currentOnlineMiniSong = onlinePlaybackState.currentSong ?: activeOnlineSong
-                    if (isOnlinePlaybackActive && currentOnlineMiniSong != null) {
-                        val onlineAsSong = remember(currentOnlineMiniSong, onlinePlaybackState.durationMs) {
-                            val base = currentOnlineMiniSong.toSong()
-                            if (onlinePlaybackState.durationMs > 0) base.copy(duration = onlinePlaybackState.durationMs) else base
-                        }
-                        MiniPlayer(
-                            song = onlineAsSong,
-                            isPlaying = onlinePlaybackState.isPlaying,
-                            position = onlinePlaybackState.currentPositionMs,
-                            duration = onlinePlaybackState.durationMs,
-                            dominantColor = animatedDominantColor,
-                            onPlayPause = { onlinePlaybackManager.togglePlayPause() },
-                            onNext = { onlinePlaybackManager.playNext() },
-                            onPrevious = { onlinePlaybackManager.playPrevious() },
-                            onOpen = { showPlayer = true }
-                        )
-                    } else {
-                        playerViewModel.currentSong?.let { song ->
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        val currentOnlineMiniSong = onlinePlaybackState.currentSong ?: activeOnlineSong
+                        if (isOnlinePlaybackActive && currentOnlineMiniSong != null) {
+                            val onlineAsSong = remember(currentOnlineMiniSong, onlinePlaybackState.durationMs) {
+                                val base = currentOnlineMiniSong.toSong()
+                                if (onlinePlaybackState.durationMs > 0) base.copy(duration = onlinePlaybackState.durationMs) else base
+                            }
                             MiniPlayer(
-                                song = song,
-                                isPlaying = playerViewModel.isPlaying,
-                                position = playerViewModel.currentPosition,
-                                duration = playerViewModel.duration,
+                                song = onlineAsSong,
+                                isPlaying = onlinePlaybackState.isPlaying,
+                                position = onlinePlaybackState.currentPositionMs,
+                                duration = onlinePlaybackState.durationMs,
                                 dominantColor = animatedDominantColor,
-                                onPlayPause = { playerViewModel.togglePlayPause() },
-                                onNext = { playerViewModel.playNext() },
-                                onPrevious = { playerViewModel.playPrevious() },
+                                onPlayPause = { onlinePlaybackManager.togglePlayPause() },
+                                onNext = { onlinePlaybackManager.playNext() },
+                                onPrevious = { onlinePlaybackManager.playPrevious() },
                                 onOpen = { showPlayer = true }
                             )
+                        } else {
+                            playerViewModel.currentSong?.let { song ->
+                                MiniPlayer(
+                                    song = song,
+                                    isPlaying = playerViewModel.isPlaying,
+                                    position = playerViewModel.currentPosition,
+                                    duration = playerViewModel.duration,
+                                    dominantColor = animatedDominantColor,
+                                    onPlayPause = { playerViewModel.togglePlayPause() },
+                                    onNext = { playerViewModel.playNext() },
+                                    onPrevious = { playerViewModel.playPrevious() },
+                                    onOpen = { showPlayer = true }
+                                )
+                            }
                         }
+
+                        BottomNavBar(
+                            selectedTab = selectedTab,
+                            onTabSelected = { 
+                                selectedTab = it
+                                showSettings = false
+                                selectedPlaylistId = null
+                                selectedAlbumName = null
+                                selectedArtistName = null
+                            }
+                        )
                     }
                 }
-
-                BottomNavBar(
-                    selectedTab = selectedTab,
-                    onTabSelected = { 
-                        selectedTab = it
-                        showSettings = false
-                        selectedPlaylistId = null
-                        selectedAlbumName = null
-                        selectedArtistName = null
-                    }
-                )
             }
         }
 

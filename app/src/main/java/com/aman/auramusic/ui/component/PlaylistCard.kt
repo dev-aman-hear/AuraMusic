@@ -41,7 +41,7 @@ fun PlaylistCard(
     Column(
         modifier = modifier
             .width(size)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onClick)
             .padding(bottom = 6.dp)
     ) {
@@ -51,7 +51,7 @@ fun PlaylistCard(
             modifier = Modifier
                 .size(size)
                 .fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             elevation = elevation,
             fallbackIcon = Icons.AutoMirrored.Filled.QueueMusic
         )

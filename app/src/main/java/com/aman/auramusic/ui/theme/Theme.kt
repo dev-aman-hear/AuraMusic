@@ -12,6 +12,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.remember
+import com.aman.auramusic.data.model.LiquidGlassConfig
 import com.aman.auramusic.data.model.ThemeMode
 
 val LocalIsDark = staticCompositionLocalOf { false }
@@ -50,11 +52,37 @@ private val LightColorScheme = lightColorScheme(
     onPrimaryContainer = Color(0xFFD81B43)
 )
 
+/**
+ * Liquid Glass Theme wrapper providing dynamic Liquid Glass tokens.
+ */
+@Composable
+fun LiquidGlassTheme(
+    config: LiquidGlassConfig = LiquidGlassConfig(),
+    isDark: Boolean = LocalIsDark.current,
+    isAmoled: Boolean = false,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+    content: @Composable () -> Unit
+) {
+    val tokens = remember(config, isDark, isAmoled, accentColor) {
+        LiquidGlassTokens(
+            config = config,
+            isDark = isDark,
+            isAmoled = isAmoled,
+            accentColor = accentColor
+        )
+    }
+    CompositionLocalProvider(
+        LocalLiquidGlassTokens provides tokens,
+        content = content
+    )
+}
+
 @Composable
 fun AuraMusicTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     dynamicColor: Boolean = true,
     amoledMode: Boolean = false,
+    liquidGlassConfig: LiquidGlassConfig = LiquidGlassConfig(),
     content: @Composable () -> Unit
 ) {
     val isSystemDark = isSystemInDarkTheme()
@@ -79,7 +107,19 @@ fun AuraMusicTheme(
         else -> LightColorScheme
     }
 
-    CompositionLocalProvider(LocalIsDark provides darkTheme) {
+    val tokens = remember(liquidGlassConfig, darkTheme, amoledMode, colorScheme.primary) {
+        LiquidGlassTokens(
+            config = liquidGlassConfig,
+            isDark = darkTheme,
+            isAmoled = amoledMode && darkTheme,
+            accentColor = colorScheme.primary
+        )
+    }
+
+    CompositionLocalProvider(
+        LocalIsDark provides darkTheme,
+        LocalLiquidGlassTokens provides tokens
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,

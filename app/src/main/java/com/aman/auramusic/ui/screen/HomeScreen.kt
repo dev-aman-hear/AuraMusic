@@ -228,7 +228,7 @@ fun HomeScreen(
     AuraScreenBackground(modifier = modifier) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 124.dp)
+            contentPadding = PaddingValues(bottom = 160.dp)
         ) {
             // =========================================================================
             // 1. APPLE MUSIC LARGE TITLE HEADER

@@ -19,21 +19,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,10 +61,10 @@ import com.aman.auramusic.ui.component.SectionHeader
 import com.aman.auramusic.ui.component.SongRow
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.AuraShapes
+import com.aman.auramusic.ui.theme.GlassLevel
 import com.aman.auramusic.ui.theme.LocalIsDark
-import com.aman.auramusic.ui.theme.frostedGlass
+import com.aman.auramusic.ui.theme.liquidGlass
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val AuraCoral = Color(0xFFFF5C7A)
@@ -87,10 +82,8 @@ fun OnlineScreen(
     val playbackState by onlinePlaybackManager.playbackState.collectAsStateWithLifecycle()
 
     var selectedSource by remember { mutableStateOf(AudioSource.ALL) }
-    var searchQuery by remember { mutableStateOf("") }
     var feedSongs by remember { mutableStateOf(emptyList<OnlineSong>()) }
     var curatedPlaylists by remember { mutableStateOf(emptyList<OnlinePlaylist>()) }
-    var searchResults by remember { mutableStateOf(emptyList<OnlineSong>()) }
     var selectedPlaylist by remember { mutableStateOf<OnlinePlaylist?>(null) }
     var playlistSongs by remember { mutableStateOf(emptyList<OnlineSong>()) }
     var isLoading by remember { mutableStateOf(false) }
@@ -130,45 +123,18 @@ fun OnlineScreen(
         loadCatalog(selectedSource)
     }
 
-    LaunchedEffect(searchQuery, selectedPlaylist, selectedSource) {
-        if (selectedPlaylist != null || searchQuery.isBlank()) {
-            searchResults = emptyList()
-            return@LaunchedEffect
-        }
-        delay(300)
-        isLoading = true
-        loadError = false
-        try {
-            searchResults = repository.search(searchQuery.trim(), selectedSource)
-                .distinctBy { "${it.source.name}_${it.id}" }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            searchResults = emptyList()
-            loadError = true
-        } finally {
-            isLoading = false
-        }
-    }
-
-    val isSearching = searchQuery.isNotBlank() && selectedPlaylist == null
-    val displayedSongs = when {
-        selectedPlaylist != null -> playlistSongs
-        isSearching -> searchResults
-        else -> feedSongs
-    }
+    val displayedSongs = if (selectedPlaylist != null) playlistSongs else feedSongs
     val heroSong = displayedSongs.firstOrNull() ?: feedSongs.firstOrNull()
     val quickPicks = remember(feedSongs) { feedSongs.drop(1).take(10) }
     val chartSongs = remember(feedSongs) { feedSongs.drop(4).take(12) }
     val deepCuts = remember(feedSongs) { feedSongs.drop(12).take(24) }
     val textColor = MaterialTheme.colorScheme.onBackground
     val mutedText = textColor.copy(alpha = 0.62f)
-    val fieldColor = if (isDark) Color(0xFF191A22) else Color(0xFFF4F4F7)
 
     AuraScreenBackground(modifier = modifier) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 132.dp),
+            contentPadding = PaddingValues(bottom = 160.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             item(key = "online_header") {
@@ -181,7 +147,7 @@ fun OnlineScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (isSearching) "Search" else "Listen Now",
+                                text = if (selectedPlaylist != null) selectedPlaylist?.title ?: "Online" else "Online",
                                 color = textColor,
                                 fontSize = 34.sp,
                                 lineHeight = 38.sp,
@@ -191,7 +157,6 @@ fun OnlineScreen(
                             Text(
                                 text = when {
                                     selectedPlaylist != null -> selectedPlaylist?.subtitle?.ifBlank { "Curated for streaming" } ?: "Curated for streaming"
-                                    isSearching -> "Across ${selectedSource.displayName}"
                                     else -> "YouTube and JioSaavn, shaped for Aura"
                                 },
                                 color = mutedText,
@@ -206,55 +171,10 @@ fun OnlineScreen(
                             Icon(Icons.Default.Settings, contentDescription = "Settings", tint = textColor)
                         }
                     }
-                    Spacer(Modifier.height(14.dp))
-                    OnlineSourceTabs(
-                        selectedSource = selectedSource,
-                        onSourceSelected = {
-                            selectedSource = it
-                            selectedPlaylist = null
-                            playlistSongs = emptyList()
-                        }
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = {
-                            selectedPlaylist = null
-                            playlistSongs = emptyList()
-                            searchQuery = it
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .frostedGlass(
-                                shape = RoundedCornerShape(18.dp),
-                                isDark = isDark,
-                                elevation = if (isDark) 6.dp else 2.dp,
-                                borderWidth = 1.1.dp,
-                                sheenAlpha = if (isDark) 0.16f else 0.35f
-                            ),
-                        singleLine = true,
-                        shape = RoundedCornerShape(18.dp),
-                        placeholder = { Text("Search songs, artists, albums", color = mutedText, fontSize = 14.sp) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = mutedText) },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = ""; selectedPlaylist = null }) {
-                                    Icon(Icons.Default.Close, contentDescription = "Clear search", tint = mutedText)
-                                }
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            cursorColor = AuraCoral
-                        )
-                    )
                 }
             }
 
-            if (!isSearching && selectedPlaylist == null && heroSong != null) {
+            if (selectedPlaylist == null && heroSong != null) {
                 item(key = "hero") {
                     FeaturedOnlineCard(
                         song = heroSong,
@@ -285,7 +205,6 @@ fun OnlineScreen(
                                     onClick = {
                                         scope.launch {
                                             selectedPlaylist = playlist
-                                            searchQuery = ""
                                             playlistSongs = emptyList()
                                             isLoading = true
                                             loadError = false
@@ -361,21 +280,13 @@ fun OnlineScreen(
                         )
                     }
                 }
-            } else {
+            } else if (selectedPlaylist != null) {
                 item(key = "tracks_heading") {
                     SectionHeader(
-                        eyebrow = when {
-                            selectedPlaylist != null -> selectedPlaylist?.subtitle?.ifBlank { "PLAYLIST" } ?: "PLAYLIST"
-                            isSearching -> selectedSource.displayName.uppercase()
-                            else -> "ONLINE CATALOG"
-                        },
-                        title = when {
-                            selectedPlaylist != null -> selectedPlaylist?.title ?: "Playlist"
-                            isSearching -> "Results"
-                            else -> "Songs"
-                        },
-                        actionText = if (selectedPlaylist != null) "Clear" else null,
-                        onActionClick = if (selectedPlaylist != null) ({ selectedPlaylist = null; playlistSongs = emptyList() }) else null,
+                        eyebrow = selectedPlaylist?.subtitle?.ifBlank { "PLAYLIST" } ?: "PLAYLIST",
+                        title = selectedPlaylist?.title ?: "Curated Tracks",
+                        actionText = "Clear",
+                        onActionClick = { selectedPlaylist = null; playlistSongs = emptyList() },
                         modifier = Modifier.padding(top = 12.dp)
                     )
                 }
@@ -384,11 +295,7 @@ fun OnlineScreen(
             if (isLoading && displayedSongs.isEmpty()) {
                 item(key = "loading") {
                     AuraLoadingState(
-                        message = when {
-                            selectedPlaylist != null -> "Loading playlist"
-                            isSearching -> "Searching music"
-                            else -> "Finding something good"
-                        },
+                        message = if (selectedPlaylist != null) "Loading playlist" else "Finding something good",
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 30.dp)
@@ -398,13 +305,11 @@ fun OnlineScreen(
                 item(key = "empty_state") {
                     AuraEmptyState(
                         title = when {
-                            loadError && !isSearching -> "Couldn't load music"
-                            isSearching -> "No matches yet"
                             selectedPlaylist != null -> "Playlist unavailable"
+                            loadError -> "Couldn't load music"
                             else -> "Nothing to play yet"
                         },
                         message = when {
-                            isSearching -> "Try another song, artist, or album name."
                             selectedPlaylist != null -> "This playlist could not be loaded right now. Check your connection and try again."
                             else -> "Check your connection and refresh the catalog to discover music."
                         },
@@ -425,20 +330,6 @@ fun OnlineScreen(
                                     } finally {
                                         isLoading = false
                                     }
-                                } else if (isSearching) {
-                                    isLoading = true
-                                    loadError = false
-                                    try {
-                                        searchResults = repository.search(searchQuery.trim(), selectedSource)
-                                        loadError = searchResults.isEmpty()
-                                    } catch (cancelled: CancellationException) {
-                                        throw cancelled
-                                    } catch (_: Exception) {
-                                        searchResults = emptyList()
-                                        loadError = true
-                                    } finally {
-                                        isLoading = false
-                                    }
                                 } else {
                                     loadCatalog(selectedSource)
                                 }
@@ -450,10 +341,7 @@ fun OnlineScreen(
                     )
                 }
             } else {
-                val trailingSongs = when {
-                    !isSearching && selectedPlaylist == null -> deepCuts
-                    else -> displayedSongs
-                }
+                val trailingSongs = if (selectedPlaylist == null) deepCuts else displayedSongs
                 items(trailingSongs, key = { "song_${it.source.name}_${it.id}" }) { song ->
                     val isActive = playbackState.currentSong?.id == song.id
                     SongRow(
@@ -465,45 +353,6 @@ fun OnlineScreen(
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun OnlineSourceTabs(
-    selectedSource: AudioSource,
-    onSourceSelected: (AudioSource) -> Unit
-) {
-    val sources = listOf(AudioSource.ALL, AudioSource.JIOSAAVN, AudioSource.YOUTUBE)
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(sources, key = { it.name }) { source ->
-            val isDark = LocalIsDark.current
-            val selected = selectedSource == source
-            Box(
-                modifier = Modifier
-                    .frostedGlass(
-                        shape = AuraShapes.Control,
-                        isDark = isDark,
-                        tint = if (selected) MaterialTheme.colorScheme.primary else null,
-                        elevation = if (selected) 4.dp else 1.dp,
-                        borderWidth = 1.dp,
-                        sheenAlpha = if (selected) 0.35f else 0.12f
-                    )
-                    .clickable { onSourceSelected(source) }
-                    .padding(horizontal = 14.dp, vertical = 9.dp)
-            ) {
-                Text(
-                    text = when (source) {
-                        AudioSource.ALL -> "Listen Now"
-                        AudioSource.JIOSAAVN -> "JioSaavn"
-                        AudioSource.YOUTUBE -> "YouTube"
-                        AudioSource.SPOTIFY -> "Spotify"
-                    },
-                    color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
             }
         }
     }
@@ -590,12 +439,11 @@ private fun FeaturedOnlineCard(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(18.dp)
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(AuraCoral),
+                    .size(50.dp)
+                    .liquidGlass(level = GlassLevel.Tinted, shape = CircleShape, tint = AuraCoral),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = "Play featured track", tint = Color.White)
+                Icon(Icons.Default.PlayArrow, contentDescription = "Play featured track", tint = Color.White, modifier = Modifier.size(26.dp))
             }
         }
     }

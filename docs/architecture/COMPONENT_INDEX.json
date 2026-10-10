@@ -1,0 +1,1141 @@
+{
+  "version": "1.0.0",
+  "project": "AuraMusic Android",
+  "description": "Machine-readable component map and dependency graph for AuraMusic Android architecture and navigation.",
+  "last_updated": "2026-10-10",
+  "components": [
+    {
+      "id": "app-core",
+      "name": "AuraMusic Application",
+      "type": "app",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/AuraMusicApp.kt"
+      ],
+      "responsibility": "Android Application root class annotated with @HiltAndroidApp establishing Dagger-Hilt dependency injection container.",
+      "symbols": [
+        "AuraMusicApp"
+      ],
+      "depends_on": [
+        "di-app-module"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "application",
+        "hilt",
+        "di",
+        "entrypoint"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "app-main-activity",
+      "name": "Main Coordinator Activity",
+      "type": "app",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/MainActivity.kt"
+      ],
+      "responsibility": "Root single-activity coordinator hosting Jetpack Compose Navigation, system window insets, intent filter handling for external audio files, and global miniplayer overlay.",
+      "symbols": [
+        "MainActivity",
+        "AuraMusicRoot"
+      ],
+      "depends_on": [
+        "viewmodel-player",
+        "viewmodel-music",
+        "online-playback-manager",
+        "ui-bottom-nav",
+        "ui-mini-player"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "activity",
+        "compose",
+        "navigation",
+        "intent",
+        "coordinator"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "playback-service",
+      "name": "Media Playback Service",
+      "type": "service",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/playback/PlaybackService.kt"
+      ],
+      "responsibility": "Foreground media playback service managing sticky execution, media notification lifecycle, MediaSessionCompat tokens, ColorOS live lyrics broadcasting, and local/online playback synchronization.",
+      "symbols": [
+        "PlaybackService",
+        "PlaybackService.LocalBinder",
+        "startAsForeground",
+        "stopAsForeground",
+        "playNext",
+        "playPrevious"
+      ],
+      "depends_on": [
+        "playback-vlc-engine",
+        "playback-notification",
+        "coloros-bridge",
+        "data-user-repo",
+        "data-lyrics-repo"
+      ],
+      "related_tests": [
+        "app/src/test/java/com/aman/auramusic/PlaybackTransitionLogicTest.kt"
+      ],
+      "keywords": [
+        "service",
+        "foreground",
+        "mediasession",
+        "notification",
+        "lifecycle",
+        "playback"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "playback-vlc-engine",
+      "name": "VLC Player Manager",
+      "type": "engine",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/playback/VlcPlayerManager.kt"
+      ],
+      "responsibility": "Local audio player engine wrapping LibVLC MediaPlayer; handles audio focus changes, media session metadata/playback states, transition guards (isTransitioning), and hardware volume control.",
+      "symbols": [
+        "VlcPlayerManager",
+        "VlcPlayerManager.PlayerListener",
+        "play",
+        "pause",
+        "isTransitioning",
+        "smartAudioFocusEnabled"
+      ],
+      "depends_on": [
+        "playback-action-receiver"
+      ],
+      "related_tests": [
+        "app/src/test/java/com/aman/auramusic/PlaybackTransitionLogicTest.kt"
+      ],
+      "keywords": [
+        "vlc",
+        "libvlc",
+        "audiofocus",
+        "offline",
+        "engine",
+        "player"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "playback-notification",
+      "name": "Playback Notification Manager",
+      "type": "manager",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/playback/PlaybackNotificationManager.kt"
+      ],
+      "responsibility": "Builds and displays Android media-style notifications with playback control actions (play/pause, skip next/previous, seek bar) using non-blocking fast artwork decoders and async Coil high-res fallbacks.",
+      "symbols": [
+        "PlaybackNotificationManager",
+        "createNotification",
+        "loadArtworkFast",
+        "loadArtwork",
+        "show"
+      ],
+      "depends_on": [
+        "playback-action-receiver"
+      ],
+      "related_tests": [
+        "app/src/test/java/com/aman/auramusic/PlaybackTransitionLogicTest.kt"
+      ],
+      "keywords": [
+        "notification",
+        "artwork",
+        "mediastyle",
+        "lockscreen",
+        "controls"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "playback-action-receiver",
+      "name": "Playback Action Receiver & Registry",
+      "type": "bridge",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/playback/PlaybackActionReceiver.kt",
+        "app/src/main/java/com/aman/auramusic/playback/PlaybackActionRegistry.kt"
+      ],
+      "responsibility": "Receives pending intents from notifications or media buttons and delegates them to registered lambda callbacks in PlaybackService and ViewModels.",
+      "symbols": [
+        "PlaybackActionReceiver",
+        "PlaybackActionRegistry"
+      ],
+      "depends_on": [],
+      "related_tests": [],
+      "keywords": [
+        "broadcastreceiver",
+        "actions",
+        "playpause",
+        "next",
+        "previous"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-playback-manager",
+      "name": "Online Playback Manager",
+      "type": "manager",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/player/OnlinePlaybackManager.kt"
+      ],
+      "responsibility": "Unified online streaming orchestrator routing audio across AndroidX Media3 ExoPlayer (JioSaavn 320kbps streams) and headless RiPlay YouTube IFrame player, managing online queue and stream resolution.",
+      "symbols": [
+        "OnlinePlaybackManager",
+        "OnlinePlaybackManager.PlaybackEventListener",
+        "playSong",
+        "playNext",
+        "pause",
+        "isTransitioning"
+      ],
+      "depends_on": [
+        "online-iframe-player",
+        "online-cache-manager",
+        "online-lyrics-manager",
+        "online-music-repo",
+        "online-lastplayed-store"
+      ],
+      "related_tests": [
+        "app/src/test/java/com/aman/auramusic/PlaybackTransitionLogicTest.kt"
+      ],
+      "keywords": [
+        "online",
+        "exoplayer",
+        "media3",
+        "riplay",
+        "jiosaavn",
+        "streaming"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-iframe-player",
+      "name": "YouTube IFrame Player Bridge",
+      "type": "engine",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/player/YouTubeIFramePlayer.kt"
+      ],
+      "responsibility": "Headless WebView wrapper embedding YouTube IFrame API (RiPlay strategy) to stream YouTube Music tracks without scraper breakages or IP blocks.",
+      "symbols": [
+        "YouTubeIFramePlayer",
+        "YouTubeIFramePlayer.PlayerListener",
+        "loadAndPlay",
+        "pause",
+        "seekTo"
+      ],
+      "depends_on": [],
+      "related_tests": [],
+      "keywords": [
+        "youtube",
+        "iframe",
+        "webview",
+        "riplay",
+        "audio"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-cache-manager",
+      "name": "Online Media Cache Manager",
+      "type": "cache",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/player/CacheManager.kt"
+      ],
+      "responsibility": "Configures AndroidX Media3 SimpleCache with Least Recently Used (LRU) eviction cache data source factory for offline disk caching of online audio streams.",
+      "symbols": [
+        "CacheManager",
+        "buildCacheDataSourceFactory"
+      ],
+      "depends_on": [],
+      "related_tests": [],
+      "keywords": [
+        "cache",
+        "simplecache",
+        "media3",
+        "offline-cache",
+        "datasource"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-lyrics-manager",
+      "name": "Online Lyrics Manager",
+      "type": "manager",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/player/LyricsManager.kt"
+      ],
+      "responsibility": "Coordinates fetching, memory caching, and fallback parsing of synchronized LRCLIB lyrics for active online audio tracks.",
+      "symbols": [
+        "LyricsManager",
+        "getOrFetchLyrics"
+      ],
+      "depends_on": [
+        "online-lrclib-service"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "lyrics",
+        "lrclib",
+        "synchronized",
+        "cache"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-music-repo",
+      "name": "Online Music Repository",
+      "type": "repository",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/network/repository/OnlineMusicRepository.kt"
+      ],
+      "responsibility": "Aggregates online catalog discovery across JioSaavn and YouTube Music; provides search, trending feeds, playlist resolutions, and stream URL extraction.",
+      "symbols": [
+        "OnlineMusicRepository",
+        "searchSongs",
+        "getTrending",
+        "resolveStream"
+      ],
+      "depends_on": [
+        "online-saavn-service",
+        "online-piped-service",
+        "online-dualtier-extractor",
+        "online-trending-filter"
+      ],
+      "related_tests": [
+        "app/src/test/java/com/aman/auramusic/TrendingSongFilterTest.kt",
+        "app/src/test/java/com/aman/auramusic/SearchScreenLogicTest.kt"
+      ],
+      "keywords": [
+        "online",
+        "catalog",
+        "search",
+        "trending",
+        "saavn",
+        "youtube"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-yt-artist-repo",
+      "name": "YouTube Artist Repository",
+      "type": "repository",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/network/repository/YouTubeArtistRepository.kt"
+      ],
+      "responsibility": "Extracts curated artist discography, albums, top tracks, and artwork manifests from YouTube Music channels.",
+      "symbols": [
+        "YouTubeArtistRepository",
+        "getArtistDetails"
+      ],
+      "depends_on": [
+        "online-piped-service"
+      ],
+      "related_tests": [
+        "app/src/test/java/com/aman/auramusic/YouTubeArtistExtractionTest.kt"
+      ],
+      "keywords": [
+        "youtube",
+        "artist",
+        "discography",
+        "albums"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-saavn-service",
+      "name": "JioSaavn API Service",
+      "type": "network",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/network/saavn/JioSaavnService.kt"
+      ],
+      "responsibility": "Performs direct REST queries to JioSaavn backend endpoints and decrypts 320kbps MP4 direct audio stream URLs using DES decryptor.",
+      "symbols": [
+        "JioSaavnService",
+        "searchSongs",
+        "resolveMediaUrl"
+      ],
+      "depends_on": [
+        "online-des-crypto"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "jiosaavn",
+        "api",
+        "320kbps",
+        "des",
+        "crypto"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-piped-service",
+      "name": "Piped YouTube API Service",
+      "type": "network",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/network/piped/PipedService.kt"
+      ],
+      "responsibility": "Communicates with decentralized Piped API instances for YouTube search queries, playlist listings, and stream discovery.",
+      "symbols": [
+        "PipedService",
+        "search",
+        "getPlaylist"
+      ],
+      "depends_on": [],
+      "related_tests": [],
+      "keywords": [
+        "piped",
+        "youtube",
+        "search",
+        "streams"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-dualtier-extractor",
+      "name": "Dual-Tier Stream Extractor",
+      "type": "network",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/network/extractor/DualTierStreamExtractor.kt"
+      ],
+      "responsibility": "Executes failover multi-tier stream resolution across BitChord, DA-Tunes, and Piped manifests to resolve playable audio streams.",
+      "symbols": [
+        "DualTierStreamExtractor",
+        "extractAudioStream"
+      ],
+      "depends_on": [
+        "online-piped-service"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "extractor",
+        "stream",
+        "failover",
+        "manifest"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-des-crypto",
+      "name": "DES Stream Decryptor",
+      "type": "crypto",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/network/crypto/DesDecryptor.kt"
+      ],
+      "responsibility": "Decrypts encrypted JioSaavn CDN audio stream URLs using DES/ECB/PKCS5Padding with standard Saavn master key.",
+      "symbols": [
+        "DesDecryptor",
+        "decryptUrl"
+      ],
+      "depends_on": [],
+      "related_tests": [],
+      "keywords": [
+        "des",
+        "crypto",
+        "decryption",
+        "jiosaavn",
+        "cdn"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-lrclib-service",
+      "name": "LRCLIB Lyrics Service",
+      "type": "network",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/lyrics/network/LrclibService.kt"
+      ],
+      "responsibility": "HTTP client communicating with LRCLIB API to query synchronized LRC lyrics using title, artist, and duration matching.",
+      "symbols": [
+        "LrclibService",
+        "getLyrics"
+      ],
+      "depends_on": [
+        "online-lrc-parser"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "lrclib",
+        "lyrics",
+        "synchronized",
+        "lrc"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-lrc-parser",
+      "name": "LRC Format Parser",
+      "type": "util",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/lyrics/parser/LrcParser.kt"
+      ],
+      "responsibility": "Parses standard LRC timestamped text [mm:ss.xx] into structured millisecond-indexed SongLyrics lines.",
+      "symbols": [
+        "LrcParser",
+        "parse"
+      ],
+      "depends_on": [],
+      "related_tests": [],
+      "keywords": [
+        "lrc",
+        "parser",
+        "timestamps",
+        "karaoke"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-trending-filter",
+      "name": "Trending Song Filter",
+      "type": "filter",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/filter/TrendingSongFilter.kt",
+        "app/src/main/java/com/aman/auramusic/online/filter/TrendingFilterConfig.kt"
+      ],
+      "responsibility": "Cleans and deduplicates trending music feeds by filtering out non-music noise, podcasts, live news, and low-quality results.",
+      "symbols": [
+        "TrendingSongFilter",
+        "TrendingFilterConfig",
+        "filterSongs"
+      ],
+      "depends_on": [],
+      "related_tests": [
+        "app/src/test/java/com/aman/auramusic/TrendingSongFilterTest.kt"
+      ],
+      "keywords": [
+        "filter",
+        "trending",
+        "noise-reduction",
+        "deduplication"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-artwork-optimizer",
+      "name": "Artwork Quality Optimizer",
+      "type": "util",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/util/ArtworkQualityOptimizer.kt"
+      ],
+      "responsibility": "Rewrites thumbnail and low-resolution image URLs from JioSaavn and YouTube CDN into high-resolution 500x500 or 1080x1080 master artwork links.",
+      "symbols": [
+        "ArtworkQualityOptimizer",
+        "optimizeUrl"
+      ],
+      "depends_on": [],
+      "related_tests": [
+        "app/src/test/java/com/aman/auramusic/ArtworkQualityOptimizerTest.kt"
+      ],
+      "keywords": [
+        "artwork",
+        "high-res",
+        "thumbnails",
+        "cdn"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-lastplayed-store",
+      "name": "Last Played Store",
+      "type": "cache",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/util/LastPlayedStore.kt"
+      ],
+      "responsibility": "Lightweight persistent storage saving and restoring the last active offline/online song, seek position, and playback queue across app restarts.",
+      "symbols": [
+        "LastPlayedStore",
+        "saveOnline",
+        "saveOffline",
+        "getLastSong",
+        "getLastPosition"
+      ],
+      "depends_on": [],
+      "related_tests": [
+        "app/src/test/java/com/aman/auramusic/LastPlayedStoreSerializationTest.kt"
+      ],
+      "keywords": [
+        "state-restoration",
+        "preferences",
+        "queue-restoration"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "online-library-cache",
+      "name": "Library Online 24h Cache",
+      "type": "cache",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/online/data/LibraryOnlineCache.kt"
+      ],
+      "responsibility": "Provides 24-hour disk JSON caching for curated online playlists, trending tracks, and artist feeds to minimize redundant network roundtrips.",
+      "symbols": [
+        "LibraryOnlineCache",
+        "get",
+        "put",
+        "isExpired"
+      ],
+      "depends_on": [],
+      "related_tests": [],
+      "keywords": [
+        "cache",
+        "json",
+        "library",
+        "offline-feed"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "coloros-bridge",
+      "name": "ColorOS Live Lyrics Bridge",
+      "type": "bridge",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/coloros/ColorOSLiveLyricsBridge.kt",
+        "app/src/main/java/com/aman/auramusic/coloros/ColorOSLyricPayload.kt",
+        "app/src/main/java/com/aman/auramusic/coloros/ColorOSBridgeConfig.kt"
+      ],
+      "responsibility": "Broadcasts live synchronized lyrics and track metadata to OPPO, Realme, and OnePlus (ColorOS/OxygenOS) system lockscreens via system broadcast intents and media metadata extras.",
+      "symbols": [
+        "ColorOSLiveLyricsBridge",
+        "ColorOSLyricPayload",
+        "ColorOSBridgeConfig",
+        "onTrackChanged",
+        "onPlaybackStateChanged"
+      ],
+      "depends_on": [
+        "data-models"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "coloros",
+        "oplus",
+        "lockscreen",
+        "live-lyrics",
+        "broadcast"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "data-music-repo",
+      "name": "Music Repository",
+      "type": "repository",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/data/repository/MusicRepository.kt"
+      ],
+      "responsibility": "Queries device MediaStore for audio files, filters out call recordings and audio clips under 30 seconds, and aggregates songs by albums and artists.",
+      "symbols": [
+        "MusicRepository",
+        "getAllSongs",
+        "getAlbums",
+        "getArtists"
+      ],
+      "depends_on": [
+        "data-models"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "mediastore",
+        "local-music",
+        "library",
+        "call-recordings"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "data-user-repo",
+      "name": "User Preferences Repository",
+      "type": "repository",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/data/repository/UserPreferencesRepository.kt"
+      ],
+      "responsibility": "Manages user application settings, playlists, favorite songs, equalizer preferences, and playback history using Jetpack DataStore Preferences.",
+      "symbols": [
+        "UserPreferencesRepository",
+        "settingsFlow",
+        "favoriteIdsFlow",
+        "playlistsFlow",
+        "setFavorite"
+      ],
+      "depends_on": [
+        "data-models"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "datastore",
+        "settings",
+        "favorites",
+        "playlists",
+        "history"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "data-lyrics-repo",
+      "name": "Lyrics Repository",
+      "type": "repository",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/data/repository/LyricsRepository.kt"
+      ],
+      "responsibility": "Resolves lyrics for local and online tracks by checking local .lrc files alongside audio files first, with fallback to LRCLIB online API queries.",
+      "symbols": [
+        "LyricsRepository",
+        "lyricsFor",
+        "lyricsForLocal"
+      ],
+      "depends_on": [
+        "online-lrclib-service",
+        "data-models"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "lyrics",
+        "lrc",
+        "lrclib",
+        "local-lyrics"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "data-models",
+      "name": "Core Domain Models",
+      "type": "util",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/data/model/Song.kt",
+        "app/src/main/java/com/aman/auramusic/data/model/Playlist.kt",
+        "app/src/main/java/com/aman/auramusic/data/model/AppSettings.kt",
+        "app/src/main/java/com/aman/auramusic/data/model/LyricLine.kt",
+        "app/src/main/java/com/aman/auramusic/data/model/ThemeMode.kt"
+      ],
+      "responsibility": "Core data models representing local songs, playlists, user configuration, synchronized lyric lines, and UI theme preferences.",
+      "symbols": [
+        "Song",
+        "Playlist",
+        "AppSettings",
+        "LyricLine",
+        "ThemeMode"
+      ],
+      "depends_on": [],
+      "related_tests": [],
+      "keywords": [
+        "models",
+        "song",
+        "playlist",
+        "settings",
+        "lyricline"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "viewmodel-player",
+      "name": "Player View Model",
+      "type": "viewmodel",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/viewmodel/PlayerViewModel.kt"
+      ],
+      "responsibility": "Hilt ViewModel binding the UI to PlaybackService and OnlinePlaybackManager; manages active track, playback position/duration, queue, repeat/shuffle modes, lyrics state, and color extraction.",
+      "symbols": [
+        "PlayerViewModel",
+        "play",
+        "pause",
+        "togglePlayPause",
+        "playNext",
+        "playPrevious",
+        "seekTo"
+      ],
+      "depends_on": [
+        "playback-service",
+        "data-music-repo",
+        "data-user-repo",
+        "data-lyrics-repo"
+      ],
+      "related_tests": [
+        "app/src/test/java/com/aman/auramusic/PlaybackTransitionLogicTest.kt"
+      ],
+      "keywords": [
+        "viewmodel",
+        "player",
+        "queue",
+        "lyrics",
+        "stateflow",
+        "hilt"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "viewmodel-music",
+      "name": "Music View Model",
+      "type": "viewmodel",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/viewmodel/MusicViewModel.kt"
+      ],
+      "responsibility": "Hilt ViewModel exposing local library state, songs list, playlists, albums, artists, search filters, and favorites.",
+      "symbols": [
+        "MusicViewModel",
+        "songs",
+        "playlists",
+        "refresh"
+      ],
+      "depends_on": [
+        "data-music-repo",
+        "data-user-repo"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "viewmodel",
+        "library",
+        "songs",
+        "playlists",
+        "hilt"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "ui-player-screen",
+      "name": "Player Screen",
+      "type": "screen",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/ui/screen/PlayerScreen.kt"
+      ],
+      "responsibility": "Full-screen music player view with vinyl/cover artwork animations, live synced karaoke lyrics, interactive scrubber, queue sheet, audio quality picker, and gesture-driven dismiss.",
+      "symbols": [
+        "PlayerScreen"
+      ],
+      "depends_on": [
+        "viewmodel-player",
+        "ui-song-row",
+        "ui-design-theme"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "player",
+        "screen",
+        "lyrics",
+        "karaoke",
+        "queue",
+        "controls"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "ui-mini-player",
+      "name": "Mini Player Component",
+      "type": "component",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/ui/component/MiniPlayer.kt"
+      ],
+      "responsibility": "Floating bottom miniplayer widget displaying current track title, artist, progress indicator, play/pause and skip controls; supports swipe-to-expand to PlayerScreen.",
+      "symbols": [
+        "MiniPlayer"
+      ],
+      "depends_on": [
+        "viewmodel-player",
+        "ui-design-theme"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "miniplayer",
+        "floating",
+        "persistent",
+        "playback-controls"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "ui-library-screen",
+      "name": "Library Screen",
+      "type": "screen",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/ui/screen/LibraryScreen.kt"
+      ],
+      "responsibility": "Local library catalog tab displaying tracks, custom playlists, artists, albums, and favorites with sorting options.",
+      "symbols": [
+        "LibraryScreen"
+      ],
+      "depends_on": [
+        "viewmodel-music",
+        "viewmodel-player",
+        "ui-song-row"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "library",
+        "screen",
+        "playlists",
+        "albums",
+        "artists"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "ui-home-screen",
+      "name": "Home Screen",
+      "type": "screen",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/ui/screen/HomeScreen.kt"
+      ],
+      "responsibility": "Home recommendation tab presenting quick picks, recently played songs, favorite tracks, and personalized playlist rails.",
+      "symbols": [
+        "HomeScreen"
+      ],
+      "depends_on": [
+        "viewmodel-music",
+        "viewmodel-player",
+        "ui-design-theme"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "home",
+        "screen",
+        "recommendations",
+        "recently-played"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "ui-search-screen",
+      "name": "Search Screen",
+      "type": "screen",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/ui/screen/SearchScreen.kt"
+      ],
+      "responsibility": "Unified search tab allowing real-time query filtering across local songs/albums/artists and online JioSaavn / YouTube Music catalog.",
+      "symbols": [
+        "SearchScreen"
+      ],
+      "depends_on": [
+        "viewmodel-music",
+        "viewmodel-player",
+        "online-music-repo"
+      ],
+      "related_tests": [
+        "app/src/test/java/com/aman/auramusic/SearchScreenLogicTest.kt"
+      ],
+      "keywords": [
+        "search",
+        "screen",
+        "unified-search",
+        "online-search"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "ui-online-screen",
+      "name": "Online Screen",
+      "type": "screen",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/ui/screen/OnlineScreen.kt"
+      ],
+      "responsibility": "Online discovery tab featuring curated charts, trending songs, mood playlists, and global streaming top hits.",
+      "symbols": [
+        "OnlineScreen"
+      ],
+      "depends_on": [
+        "online-music-repo",
+        "online-playback-manager",
+        "viewmodel-player"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "online",
+        "screen",
+        "discovery",
+        "trending",
+        "charts"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "ui-settings-screen",
+      "name": "Settings Screen",
+      "type": "screen",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/ui/screen/SettingsScreen.kt"
+      ],
+      "responsibility": "Settings tab for audio preferences (smart audio focus, skip silence, crossfade, gapless), appearance (AMOLED mode, blur intensity, karaoke mode), and cache management.",
+      "symbols": [
+        "SettingsScreen"
+      ],
+      "depends_on": [
+        "data-user-repo",
+        "online-cache-manager",
+        "ui-design-theme"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "settings",
+        "audio-focus",
+        "theme",
+        "cache",
+        "equalizer"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "ui-collection-detail",
+      "name": "Collection Detail Screen",
+      "type": "screen",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/ui/screen/CollectionDetailScreen.kt"
+      ],
+      "responsibility": "Dedicated detail view displaying tracklists, header artwork, shuffle/play buttons, and track options for specific albums, artists, or custom playlists.",
+      "symbols": [
+        "CollectionDetailScreen"
+      ],
+      "depends_on": [
+        "viewmodel-player",
+        "ui-song-row",
+        "ui-design-theme"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "album-detail",
+        "artist-detail",
+        "playlist-detail",
+        "collection"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "ui-all-playlists",
+      "name": "All Playlists Screen",
+      "type": "screen",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/ui/screen/AllPlaylistsScreen.kt"
+      ],
+      "responsibility": "Full grid/list view of all user-created and imported playlists with creation and editing options.",
+      "symbols": [
+        "AllPlaylistsScreen"
+      ],
+      "depends_on": [
+        "viewmodel-music",
+        "ui-design-theme"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "playlists",
+        "grid",
+        "list",
+        "collections"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "ui-bottom-nav",
+      "name": "Bottom Navigation Bar",
+      "type": "component",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/ui/component/BottomNavBar.kt"
+      ],
+      "responsibility": "Floating capsule bottom navigation bar with fluid animations navigating between Home, Search, Online, Library, and Settings tabs.",
+      "symbols": [
+        "BottomNavBar",
+        "AppTab"
+      ],
+      "depends_on": [
+        "ui-design-theme"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "navbar",
+        "navigation",
+        "tabs",
+        "floating"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "ui-song-row",
+      "name": "Universal Song Row",
+      "type": "component",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/ui/component/SongRow.kt"
+      ],
+      "responsibility": "Universal master track item row component rendering title, artist, duration, playback indicator, favorite icon, and context menu for both local and online tracks.",
+      "symbols": [
+        "SongRow"
+      ],
+      "depends_on": [
+        "ui-design-theme"
+      ],
+      "related_tests": [],
+      "keywords": [
+        "songrow",
+        "track-item",
+        "list-item",
+        "reusable"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "ui-design-theme",
+      "name": "Aura Design & Glass Theme",
+      "type": "component",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/ui/theme/LiquidGlassTokens.kt",
+        "app/src/main/java/com/aman/auramusic/data/model/LiquidGlassConfig.kt",
+        "app/src/main/java/com/aman/auramusic/ui/theme/AuraDesign.kt",
+        "app/src/main/java/com/aman/auramusic/ui/theme/GlassUtils.kt",
+        "app/src/main/java/com/aman/auramusic/ui/theme/Theme.kt",
+        "app/src/main/java/com/aman/auramusic/ui/theme/Color.kt",
+        "app/src/main/java/com/aman/auramusic/ui/theme/Type.kt"
+      ],
+      "responsibility": "App-wide Apple-inspired Liquid Glass design system engine providing dynamic tokens (translucency, blur, illuminated rim highlights, depth, curvatures), customizable presets, and reactive UI surfaces.",
+      "symbols": [
+        "LiquidGlassTokens",
+        "LiquidGlassConfig",
+        "LiquidGlassPreset",
+        "LiquidGlassTheme",
+        "LiquidGlassSurface",
+        "LiquidGlassCard",
+        "LiquidGlassButton",
+        "LiquidGlassNavigationBar",
+        "LiquidGlassMiniPlayer",
+        "LocalLiquidGlassTokens",
+        "AuraMusicTheme",
+        "liquidGlass"
+      ],
+      "depends_on": [],
+      "related_tests": [
+        "app/src/test/java/com/aman/auramusic/LiquidGlassDesignSystemTest.kt"
+      ],
+      "keywords": [
+        "liquid-glass",
+        "design-system",
+        "apple-design",
+        "presets",
+        "customizer",
+        "blur",
+        "theme"
+      ],
+      "last_verified": "2026-10-10"
+    },
+    {
+      "id": "di-app-module",
+      "name": "Dagger Hilt Dependency Injection Module",
+      "type": "di",
+      "paths": [
+        "app/src/main/java/com/aman/auramusic/di/AppModule.kt"
+      ],
+      "responsibility": "Provides singleton instances of OkHttpClient, Gson, repository instances, and application context injections.",
+      "symbols": [
+        "AppModule",
+        "provideOkHttpClient",
+        "provideGson"
+      ],
+      "depends_on": [],
+      "related_tests": [],
+      "keywords": [
+        "hilt",
+        "dagger",
+        "injection",
+        "singleton",
+        "okhttp"
+      ],
+      "last_verified": "2026-10-10"
+    }
+  ]
+}

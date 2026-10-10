@@ -1,6 +1,7 @@
 package com.aman.auramusic.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -94,7 +95,18 @@ fun AuraArtwork(
             .size(size.dp)
             .shadow(elevation, shape)
             .clip(shape)
-            .background(fallbackGradient),
+            .background(fallbackGradient)
+            .border(
+                width = 1.dp,
+                brush = Brush.verticalGradient(
+                    listOf(
+                        Color.White.copy(alpha = if (isDark) 0.25f else 0.50f),
+                        Color.White.copy(alpha = if (isDark) 0.05f else 0.15f),
+                        Color.Transparent
+                    )
+                ),
+                shape = shape
+            ),
         contentAlignment = Alignment.Center
     ) {
         if (imageRequest != null) {

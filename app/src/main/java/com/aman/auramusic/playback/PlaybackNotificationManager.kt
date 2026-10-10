@@ -34,20 +34,22 @@ class PlaybackNotificationManager(private val context: Context) {
     fun show(
         song: Song,
         isPlaying: Boolean,
-        sessionToken: MediaSession.Token
+        sessionToken: MediaSession.Token,
+        customArtwork: Bitmap? = null
     ) {
         if (androidx.core.app.ActivityCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            notificationManager.notify(NOTIFICATION_ID, createNotification(song, isPlaying, sessionToken))
+            notificationManager.notify(NOTIFICATION_ID, createNotification(song, isPlaying, sessionToken, customArtwork))
         }
     }
 
     fun createNotification(
         song: Song,
         isPlaying: Boolean,
-        sessionToken: MediaSession.Token
+        sessionToken: MediaSession.Token,
+        customArtwork: Bitmap? = null
     ): android.app.Notification {
         ensureChannel()
-        val artwork = loadArtwork(song)
+        val artwork = customArtwork ?: loadArtworkFast(song)
         val contentIntent = PendingIntent.getActivity(
             context,
             0,
@@ -113,6 +115,27 @@ class PlaybackNotificationManager(private val context: Context) {
     }
 
     private val artworkCache = android.util.LruCache<String, Bitmap>(20)
+
+    fun loadArtworkFast(song: Song): Bitmap? {
+        val uri = song.artworkUri
+        if (uri.isNullOrBlank()) {
+            if (song.id == -1L) {
+                return runCatching { com.aman.auramusic.util.ArtworkExtractor.getArtwork(context, song.uri) }.getOrNull()
+            }
+            return null
+        }
+        artworkCache.get(uri)?.let { return it }
+        if (uri.startsWith("http://") || uri.startsWith("https://")) {
+            return null // Do not perform blocking network calls on main/calling thread
+        }
+        return runCatching {
+            context.contentResolver.openInputStream(uri.toUri())?.use { input ->
+                BitmapFactory.decodeStream(input)
+            }
+        }.getOrNull()?.also { bitmap ->
+            artworkCache.put(uri, bitmap)
+        }
+    }
 
     fun loadArtwork(song: Song): Bitmap? {
         val uri = song.artworkUri

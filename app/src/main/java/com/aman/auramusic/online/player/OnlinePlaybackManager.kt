@@ -1,6 +1,7 @@
 package com.aman.auramusic.online.player
 
 import android.content.Context
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -63,6 +64,9 @@ class OnlinePlaybackManager(
 
     private var isUsingIFramePlayer = false
     private var hasStartedPlaybackForCurrentSong = false
+    var isTransitioning: Boolean = false
+        private set
+    private var lastEndHandledTimeMs: Long = 0L
 
     // 1. AndroidX Media3 ExoPlayer for direct CDN streams (JioSaavn 320k untouched)
     private val httpDataSourceFactory = DefaultHttpDataSource.Factory()
@@ -93,11 +97,13 @@ class OnlinePlaybackManager(
             addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(state: Int) {
                     if (isUsingIFramePlayer) return
+                    Log.d("AuraPlaybackDebug", "ExoPlayer onPlaybackStateChanged: state=$state")
                     when (state) {
                         Player.STATE_BUFFERING -> {
                             _playbackState.update { it.copy(isBuffering = true) }
                         }
                         Player.STATE_READY -> {
+                            isTransitioning = false
                             _playbackState.update {
                                 it.copy(
                                     isBuffering = false,
@@ -107,6 +113,7 @@ class OnlinePlaybackManager(
                             }
                         }
                         Player.STATE_ENDED -> {
+                            Log.d("AuraPlaybackDebug", "ExoPlayer STATE_ENDED reached")
                             _playbackState.update { it.copy(isBuffering = false, isPlaying = false) }
                             handleSongEnded()
                         }
@@ -118,19 +125,27 @@ class OnlinePlaybackManager(
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     if (isUsingIFramePlayer) return
+                    Log.d("AuraPlaybackDebug", "ExoPlayer onIsPlayingChanged: isPlaying=$isPlaying, isTransitioning=$isTransitioning")
                     _playbackState.update { it.copy(isPlaying = isPlaying) }
                     if (isPlaying) {
+                        isTransitioning = false
                         startProgressTracker()
                     } else {
                         stopProgressTracker()
                     }
                     _playbackState.value.currentSong?.let { song ->
-                        eventListener?.onPlaybackStateChanged(song, isPlaying, exoPlayer.currentPosition.coerceAtLeast(0L))
+                        if (!isPlaying && isTransitioning) {
+                            Log.d("AuraPlaybackDebug", "Suppressing ExoPlayer onPlaybackStateChanged(false) for ${song.title} during track transition")
+                        } else {
+                            eventListener?.onPlaybackStateChanged(song, isPlaying, exoPlayer.currentPosition.coerceAtLeast(0L))
+                        }
                     }
                 }
 
                 override fun onPlayerError(error: PlaybackException) {
                     if (isUsingIFramePlayer) return
+                    Log.e("AuraPlaybackDebug", "ExoPlayer error: ${error.message}", error)
+                    isTransitioning = false
                     _playbackState.update {
                         it.copy(
                             isBuffering = false,
@@ -148,6 +163,10 @@ class OnlinePlaybackManager(
         listener = object : YouTubeIFramePlayer.PlayerListener {
             override fun onPlaybackStateChanged(isPlaying: Boolean, isBuffering: Boolean) {
                 if (!isUsingIFramePlayer) return
+                Log.d("AuraPlaybackDebug", "YouTubeIFrame onPlaybackStateChanged: isPlaying=$isPlaying, isBuffering=$isBuffering, isTransitioning=$isTransitioning")
+                if (isPlaying) {
+                    isTransitioning = false
+                }
                 _playbackState.update {
                     it.copy(
                         isPlaying = isPlaying,
@@ -156,7 +175,11 @@ class OnlinePlaybackManager(
                     )
                 }
                 _playbackState.value.currentSong?.let { song ->
-                    eventListener?.onPlaybackStateChanged(song, isPlaying, _playbackState.value.currentPositionMs)
+                    if (!isPlaying && isTransitioning) {
+                        Log.d("AuraPlaybackDebug", "Suppressing YouTube onPlaybackStateChanged(false) for ${song.title} during track transition")
+                    } else {
+                        eventListener?.onPlaybackStateChanged(song, isPlaying, _playbackState.value.currentPositionMs)
+                    }
                 }
             }
 
@@ -182,11 +205,14 @@ class OnlinePlaybackManager(
 
             override fun onSongEnded() {
                 if (!isUsingIFramePlayer) return
+                Log.d("AuraPlaybackDebug", "YouTube onSongEnded received")
                 handleSongEnded()
             }
 
             override fun onError(message: String) {
                 if (!isUsingIFramePlayer) return
+                Log.e("AuraPlaybackDebug", "YouTube error: $message")
+                isTransitioning = false
                 _playbackState.update {
                     it.copy(
                         isBuffering = false,
@@ -243,6 +269,8 @@ class OnlinePlaybackManager(
     }
 
     fun playSong(song: OnlineSong, newQueue: List<OnlineSong> = emptyList(), startPositionMs: Long = 0L) {
+        Log.d("AuraPlaybackDebug", "OnlinePlaybackManager.playSong: ${song.title} (${song.id}), source=${song.source}, startPositionMs=$startPositionMs")
+        isTransitioning = true
         hasStartedPlaybackForCurrentSong = true
         scope.launch {
             val effectiveQueue = if (newQueue.isNotEmpty()) newQueue else if (!_playbackState.value.queue.contains(song)) _playbackState.value.queue + song else _playbackState.value.queue
@@ -450,6 +478,8 @@ class OnlinePlaybackManager(
     }
 
     fun pause() {
+        Log.d("AuraPlaybackDebug", "OnlinePlaybackManager.pause() called")
+        isTransitioning = false
         if (isUsingIFramePlayer) {
             youTubeIFramePlayer.pause()
         } else {
@@ -483,10 +513,22 @@ class OnlinePlaybackManager(
         seekTo(targetMs)
     }
 
-    fun playNext() {
+    fun playNext(isManual: Boolean = false) {
         val state = _playbackState.value
         val queue = state.queue
-        if (queue.isEmpty()) return
+        if (queue.isEmpty()) {
+            Log.d("AuraPlaybackDebug", "playNext: Online queue is empty")
+            return
+        }
+
+        Log.d("AuraPlaybackDebug", "Online playNext: queueIndex=${state.queueIndex}, queueSize=${queue.size}, isShuffle=${state.isShuffleEnabled}, isRepeat=${state.isRepeatEnabled}, isManual=$isManual")
+
+        if (!state.isShuffleEnabled && !state.isRepeatEnabled && !isManual && state.queueIndex >= queue.size - 1) {
+            Log.d("AuraPlaybackDebug", "Online queue natural end reached with repeat disabled. Cleanly pausing.")
+            isTransitioning = false
+            pause()
+            return
+        }
 
         val nextIndex = if (state.isShuffleEnabled) {
             queue.indices.random()
@@ -573,11 +615,19 @@ class OnlinePlaybackManager(
     }
 
     private fun handleSongEnded() {
+        val now = System.currentTimeMillis()
+        if (now - lastEndHandledTimeMs < 500L) {
+            Log.d("AuraPlaybackDebug", "handleSongEnded debounced duplicate trigger within 500ms")
+            return
+        }
+        lastEndHandledTimeMs = now
+        Log.d("AuraPlaybackDebug", "handleSongEnded triggered: isRepeatEnabled=${_playbackState.value.isRepeatEnabled}")
+
         if (_playbackState.value.isRepeatEnabled) {
             seekTo(0)
             if (isUsingIFramePlayer) youTubeIFramePlayer.play() else exoPlayer.play()
         } else {
-            playNext()
+            playNext(isManual = false)
         }
     }
 
@@ -616,6 +666,8 @@ class OnlinePlaybackManager(
     }
 
     fun release() {
+        Log.d("AuraPlaybackDebug", "OnlinePlaybackManager.release() called")
+        isTransitioning = false
         eventListener?.onPlaybackStopped(_playbackState.value.currentSong)
         stopProgressTracker()
         exoPlayer.release()

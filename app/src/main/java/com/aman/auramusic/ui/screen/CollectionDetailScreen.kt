@@ -31,6 +31,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.ui.component.SongArtwork
+import com.aman.auramusic.ui.theme.AuraPrimary
+import com.aman.auramusic.ui.theme.GlassLevel
+import com.aman.auramusic.ui.theme.liquidGlass
 
 @Composable
 fun CollectionDetailScreen(
@@ -61,7 +64,7 @@ fun CollectionDetailScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 100.dp)
+        contentPadding = PaddingValues(bottom = 140.dp)
     ) {
         item {
             Column(
@@ -175,9 +178,9 @@ fun CollectionDetailScreen(
                 SongArtwork(
                     song = firstSong,
                     size = 250,
-                    shape = RoundedCornerShape(20.dp),
-                    elevation = 12.dp,
-                    modifier = Modifier.shadow(12.dp, RoundedCornerShape(20.dp))
+                    shape = RoundedCornerShape(22.dp),
+                    elevation = 14.dp,
+                    modifier = Modifier.shadow(14.dp, RoundedCornerShape(22.dp))
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -210,7 +213,7 @@ fun CollectionDetailScreen(
 
                 // Audio Format Pill
                 Text(
-                    text = "Bollywood • 2026 • Lossless",
+                    text = "Aura Music • Lossless Audio",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Normal,
                     color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.5f),
@@ -219,7 +222,7 @@ fun CollectionDetailScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // iOS Action Controls (Shuffle circle, Pill Play, Add circle)
+                // Liquid Glass Action Controls (Shuffle circle, Pill Play, Add circle)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -227,12 +230,18 @@ fun CollectionDetailScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = { songs.shuffled().firstOrNull()?.let { onSongSelected(it) } },
+                    Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .clip(CircleShape)
-                            .background(if (isDark) Color(0xFF2C2C2E) else Color(0xFFE5E5EA))
+                            .liquidGlass(
+                                shape = CircleShape,
+                                level = GlassLevel.UltraThin,
+                                isDark = isDark,
+                                elevation = 6.dp,
+                                borderWidth = 1.1.dp
+                            )
+                            .clickable { songs.shuffled().firstOrNull()?.let { onSongSelected(it) } },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Shuffle,
@@ -244,37 +253,48 @@ fun CollectionDetailScreen(
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    Button(
-                        onClick = { songs.firstOrNull()?.let { onSongSelected(it) } },
+                    Box(
                         modifier = Modifier
                             .height(48.dp)
-                            .weight(1f),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isDark) Color.White else Color.Black,
-                            contentColor = if (isDark) Color.Black else Color.White
-                        )
+                            .weight(1f)
+                            .liquidGlass(
+                                shape = RoundedCornerShape(24.dp),
+                                level = GlassLevel.Regular,
+                                isDark = isDark,
+                                tint = AuraPrimary,
+                                elevation = 10.dp,
+                                borderWidth = 1.3.dp
+                            )
+                            .clickable { songs.firstOrNull()?.let { onSongSelected(it) } },
+                        contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = null,
+                                tint = Color.White,
                                 modifier = Modifier.size(22.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Play", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text("Play", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
 
                     Spacer(modifier = Modifier.width(16.dp))
 
                     Box {
-                        IconButton(
-                            onClick = { showPlusMenu = true },
+                        Box(
                             modifier = Modifier
                                 .size(48.dp)
-                                .clip(CircleShape)
-                                .background(if (isDark) Color(0xFF2C2C2E) else Color(0xFFE5E5EA))
+                                .liquidGlass(
+                                    shape = CircleShape,
+                                    level = GlassLevel.UltraThin,
+                                    isDark = isDark,
+                                    elevation = 6.dp,
+                                    borderWidth = 1.1.dp
+                                )
+                                .clickable { showPlusMenu = true },
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,

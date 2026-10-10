@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aman.auramusic.data.model.AppSettings
+import com.aman.auramusic.data.model.LiquidGlassConfig
+import com.aman.auramusic.data.model.LiquidGlassPreset
 import com.aman.auramusic.data.model.Playlist
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.data.model.ThemeMode
@@ -239,6 +241,78 @@ class MusicViewModel @Inject constructor(
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setThemeMode(mode)
+        }
+    }
+
+    fun setLiquidGlassPreset(preset: LiquidGlassPreset) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setLiquidGlassPreset(preset)
+        }
+    }
+
+    fun updateLiquidGlassConfig(config: LiquidGlassConfig) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.updateLiquidGlassConfig(config)
+        }
+    }
+
+    fun setLiquidGlassIntensity(intensity: Float) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setLiquidGlassIntensity(intensity)
+        }
+    }
+
+    fun setLiquidGlassBlurRadius(blurRadius: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setLiquidGlassBlurRadius(blurRadius)
+        }
+    }
+
+    fun setLiquidGlassHighlightStrength(strength: Float) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setLiquidGlassHighlightStrength(strength)
+        }
+    }
+
+    fun setLiquidGlassShadowElevation(elevation: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setLiquidGlassShadowElevation(elevation)
+        }
+    }
+
+    fun setLiquidGlassCornerRadius(radius: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setLiquidGlassCornerRadius(radius)
+        }
+    }
+
+    fun setLiquidGlassTintHex(tintHex: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setLiquidGlassTintHex(tintHex)
+        }
+    }
+
+    fun setLiquidGlassAccentTintEnabled(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setLiquidGlassAccentTintEnabled(enabled)
+        }
+    }
+
+    fun setLiquidGlassReduceTransparency(reduce: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setLiquidGlassReduceTransparency(reduce)
+        }
+    }
+
+    fun setLiquidGlassReduceMotion(reduce: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setLiquidGlassReduceMotion(reduce)
+        }
+    }
+
+    fun resetLiquidGlassConfig() {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.resetLiquidGlassConfig()
         }
     }
 

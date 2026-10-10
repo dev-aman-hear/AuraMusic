@@ -10,6 +10,8 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.aman.auramusic.data.model.AppSettings
+import com.aman.auramusic.data.model.LiquidGlassConfig
+import com.aman.auramusic.data.model.LiquidGlassPreset
 import com.aman.auramusic.data.model.ThemeMode
 import com.aman.auramusic.data.model.PlaybackHistoryEntry
 import com.aman.auramusic.data.model.Playlist
@@ -44,7 +46,19 @@ class UserPreferencesRepository(private val context: Context) {
             playlistGridColumns = prefs[Keys.playlistGridColumns] ?: 2,
             themeMode = runCatching {
                 ThemeMode.valueOf(prefs[Keys.themeMode] ?: ThemeMode.SYSTEM.name)
-            }.getOrDefault(ThemeMode.SYSTEM)
+            }.getOrDefault(ThemeMode.SYSTEM),
+            liquidGlass = LiquidGlassConfig(
+                preset = LiquidGlassPreset.fromName(prefs[Keys.glassPreset]),
+                intensity = prefs[Keys.glassIntensity] ?: 0.50f,
+                blurRadius = prefs[Keys.glassBlurRadius] ?: 24,
+                highlightStrength = prefs[Keys.glassHighlightStrength] ?: 0.75f,
+                shadowElevation = prefs[Keys.glassShadowElevation] ?: 14,
+                cornerRadius = prefs[Keys.glassCornerRadius] ?: 24,
+                tintHex = prefs[Keys.glassTintHex] ?: "",
+                accentTintEnabled = prefs[Keys.glassAccentTintEnabled] ?: false,
+                reduceTransparency = prefs[Keys.glassReduceTransparency] ?: false,
+                reduceMotion = prefs[Keys.glassReduceMotion] ?: false
+            )
         )
     }.distinctUntilChanged()
 
@@ -114,6 +128,96 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { it[Keys.themeMode] = mode.name }
+    }
+
+    suspend fun setLiquidGlassPreset(preset: LiquidGlassPreset) {
+        val defaultConfig = LiquidGlassConfig.forPreset(preset)
+        dataStore.edit {
+            it[Keys.glassPreset] = preset.name
+            it[Keys.glassIntensity] = defaultConfig.intensity
+            it[Keys.glassBlurRadius] = defaultConfig.blurRadius
+            it[Keys.glassHighlightStrength] = defaultConfig.highlightStrength
+            it[Keys.glassShadowElevation] = defaultConfig.shadowElevation
+            it[Keys.glassCornerRadius] = defaultConfig.cornerRadius
+            it[Keys.glassTintHex] = defaultConfig.tintHex
+            it[Keys.glassAccentTintEnabled] = defaultConfig.accentTintEnabled
+        }
+    }
+
+    suspend fun updateLiquidGlassConfig(config: LiquidGlassConfig) {
+        dataStore.edit {
+            it[Keys.glassPreset] = config.preset.name
+            it[Keys.glassIntensity] = config.intensity
+            it[Keys.glassBlurRadius] = config.blurRadius
+            it[Keys.glassHighlightStrength] = config.highlightStrength
+            it[Keys.glassShadowElevation] = config.shadowElevation
+            it[Keys.glassCornerRadius] = config.cornerRadius
+            it[Keys.glassTintHex] = config.tintHex
+            it[Keys.glassAccentTintEnabled] = config.accentTintEnabled
+            it[Keys.glassReduceTransparency] = config.reduceTransparency
+            it[Keys.glassReduceMotion] = config.reduceMotion
+        }
+    }
+
+    suspend fun setLiquidGlassIntensity(intensity: Float) {
+        dataStore.edit {
+            it[Keys.glassIntensity] = intensity.coerceIn(0.10f, 0.90f)
+            it[Keys.glassPreset] = LiquidGlassPreset.CUSTOM.name
+        }
+    }
+
+    suspend fun setLiquidGlassBlurRadius(blurRadius: Int) {
+        dataStore.edit {
+            it[Keys.glassBlurRadius] = blurRadius.coerceIn(0, 50)
+            it[Keys.glassPreset] = LiquidGlassPreset.CUSTOM.name
+        }
+    }
+
+    suspend fun setLiquidGlassHighlightStrength(highlightStrength: Float) {
+        dataStore.edit {
+            it[Keys.glassHighlightStrength] = highlightStrength.coerceIn(0.0f, 1.0f)
+            it[Keys.glassPreset] = LiquidGlassPreset.CUSTOM.name
+        }
+    }
+
+    suspend fun setLiquidGlassShadowElevation(elevation: Int) {
+        dataStore.edit {
+            it[Keys.glassShadowElevation] = elevation.coerceIn(0, 24)
+            it[Keys.glassPreset] = LiquidGlassPreset.CUSTOM.name
+        }
+    }
+
+    suspend fun setLiquidGlassCornerRadius(radius: Int) {
+        dataStore.edit {
+            it[Keys.glassCornerRadius] = radius.coerceIn(8, 36)
+            it[Keys.glassPreset] = LiquidGlassPreset.CUSTOM.name
+        }
+    }
+
+    suspend fun setLiquidGlassTintHex(tintHex: String) {
+        dataStore.edit {
+            it[Keys.glassTintHex] = tintHex
+            it[Keys.glassPreset] = LiquidGlassPreset.CUSTOM.name
+        }
+    }
+
+    suspend fun setLiquidGlassAccentTintEnabled(enabled: Boolean) {
+        dataStore.edit {
+            it[Keys.glassAccentTintEnabled] = enabled
+            it[Keys.glassPreset] = LiquidGlassPreset.CUSTOM.name
+        }
+    }
+
+    suspend fun setLiquidGlassReduceTransparency(reduce: Boolean) {
+        dataStore.edit { it[Keys.glassReduceTransparency] = reduce }
+    }
+
+    suspend fun setLiquidGlassReduceMotion(reduce: Boolean) {
+        dataStore.edit { it[Keys.glassReduceMotion] = reduce }
+    }
+
+    suspend fun resetLiquidGlassConfig() {
+        setLiquidGlassPreset(LiquidGlassPreset.LIQUID)
     }
 
     suspend fun setFavorite(songId: Long, isFavorite: Boolean) {
@@ -260,6 +364,16 @@ class UserPreferencesRepository(private val context: Context) {
             val keepPlayingOnClose = booleanPreferencesKey("keep_playing_on_close")
             val playlistGridColumns = intPreferencesKey("playlist_grid_columns")
             val themeMode = stringPreferencesKey("theme_mode")
+            val glassPreset = stringPreferencesKey("glass_preset")
+            val glassIntensity = floatPreferencesKey("glass_intensity")
+            val glassBlurRadius = intPreferencesKey("glass_blur_radius")
+            val glassHighlightStrength = floatPreferencesKey("glass_highlight_strength")
+            val glassShadowElevation = intPreferencesKey("glass_shadow_elevation")
+            val glassCornerRadius = intPreferencesKey("glass_corner_radius")
+            val glassTintHex = stringPreferencesKey("glass_tint_hex")
+            val glassAccentTintEnabled = booleanPreferencesKey("glass_accent_tint_enabled")
+            val glassReduceTransparency = booleanPreferencesKey("glass_reduce_transparency")
+            val glassReduceMotion = booleanPreferencesKey("glass_reduce_motion")
             val favoriteIds = stringPreferencesKey("favorite_ids")
             val recentSearches = stringPreferencesKey("recent_searches")
             val playbackHistory = stringPreferencesKey("playback_history")

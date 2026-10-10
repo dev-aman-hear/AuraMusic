@@ -130,6 +130,8 @@ import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.aman.auramusic.playback.RepeatMode
 import com.aman.auramusic.ui.component.SongArtwork
+import com.aman.auramusic.ui.theme.GlassLevel
+import com.aman.auramusic.ui.theme.liquidGlass
 import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.ui.theme.frostedGlass
 import com.aman.auramusic.util.audioQuality
@@ -515,7 +517,22 @@ private fun PlayerHeader(
                     }
                 }
             }
-        } else { Box(modifier = Modifier.weight(1f).height(16.dp).clickable { onBack() }) }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(32.dp)
+                    .clickable { onBack() },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 38.dp, height = 5.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color.White.copy(alpha = 0.40f))
+                )
+            }
+        }
     }
 }
 
@@ -556,16 +573,41 @@ private fun NowPlayingPage(
                 Spacer(modifier = Modifier.height(5.dp))
                 Text(song.artist, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.72f), maxLines = 1, modifier = Modifier.basicMarquee())
             }
-            IconButton(onClick = onFavoriteToggle, modifier = Modifier.background(Color.White.copy(alpha = if (isFavorite) 0.22f else 0.12f), CircleShape).size(44.dp)) {
-                Icon(if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Favorite", tint = if (isFavorite) Color(0xFFFF5C7A) else Color.White, modifier = Modifier.size(24.dp))
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .liquidGlass(
+                        shape = CircleShape,
+                        level = if (isFavorite) GlassLevel.Tinted else GlassLevel.UltraThin,
+                        isDark = true,
+                        tint = if (isFavorite) Color(0xFFFF2D55) else null,
+                        elevation = 8.dp,
+                        borderWidth = if (isFavorite) 1.5.dp else 1.1.dp
+                    )
+                    .clickable(onClick = onFavoriteToggle),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = "Favorite",
+                    tint = if (isFavorite) Color(0xFFFF4D6D) else Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Box {
-                IconButton(
-                    onClick = { showMenu = true },
+                Box(
                     modifier = Modifier
-                        .background(Color.White.copy(alpha = 0.12f), CircleShape)
                         .size(44.dp)
+                        .liquidGlass(
+                            shape = CircleShape,
+                            level = GlassLevel.UltraThin,
+                            isDark = true,
+                            elevation = 8.dp,
+                            borderWidth = 1.1.dp
+                        )
+                        .clickable { showMenu = true },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreHoriz,
@@ -897,51 +939,211 @@ private fun SleepTimerDialog(
 }
 
 @Composable
-private fun PlayerControls(song: Song, isPlaying: Boolean, position: Long, duration: Long, currentPage: Int, onPlayPause: () -> Unit, onSeek: (Long) -> Unit, onPrevious: () -> Unit, onNext: () -> Unit, onPageToggle: (Int) -> Unit) {
+private fun PlayerControls(
+    song: Song,
+    isPlaying: Boolean,
+    position: Long,
+    duration: Long,
+    currentPage: Int,
+    onPlayPause: () -> Unit,
+    onSeek: (Long) -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onPageToggle: (Int) -> Unit
+) {
     val rd = if (duration > 0) duration else song.duration
     val sv = if (rd > 0) position.toFloat() / rd.toFloat() else 0f
     val q = audioQuality(song)
     var showQ by remember { mutableStateOf(false) }
     if (showQ) QualityDetailsDialog(quality = q) { showQ = false }
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 30.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 28.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Scrubber
         AppleMusicScrubber(
             progress = sv.coerceIn(0f, 1f),
             onScrub = { fraction -> onSeek((fraction * rd).toLong()) }
         )
-        Row(modifier = Modifier.fillMaxWidth().padding(top = 7.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(formatDuration(position), style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.58f))
-            Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(18.dp), modifier = Modifier.clickable { showQ = true }) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+
+        // Elapsed time, Quality capsule, Remaining time
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = formatDuration(position),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                color = Color.White.copy(alpha = 0.65f)
+            )
+
+            // Audio Quality Glass Capsule
+            Box(
+                modifier = Modifier
+                    .liquidGlass(
+                        shape = RoundedCornerShape(16.dp),
+                        level = GlassLevel.UltraThin,
+                        isDark = true,
+                        elevation = 4.dp,
+                        borderWidth = 1.dp
+                    )
+                    .clickable { showQ = true }
+                    .padding(horizontal = 12.dp, vertical = 5.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     if (q.badge.contains("Lossless") || q.badge.contains("Stream")) {
-                        Icon(Icons.Default.Waves, null, tint = Color.White.copy(alpha = 0.82f), modifier = Modifier.size(12.dp))
-                        Spacer(Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.Waves,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.90f),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(Modifier.width(5.dp))
                     }
-                    Text(q.badge, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.82f))
+                    Text(
+                        text = q.badge,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White.copy(alpha = 0.90f)
+                    )
                 }
             }
-            Text("-${formatDuration((rd - position).coerceAtLeast(0L))}", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.58f))
+
+            Text(
+                text = "-${formatDuration((rd - position).coerceAtLeast(0L))}",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                color = Color.White.copy(alpha = 0.65f)
+            )
         }
-        Spacer(Modifier.height(30.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onPrevious, modifier = Modifier.size(64.dp)) {
-                Icon(Icons.Default.SkipPrevious, "Previous", tint = Color.White, modifier = Modifier.size(46.dp))
+
+        Spacer(Modifier.height(26.dp))
+
+        // Liquid Glass Playback Controls (Previous, Play/Pause, Next)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Previous button in glass circle
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .liquidGlass(
+                        shape = CircleShape,
+                        level = GlassLevel.UltraThin,
+                        isDark = true,
+                        elevation = 8.dp,
+                        borderWidth = 1.1.dp,
+                        sheenAlpha = 0.22f
+                    )
+                    .clickable(onClick = onPrevious),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SkipPrevious,
+                    contentDescription = "Previous",
+                    tint = Color.White,
+                    modifier = Modifier.size(36.dp)
+                )
             }
-            Surface(modifier = Modifier.size(96.dp).clickable { onPlayPause() }, shape = CircleShape, color = Color.White.copy(alpha = 0.16f)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, "Play/Pause", tint = Color.White, modifier = Modifier.size(56.dp))
+
+            // Central Play/Pause Orb
+            Box(
+                modifier = Modifier
+                    .size(82.dp)
+                    .liquidGlass(
+                        shape = CircleShape,
+                        level = GlassLevel.Regular,
+                        isDark = true,
+                        elevation = 16.dp,
+                        borderWidth = 1.4.dp,
+                        sheenAlpha = 0.35f
+                    )
+                    .clickable(onClick = onPlayPause),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = "Play/Pause",
+                    tint = Color.White,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+
+            // Next button in glass circle
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .liquidGlass(
+                        shape = CircleShape,
+                        level = GlassLevel.UltraThin,
+                        isDark = true,
+                        elevation = 8.dp,
+                        borderWidth = 1.1.dp,
+                        sheenAlpha = 0.22f
+                    )
+                    .clickable(onClick = onNext),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SkipNext,
+                    contentDescription = "Next",
+                    tint = Color.White,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        // Secondary Actions in Floating Glass Capsule (Lyrics, Queue)
+        Box(
+            modifier = Modifier
+                .liquidGlass(
+                    shape = RoundedCornerShape(26.dp),
+                    level = GlassLevel.UltraThin,
+                    isDark = true,
+                    elevation = 6.dp,
+                    borderWidth = 1.dp,
+                    sheenAlpha = 0.20f
+                )
+                .padding(horizontal = 20.dp, vertical = 6.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(36.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { onPageToggle(0) },
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Article,
+                        contentDescription = "Lyrics",
+                        tint = if (currentPage == 0) Color.White else Color.White.copy(alpha = 0.45f),
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
-            }
-            IconButton(onClick = onNext, modifier = Modifier.size(64.dp)) {
-                Icon(Icons.Default.SkipNext, "Next", tint = Color.White, modifier = Modifier.size(46.dp))
-            }
-        }
-        Spacer(Modifier.height(28.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { onPageToggle(0) }) {
-                Icon(Icons.AutoMirrored.Filled.Article, "Lyrics", tint = if (currentPage == 0) Color.White else Color.White.copy(alpha = 0.42f), modifier = Modifier.size(27.dp))
-            }
-            IconButton(onClick = { onPageToggle(2) }) {
-                Icon(Icons.AutoMirrored.Filled.QueueMusic, "Queue", tint = if (currentPage == 2) Color.White else Color.White.copy(alpha = 0.42f), modifier = Modifier.size(29.dp))
+
+                IconButton(
+                    onClick = { onPageToggle(2) },
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                        contentDescription = "Queue",
+                        tint = if (currentPage == 2) Color.White else Color.White.copy(alpha = 0.45f),
+                        modifier = Modifier.size(25.dp)
+                    )
+                }
             }
         }
     }
@@ -955,7 +1157,7 @@ private fun AppleMusicScrubber(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(28.dp)
+            .height(30.dp)
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     onScrub((offset.x / size.width).coerceIn(0f, 1f))
@@ -973,13 +1175,20 @@ private fun AppleMusicScrubber(
                 .fillMaxWidth()
                 .height(6.dp)
                 .clip(RoundedCornerShape(999.dp))
-                .background(Color.White.copy(alpha = 0.24f))
+                .background(Color.White.copy(alpha = 0.22f))
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .weight(progress.coerceIn(0.001f, 1f))
-                    .background(Color.White.copy(alpha = 0.92f))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.70f),
+                                Color.White
+                            )
+                        )
+                    )
             )
             Box(
                 modifier = Modifier
@@ -993,12 +1202,46 @@ private fun AppleMusicScrubber(
 @Composable
 private fun QualityDetailsDialog(quality: com.aman.auramusic.util.AudioQuality, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
-        Surface(shape = RoundedCornerShape(28.dp), color = Color.White, tonalElevation = 6.dp, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
-            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.Waves, null, tint = Color.Black, modifier = Modifier.size(48.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .liquidGlass(
+                    shape = RoundedCornerShape(28.dp),
+                    level = GlassLevel.Thick,
+                    isDark = true,
+                    elevation = 20.dp,
+                    borderWidth = 1.3.dp,
+                    sheenAlpha = 0.30f
+                )
+                .padding(26.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Default.Waves,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(46.dp)
+                )
                 Spacer(Modifier.height(16.dp))
-                Text(quality.badge, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.Black)
-                Text("${quality.bitDepth}/${quality.sampleRate} ${quality.format}", style = MaterialTheme.typography.bodyMedium, color = Color.Gray, textAlign = TextAlign.Center)
+                Text(
+                    text = quality.badge,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "${quality.bitDepth}/${quality.sampleRate} • ${quality.format}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.70f),
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(20.dp))
+                TextButton(onClick = onDismiss) {
+                    Text(text = "Close", color = Color.White, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }
