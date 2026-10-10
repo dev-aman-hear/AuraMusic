@@ -419,7 +419,7 @@ private fun FeaturedExploreCard(
                 verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
                 Text(
-                    text = "MOVIE MUSIC SPOTLIGHT",
+                    text = if (song.album.isNotBlank()) "MOVIE MUSIC SPOTLIGHT" else "FEATURED MUSIC",
                     color = Color(0xFFFFA1B1),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
@@ -541,7 +541,7 @@ private fun ExploreAlbumCard(
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            text = "Movie soundtrack",
+            text = "Album",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             maxLines = 1,
