@@ -423,6 +423,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
 
     fun playOnlineSong(onlineSong: OnlineSong, queue: List<OnlineSong>) {
         LastPlayedStore.saveOnline(context, onlineSong, 0L, queue)
+        musicViewModel.recordOnlinePlayback(onlineSong)
         isOnlinePlaybackActive = true
         activeOnlineSong = onlineSong
         playerViewModel.pause()

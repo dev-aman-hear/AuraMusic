@@ -4,4 +4,5 @@ data class PlaybackHistoryEntry(
     val songId: Long,
     val playedAt: Long,
     val playCount: Int = 1,
+    val onlineSongJson: String? = null,
 )

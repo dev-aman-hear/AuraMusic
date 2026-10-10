@@ -495,17 +495,21 @@
       "type": "filter",
       "paths": [
         "app/src/main/java/com/aman/auramusic/online/filter/TrendingSongFilter.kt",
-        "app/src/main/java/com/aman/auramusic/online/filter/TrendingFilterConfig.kt"
+        "app/src/main/java/com/aman/auramusic/online/filter/TrendingFilterConfig.kt",
+        "app/src/main/java/com/aman/auramusic/online/filter/RecommendationDeduplicator.kt"
       ],
-      "responsibility": "Cleans and deduplicates trending music feeds by filtering out non-music noise, podcasts, live news, and low-quality results.",
+      "responsibility": "Cleans and deduplicates trending and home recommendation music feeds across Daily Featured, Trending Now, and Quick Hits.",
       "symbols": [
         "TrendingSongFilter",
         "TrendingFilterConfig",
+        "RecommendationDeduplicator",
+        "SectionDeduplicator",
         "filterSongs"
       ],
       "depends_on": [],
       "related_tests": [
-        "app/src/test/java/com/aman/auramusic/TrendingSongFilterTest.kt"
+        "app/src/test/java/com/aman/auramusic/TrendingSongFilterTest.kt",
+        "app/src/test/java/com/aman/auramusic/HomeRecommendationsDeduplicationTest.kt"
       ],
       "keywords": [
         "filter",

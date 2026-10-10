@@ -15,6 +15,8 @@ import com.aman.auramusic.data.model.LiquidGlassPreset
 import com.aman.auramusic.data.model.ThemeMode
 import com.aman.auramusic.data.model.PlaybackHistoryEntry
 import com.aman.auramusic.data.model.Playlist
+import com.aman.auramusic.online.model.OnlineSong
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -263,6 +265,25 @@ class UserPreferencesRepository(private val context: Context) {
         }
     }
 
+    suspend fun recordOnlinePlayback(onlineSong: OnlineSong, playedAt: Long) {
+        val songId = (onlineSong.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L)
+        val onlineJson = runCatching { Gson().toJson(onlineSong) }.getOrNull()
+        dataStore.edit { prefs ->
+            val history = prefs[Keys.playbackHistory].decodeHistory().toMutableList()
+            val existing = history.find { it.songId == songId || (it.onlineSongJson != null && it.onlineSongJson.contains("\"id\":\"${onlineSong.id}\"")) }
+            if (existing != null) {
+                history.remove(existing)
+                history.add(0, existing.copy(playedAt = playedAt, playCount = existing.playCount + 1, onlineSongJson = onlineJson ?: existing.onlineSongJson))
+            } else {
+                history.add(0, PlaybackHistoryEntry(songId = songId, playedAt = playedAt, playCount = 1, onlineSongJson = onlineJson))
+            }
+            prefs[Keys.playbackHistory] = history
+                .sortedByDescending { it.playedAt }
+                .take(200)
+                .encodeHistory()
+        }
+    }
+
     suspend fun savePlaylist(
         name: String,
         songIds: List<Long>,
@@ -427,11 +448,13 @@ private fun String?.decodeHistory(): List<PlaybackHistoryEntry> {
             buildList {
                 for (i in 0 until array.length()) {
                     val item = array.optJSONObject(i) ?: continue
+                    val onlineJson = item.optString("onlineSongJson").takeIf { it.isNotBlank() }
                     add(
                         PlaybackHistoryEntry(
                             songId = item.optLong("songId"),
                             playedAt = item.optLong("playedAt"),
-                            playCount = item.optInt("playCount", 1)
+                            playCount = item.optInt("playCount", 1),
+                            onlineSongJson = onlineJson
                         )
                     )
                 }
@@ -443,12 +466,14 @@ private fun String?.decodeHistory(): List<PlaybackHistoryEntry> {
 private fun List<PlaybackHistoryEntry>.encodeHistory(): String {
     val array = JSONArray()
     forEach { entry ->
-        array.put(
-            JSONObject()
-                .put("songId", entry.songId)
-                .put("playedAt", entry.playedAt)
-                .put("playCount", entry.playCount)
-        )
+        val obj = JSONObject()
+            .put("songId", entry.songId)
+            .put("playedAt", entry.playedAt)
+            .put("playCount", entry.playCount)
+        if (!entry.onlineSongJson.isNullOrBlank()) {
+            obj.put("onlineSongJson", entry.onlineSongJson)
+        }
+        array.put(obj)
     }
     return array.toString()
 }

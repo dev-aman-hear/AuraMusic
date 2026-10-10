@@ -125,6 +125,61 @@ class OnlineMusicRepository(
         return filteredResult
     }
 
+    suspend fun getQuickHits(source: AudioSource = AudioSource.ALL): List<OnlineSong> {
+        val cacheKey = "quick_hits_${source.name}"
+        searchCache.get(cacheKey)?.let { return it }
+
+        val rawList = mutableListOf<OnlineSong>()
+
+        val filteredResult = when (source) {
+            AudioSource.YOUTUBE -> {
+                val primary = pipedService.searchSongs("Viral Hits Radio 2026")
+                rawList.addAll(primary)
+                var filtered = trendingFilter.filterSongs(rawList)
+
+                if (filtered.size < trendingFilter.config.minResultsAfterFilter) {
+                    val fallbacks = listOf("Hot Hits Global 2026", "Top Pop Hits 2026")
+                    for (fallback in fallbacks) {
+                        val secondary = pipedService.searchSongs(fallback)
+                        rawList.addAll(secondary)
+                        filtered = trendingFilter.filterSongs(rawList)
+                        if (filtered.size >= trendingFilter.config.minResultsAfterFilter) break
+                    }
+                }
+                filtered
+            }
+
+            AudioSource.JIOSAAVN -> {
+                val primary = jioSaavnService.searchSongs("Top New Songs 2026", limit = 25)
+                rawList.addAll(primary)
+                var filtered = trendingFilter.filterSongs(rawList)
+                if (filtered.size < trendingFilter.config.minResultsAfterFilter) {
+                    val secondary = jioSaavnService.searchSongs("Latest Hit Songs", limit = 25)
+                    rawList.addAll(secondary)
+                    filtered = trendingFilter.filterSongs(rawList)
+                }
+                filtered
+            }
+
+            else -> {
+                val jio = getQuickHits(AudioSource.JIOSAAVN)
+                val yt = getQuickHits(AudioSource.YOUTUBE)
+                val combined = mutableListOf<OnlineSong>()
+                val maxLen = maxOf(jio.size, yt.size)
+                for (i in 0 until maxLen) {
+                    if (i < jio.size) combined.add(jio[i])
+                    if (i < yt.size) combined.add(yt[i])
+                }
+                trendingFilter.deduplicate(combined)
+            }
+        }
+
+        if (filteredResult.isNotEmpty()) {
+            searchCache.put(cacheKey, filteredResult)
+        }
+        return filteredResult
+    }
+
     suspend fun getCuratedPlaylists(source: AudioSource = AudioSource.ALL): List<com.aman.auramusic.online.model.OnlinePlaylist> {
         val now = System.currentTimeMillis()
         playlistsCache[source]?.let { (timestamp, cached) ->

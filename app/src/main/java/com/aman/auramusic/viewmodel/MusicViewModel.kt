@@ -9,6 +9,7 @@ import com.aman.auramusic.data.model.LiquidGlassPreset
 import com.aman.auramusic.data.model.Playlist
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.data.model.ThemeMode
+import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.data.repository.MusicRepository
 import com.aman.auramusic.data.repository.UserPreferencesRepository
 import kotlinx.coroutines.Dispatchers
@@ -120,6 +121,12 @@ class MusicViewModel @Inject constructor(
     fun recordPlayback(songId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.recordPlayback(songId, System.currentTimeMillis())
+        }
+    }
+
+    fun recordOnlinePlayback(onlineSong: OnlineSong) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.recordOnlinePlayback(onlineSong, System.currentTimeMillis())
         }
     }
 

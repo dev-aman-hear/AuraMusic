@@ -438,6 +438,46 @@ fun DailyFeaturedCard(
 }
 
 /**
+ * Listen Again Horizontal Section (Populated from actual playback history)
+ * Draggable horizontally across 2-row stacked columns (Quick Hits 2*x style).
+ */
+@Composable
+fun ListenAgainSection(
+    columns: List<List<QuickHitTrack>>,
+    currentSongId: Long?,
+    isPlaying: Boolean,
+    onTrackClick: (QuickHitTrack) -> Unit,
+    onOptionsClick: (Song) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (columns.isEmpty()) return
+
+    Column(modifier = modifier.padding(top = 22.dp)) {
+        HomeSectionHeader(
+            eyebrow = "RECENT ACTIVITY",
+            title = "Listen Again"
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(columns, key = { col -> "lacol_${col.firstOrNull()?.id}" }) { columnTracks ->
+                QuickHitsColumn(
+                    tracks = columnTracks,
+                    currentSongId = currentSongId,
+                    isPlaying = isPlaying,
+                    onTrackClick = onTrackClick,
+                    onOptionsClick = onOptionsClick
+                )
+            }
+        }
+    }
+}
+
+/**
  * B. Trending Songs Horizontal Section (Sourced from YouTube Music / Curated)
  * Distinguishes local vs online availability with Apple Music carousel cards.
  */

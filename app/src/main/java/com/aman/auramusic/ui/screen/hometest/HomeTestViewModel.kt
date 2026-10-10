@@ -9,8 +9,11 @@ import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.online.filter.RecommendationDeduplicator
+import com.aman.auramusic.online.filter.SectionDeduplicator
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
 import com.aman.auramusic.util.formatDuration
+import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -81,6 +84,9 @@ data class HomeTestUiState(
     val isOffline: Boolean = false,
     val errorMessage: String? = null,
     val featuredItem: DailyFeaturedItem? = null,
+    val featuredTracks: List<OnlineSong> = emptyList(),
+    val listenAgainTracks: List<QuickHitTrack> = emptyList(),
+    val listenAgainColumns: List<List<QuickHitTrack>> = emptyList(),
     val trendingTracks: List<TrendingSongItem> = emptyList(),
     val artists: List<ArtistItem> = emptyList(),
     val artistSearchQuery: String = "",
@@ -101,7 +107,8 @@ class HomeTestViewModel @Inject constructor(
     val uiState: StateFlow<HomeTestUiState> = _uiState.asStateFlow()
 
     private var cachedTrendingOnline = emptyList<OnlineSong>()
-    private var cachedCuratedOnline = emptyList<OnlineSong>()
+    private var cachedQuickHitsOnline = emptyList<OnlineSong>()
+    private var cachedFeaturedTracks = emptyList<OnlineSong>()
     private var cachedDiscoveredArtists = emptyList<com.aman.auramusic.online.network.repository.YouTubeArtist>()
 
     private val defaultCategories = listOf(
@@ -181,24 +188,78 @@ class HomeTestViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(categories = defaultCategories)
     }
 
+    private fun buildListenAgainFeed(
+        localSongs: List<Song>,
+        history: List<PlaybackHistoryEntry>
+    ): List<List<QuickHitTrack>> {
+        val gson = Gson()
+        val seenTrackKeys = mutableSetOf<String>()
+        val result = mutableListOf<QuickHitTrack>()
+
+        for (entry in history) {
+            if (!entry.onlineSongJson.isNullOrBlank()) {
+                val onlineSong = runCatching {
+                    gson.fromJson(entry.onlineSongJson, OnlineSong::class.java)
+                }.getOrNull()
+                if (onlineSong != null) {
+                    val idKey = "id:${onlineSong.id.trim()}"
+                    val normTitle = RecommendationDeduplicator.normalizeText(onlineSong.title)
+                    val normArtist = RecommendationDeduplicator.normalizeText(onlineSong.artist)
+                    val metaKey = "meta:$normTitle|$normArtist"
+                    if (seenTrackKeys.add(idKey) && seenTrackKeys.add(metaKey)) {
+                        result.add(QuickHitTrack.OnlineTrack(onlineSong, "History"))
+                    }
+                }
+            } else {
+                val localSong = localSongs.find { it.id == entry.songId }
+                if (localSong != null) {
+                    val idKey = "local:${localSong.id}"
+                    val normTitle = RecommendationDeduplicator.normalizeText(localSong.title)
+                    val normArtist = RecommendationDeduplicator.normalizeText(localSong.artist)
+                    val metaKey = "meta:$normTitle|$normArtist"
+                    if (seenTrackKeys.add(idKey) && seenTrackKeys.add(metaKey)) {
+                        result.add(QuickHitTrack.LocalTrack(localSong, "History"))
+                    }
+                }
+            }
+            if (result.size >= 24) break
+        }
+        return result.chunked(2)
+    }
+
     fun loadData(
         localSongs: List<Song>,
         history: List<PlaybackHistoryEntry>,
         forceRefresh: Boolean = false
     ) {
         viewModelScope.launch {
+            val listenAgainColumns = buildListenAgainFeed(localSongs, history)
+
             if (_uiState.value.trendingTracks.isNotEmpty() && !forceRefresh) {
                 updateLocalDerivedData(localSongs, history)
+                _uiState.value = _uiState.value.copy(
+                    listenAgainColumns = listenAgainColumns,
+                    listenAgainTracks = listenAgainColumns.flatten()
+                )
                 return@launch
             }
 
+            val deduplicator = SectionDeduplicator()
+
             // Immediately populate artists and quick hits from local tracks and cache so UI is instant
             val initialArtists = buildArtistList(localSongs, cachedDiscoveredArtists)
-            val initialQuickHits = buildQuickHitsFeed(localSongs, history, cachedTrendingOnline, cachedCuratedOnline)
+            val initialQuickHits = buildQuickHitsFeed(
+                localSongs = localSongs,
+                history = history,
+                onlineTracks = cachedQuickHitsOnline,
+                deduplicator = null
+            )
 
             _uiState.value = _uiState.value.copy(
                 artists = if (_uiState.value.artists.isEmpty()) initialArtists else _uiState.value.artists,
                 quickHitsColumns = if (_uiState.value.quickHitsColumns.isEmpty()) initialQuickHits else _uiState.value.quickHitsColumns,
+                listenAgainColumns = listenAgainColumns,
+                listenAgainTracks = listenAgainColumns.flatten(),
                 isLoading = _uiState.value.trendingTracks.isEmpty(),
                 isRefreshing = forceRefresh,
                 errorMessage = null
@@ -208,14 +269,23 @@ class HomeTestViewModel @Inject constructor(
             var featured = dailyCache.getDailyFeatured(currentDayKey)
 
             var isOfflineDetected = false
-            var trendingOnline = emptyList<OnlineSong>()
-            var curatedFeed = emptyList<OnlineSong>()
+            var rawTrendingOnline = emptyList<OnlineSong>()
+            var rawQuickHitsOnline = emptyList<OnlineSong>()
             var curatedPlaylists = emptyList<OnlinePlaylist>()
             var onlineArtistsDiscovered = emptyList<com.aman.auramusic.online.network.repository.YouTubeArtist>()
+            var featuredTracks = emptyList<OnlineSong>()
 
             try {
-                // Fetch YouTube trending, curated feed, playlists, and artists concurrently
+                // Independent pipelines for Trending Now, Quick Hits, Playlists, and Artists
                 withContext(Dispatchers.IO) {
+                    val playlistsDeferred = async {
+                        try {
+                            onlineRepository.getCuratedPlaylists(AudioSource.ALL)
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                    }
+
                     val trendingDeferred = async {
                         try {
                             onlineRepository.getTrending(AudioSource.YOUTUBE)
@@ -228,17 +298,9 @@ class HomeTestViewModel @Inject constructor(
                         }
                     }
 
-                    val curatedDeferred = async {
+                    val quickHitsDeferred = async {
                         try {
-                            onlineRepository.getCuratedSongFeed()
-                        } catch (_: Exception) {
-                            emptyList()
-                        }
-                    }
-
-                    val playlistsDeferred = async {
-                        try {
-                            onlineRepository.getCuratedPlaylists(AudioSource.ALL)
+                            onlineRepository.getQuickHits(AudioSource.ALL)
                         } catch (_: Exception) {
                             emptyList()
                         }
@@ -252,20 +314,16 @@ class HomeTestViewModel @Inject constructor(
                         }
                     }
 
-                    trendingOnline = trendingDeferred.await()
-                    curatedFeed = curatedDeferred.await()
                     curatedPlaylists = playlistsDeferred.await()
+                    rawTrendingOnline = trendingDeferred.await()
+                    rawQuickHitsOnline = quickHitsDeferred.await()
                     onlineArtistsDiscovered = ytArtistsDeferred.await()
                 }
-
-                cachedTrendingOnline = trendingOnline
-                cachedCuratedOnline = curatedFeed
-                cachedDiscoveredArtists = onlineArtistsDiscovered
             } catch (e: Exception) {
                 isOfflineDetected = true
             }
 
-            // 5. Resolve Daily Featured Item (Refreshes once per day)
+            // 1. Resolve Daily Featured Item (Refreshes once per day)
             if (featured == null) {
                 featured = resolveDailyFeatured(
                     dayKey = currentDayKey,
@@ -277,8 +335,45 @@ class HomeTestViewModel @Inject constructor(
                 }
             }
 
-            // 6. Map Trending Songs with matching local tracks
-            val trendingItems = trendingOnline.map { onlineSong ->
+            // 2. Fetch tracks belonging to Daily Featured Playlist / Album
+            if (featured?.onlinePlaylistId != null) {
+                val plObj = curatedPlaylists.find { it.id == featured.onlinePlaylistId }
+                    ?: OnlinePlaylist(id = featured.onlinePlaylistId!!, title = featured.title, source = AudioSource.ALL)
+                withContext(Dispatchers.IO) {
+                    featuredTracks = try {
+                        val tracks = onlineRepository.getPlaylistSongs(plObj)
+                        onlineRepository.trendingFilter.filterSongs(tracks)
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                }
+            }
+
+            // 3. Mutual Exclusivity Deduplication Barrier
+            deduplicator.clear()
+
+            // Allocate Daily Featured pool first
+            val cleanFeaturedTracks = deduplicator.allocateAll(featuredTracks)
+            if (featured?.albumName != null) {
+                val albumSongs = localSongs.filter { it.album.equals(featured.albumName, ignoreCase = true) }
+                deduplicator.allocateAllLocal(albumSongs)
+            }
+
+            // Allocate Trending Songs (guaranteed zero overlap with Daily Featured)
+            var cleanTrending = rawTrendingOnline.filter { deduplicator.allocate(it) }
+            if (cleanTrending.size < 10) {
+                withContext(Dispatchers.IO) {
+                    val secondary = try {
+                        onlineRepository.search("Billboard Hot 100 2026", AudioSource.YOUTUBE)
+                    } catch (_: Exception) { emptyList() }
+                    val cleanSecondary = onlineRepository.trendingFilter.filterSongs(secondary)
+                        .filter { deduplicator.allocate(it) }
+                    cleanTrending = (cleanTrending + cleanSecondary).take(20)
+                }
+            }
+
+            // Map Trending Songs with matching local tracks
+            val trendingItems = cleanTrending.map { onlineSong ->
                 val match = localSongs.find { local ->
                     local.title.trim().equals(onlineSong.title.trim(), ignoreCase = true) ||
                             (local.title.contains(onlineSong.title, ignoreCase = true) &&
@@ -291,16 +386,22 @@ class HomeTestViewModel @Inject constructor(
                 )
             }
 
-            // 7. Structure Artists: Extract single artists and balance evenly
-            val artistsList = buildArtistList(localSongs, cachedDiscoveredArtists)
+            // 4. Structure Artists: Extract single artists and balance evenly
+            val artistsList = buildArtistList(localSongs, onlineArtistsDiscovered)
 
-            // 8. Quick Hits: Interleave BOTH offline and online trending & category top hits
+            // 5. Quick Hits: Interleave clean offline and clean online hits (guaranteed zero overlap with Daily Featured & Trending)
+            val cleanQuickHitsOnline = rawQuickHitsOnline.filter { deduplicator.allocate(it) }
             val quickHitsColumns = buildQuickHitsFeed(
                 localSongs = localSongs,
                 history = history,
-                trendingOnline = trendingOnline,
-                curatedFeed = curatedFeed
+                onlineTracks = cleanQuickHitsOnline,
+                deduplicator = deduplicator
             )
+
+            cachedTrendingOnline = cleanTrending
+            cachedQuickHitsOnline = cleanQuickHitsOnline
+            cachedFeaturedTracks = cleanFeaturedTracks
+            cachedDiscoveredArtists = onlineArtistsDiscovered
 
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
@@ -308,6 +409,9 @@ class HomeTestViewModel @Inject constructor(
                 isOffline = isOfflineDetected && trendingItems.isEmpty(),
                 errorMessage = if (isOfflineDetected && trendingItems.isEmpty()) "Offline — Showing local library" else null,
                 featuredItem = featured,
+                featuredTracks = cleanFeaturedTracks,
+                listenAgainTracks = listenAgainColumns.flatten(),
+                listenAgainColumns = listenAgainColumns,
                 trendingTracks = trendingItems,
                 artists = artistsList,
                 quickHitsColumns = quickHitsColumns,
@@ -328,13 +432,17 @@ class HomeTestViewModel @Inject constructor(
         val quickHitsColumns = buildQuickHitsFeed(
             localSongs = localSongs,
             history = history,
-            trendingOnline = cachedTrendingOnline,
-            curatedFeed = cachedCuratedOnline
+            onlineTracks = cachedQuickHitsOnline,
+            deduplicator = null
         )
+
+        val listenAgainColumns = buildListenAgainFeed(localSongs, history)
 
         _uiState.value = _uiState.value.copy(
             artists = artistsList,
-            quickHitsColumns = quickHitsColumns
+            quickHitsColumns = quickHitsColumns,
+            listenAgainColumns = listenAgainColumns,
+            listenAgainTracks = listenAgainColumns.flatten()
         )
     }
 
@@ -471,14 +579,14 @@ class HomeTestViewModel @Inject constructor(
     }
 
     /**
-     * Interleaves both offline (local) and online songs (trending & category top hits).
+     * Interleaves both offline (local) and online songs (quick hits).
      * Chunked into columns of 3 so the user can drag horizontally from right to left smoothly.
      */
     private fun buildQuickHitsFeed(
         localSongs: List<Song>,
         history: List<PlaybackHistoryEntry>,
-        trendingOnline: List<OnlineSong>,
-        curatedFeed: List<OnlineSong>
+        onlineTracks: List<OnlineSong>,
+        deduplicator: SectionDeduplicator? = null
     ): List<List<QuickHitTrack>> {
         val historySongs = history.mapNotNull { entry -> localSongs.find { it.id == entry.songId } }.distinct()
         val allLocalPool = if (historySongs.isNotEmpty()) {
@@ -487,48 +595,53 @@ class HomeTestViewModel @Inject constructor(
             localSongs
         }
 
-        val localTracks = allLocalPool.map { song ->
+        val filteredLocal = if (deduplicator != null) {
+            allLocalPool.filter { deduplicator.allocate(it) }
+        } else {
+            allLocalPool
+        }
+
+        val localTracks = filteredLocal.map { song ->
             val badge = if (historySongs.contains(song)) "Recent Hit" else "Local"
             QuickHitTrack.LocalTrack(song, badge)
         }
 
-        val categoryBadges = listOf("Pop Hit", "Top Chart", "Billboard", "Rock Hit", "Bollywood", "Electronic", "Trending")
-        val onlineTracks = (trendingOnline + curatedFeed).distinctBy { "${it.source.name}_${it.id}" }
-            .mapIndexed { index, os ->
-                val badge = if (index < trendingOnline.size) "Trending" else categoryBadges[index % categoryBadges.size]
-                QuickHitTrack.OnlineTrack(os, badge)
-            }
+        val categoryBadges = listOf("Pop Hit", "Top Chart", "Billboard", "Rock Hit", "Bollywood", "Electronic", "Quick Hit")
+        val formattedOnlineTracks = onlineTracks.mapIndexed { index, os ->
+            val badge = categoryBadges[index % categoryBadges.size]
+            QuickHitTrack.OnlineTrack(os, badge)
+        }
 
         val unified = mutableListOf<QuickHitTrack>()
         var localIdx = 0
         var onlineIdx = 0
 
         // Build a generous horizontal feed of up to 24-30 tracks (8-10 columns)
-        val targetCount = if (localTracks.isEmpty() && onlineTracks.isEmpty()) {
+        val targetCount = if (localTracks.isEmpty() && formattedOnlineTracks.isEmpty()) {
             0
         } else {
-            maxOf(24, localTracks.size + onlineTracks.size).coerceAtMost(36)
+            maxOf(24, localTracks.size + formattedOnlineTracks.size).coerceAtMost(36)
         }
 
-        while (unified.size < targetCount && (localIdx < localTracks.size || onlineIdx < onlineTracks.size)) {
+        while (unified.size < targetCount && (localIdx < localTracks.size || onlineIdx < formattedOnlineTracks.size)) {
             if (localIdx < localTracks.size && unified.size < targetCount) {
                 unified.add(localTracks[localIdx++])
             }
-            if (onlineIdx < onlineTracks.size && unified.size < targetCount) {
-                unified.add(onlineTracks[onlineIdx++])
+            if (onlineIdx < formattedOnlineTracks.size && unified.size < targetCount) {
+                unified.add(formattedOnlineTracks[onlineIdx++])
             }
-            if (onlineIdx < onlineTracks.size && unified.size < targetCount) {
-                unified.add(onlineTracks[onlineIdx++])
+            if (onlineIdx < formattedOnlineTracks.size && unified.size < targetCount) {
+                unified.add(formattedOnlineTracks[onlineIdx++])
             }
-            if (localIdx >= localTracks.size && onlineIdx < onlineTracks.size) {
-                unified.add(onlineTracks[onlineIdx++])
+            if (localIdx >= localTracks.size && onlineIdx < formattedOnlineTracks.size) {
+                unified.add(formattedOnlineTracks[onlineIdx++])
             }
-            if (onlineIdx >= onlineTracks.size && localIdx < localTracks.size) {
+            if (onlineIdx >= formattedOnlineTracks.size && localIdx < localTracks.size) {
                 unified.add(localTracks[localIdx++])
             }
         }
 
-        return unified.chunked(3)
+        return unified.chunked(4)
     }
 
     private fun resolveDailyFeatured(

@@ -244,6 +244,11 @@ fun HomeTestScreen(
                                     onAlbumSelected(featured.albumName)
                                 } else if (featured.playlistId != null) {
                                     onPlaylistSelected(featured.playlistId)
+                                } else if (uiState.featuredTracks.isNotEmpty()) {
+                                    onOnlineSongSelected(
+                                        uiState.featuredTracks.first(),
+                                        uiState.featuredTracks
+                                    )
                                 } else if (uiState.trendingTracks.isNotEmpty()) {
                                     val firstTrend = uiState.trendingTracks.first()
                                     if (firstTrend.isLocalAvailable && firstTrend.localMatch != null) {
@@ -256,6 +261,30 @@ fun HomeTestScreen(
                                     }
                                 }
                             }
+                        )
+                    }
+                }
+
+                // 2.5 Listen Again (Populated from actual playback history, Quick Hit style 2*x)
+                if (uiState.listenAgainColumns.isNotEmpty()) {
+                    item(key = "hometest_listen_again_section") {
+                        val allOnlineListenAgain = remember(uiState.listenAgainColumns) {
+                            uiState.listenAgainColumns.flatten().mapNotNull { (it as? QuickHitTrack.OnlineTrack)?.onlineSong }
+                        }
+                        ListenAgainSection(
+                            columns = uiState.listenAgainColumns,
+                            currentSongId = currentSongId,
+                            isPlaying = isPlaying,
+                            onTrackClick = { track ->
+                                when (track) {
+                                    is QuickHitTrack.LocalTrack -> onSongSelected(track.song, songs)
+                                    is QuickHitTrack.OnlineTrack -> onOnlineSongSelected(
+                                        track.onlineSong,
+                                        allOnlineListenAgain.ifEmpty { listOf(track.onlineSong) }
+                                    )
+                                }
+                            },
+                            onOptionsClick = { song -> selectedSongOptions = song }
                         )
                     }
                 }
