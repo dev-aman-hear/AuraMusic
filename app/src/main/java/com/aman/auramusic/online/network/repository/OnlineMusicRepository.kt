@@ -192,6 +192,18 @@ class OnlineMusicRepository(
         return jioSaavnService.searchPlaylists(query, limit)
     }
 
+    /** Search real YouTube Music album/playlist entities, not song results. */
+    suspend fun searchYouTubeMusicCollections(
+        query: String,
+        limit: Int = 12
+    ): List<com.aman.auramusic.online.model.OnlinePlaylist> =
+        pipedService.searchMusicCollections(query, limit)
+
+    /** Load tracks by the YouTube Music collection's browse ID. */
+    suspend fun getYouTubeMusicCollectionSongs(
+        collection: com.aman.auramusic.online.model.OnlinePlaylist
+    ): List<OnlineSong> = pipedService.getMusicCollectionSongs(collection)
+
     suspend fun getCuratedPlaylists(source: AudioSource = AudioSource.ALL): List<com.aman.auramusic.online.model.OnlinePlaylist> {
         val now = System.currentTimeMillis()
         playlistsCache[source]?.let { (timestamp, cached) ->
