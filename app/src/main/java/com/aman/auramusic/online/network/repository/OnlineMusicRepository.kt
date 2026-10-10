@@ -180,6 +180,18 @@ class OnlineMusicRepository(
         return filteredResult
     }
 
+    /**
+     * Search real curated playlists through the existing JioSaavn playlist endpoint.
+     * Used by Explore to load full soundtrack collections instead of grouping a handful
+     * of unrelated song-search results by their album label.
+     */
+    suspend fun searchPlaylists(
+        query: String,
+        limit: Int = 15
+    ): List<com.aman.auramusic.online.model.OnlinePlaylist> {
+        return jioSaavnService.searchPlaylists(query, limit)
+    }
+
     suspend fun getCuratedPlaylists(source: AudioSource = AudioSource.ALL): List<com.aman.auramusic.online.model.OnlinePlaylist> {
         val now = System.currentTimeMillis()
         playlistsCache[source]?.let { (timestamp, cached) ->
