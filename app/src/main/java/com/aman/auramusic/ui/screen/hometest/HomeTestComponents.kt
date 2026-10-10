@@ -913,14 +913,16 @@ fun QuickHitsSection(
     isPlaying: Boolean,
     onTrackClick: (QuickHitTrack) -> Unit,
     onOptionsClick: (Song) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    title: String = "Quick Hits",
+    eyebrow: String = "ONLINE & LOCAL HITS"
 ) {
     if (columns.isEmpty()) return
 
     Column(modifier = modifier.padding(top = 26.dp)) {
         HomeSectionHeader(
-            eyebrow = "ONLINE & LOCAL HITS",
-            title = "Quick Hits"
+            eyebrow = eyebrow,
+            title = title
         )
         Spacer(modifier = Modifier.height(10.dp))
 
