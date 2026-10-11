@@ -865,7 +865,15 @@ fun ArtistDetailSheet(
                                 shape = CircleShape,
                                 color = Color.Black.copy(alpha = 0.30f),
                                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.36f)),
-                                modifier = Modifier.size(44.dp)
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .frostedGlass(
+                                        shape = CircleShape,
+                                        isDark = isDark,
+                                        elevation = 6.dp,
+                                        borderWidth = 1.dp,
+                                        sheenAlpha = 0.38f
+                                    )
                             ) {
                                 IconButton(onClick = onDismiss) {
                                     Icon(
