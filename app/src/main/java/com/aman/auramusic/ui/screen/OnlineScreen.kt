@@ -660,10 +660,10 @@ private fun FeaturedExploreCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(258.dp)
+            .height(280.dp)
             .clickable(onClick = onClick),
         shape = AuraShapes.Surface,
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF24171C)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF171217)),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Box(
@@ -727,10 +727,12 @@ private fun FeaturedExploreCard(
             ) {
                 Text(
                     text = if (song.album.isNotBlank()) "MOVIE MUSIC SPOTLIGHT" else "FEATURED MUSIC",
-                    color = Color(0xFFFFA1B1),
+                    color = Color(0xFFFFB4C0),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp
+                    letterSpacing = 1.1.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = song.album.ifBlank { song.title },
@@ -743,7 +745,7 @@ private fun FeaturedExploreCard(
                 )
                 Text(
                     text = song.artist,
-                    color = Color.White.copy(alpha = 0.82f),
+                    color = Color.White.copy(alpha = 0.88f),
                     fontSize = 13.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
