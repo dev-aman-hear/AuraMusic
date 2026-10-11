@@ -83,77 +83,13 @@ fun LibraryScreen(
 ) {
     val context = LocalContext.current
     val isDark = LocalIsDark.current
-    val libraryCache = remember { LibraryOnlineCache(context) }
-    val initialCached = remember { libraryCache.getCachedData() }
-
     var selectedTab by remember { mutableStateOf(LibraryTab.SONGS) }
     var showAllPlaylists by remember { mutableStateOf(false) }
 
     val onlineRepository = remember { OnlineMusicRepository() }
-    var onlineSourceFilter by remember { mutableStateOf(AudioSource.ALL) }
-    var onlinePlaylists by remember {
-        mutableStateOf(initialCached?.playlistsBySource?.get(AudioSource.ALL.name) ?: emptyList())
-    }
-    var isOnlineFeedLoading by remember { mutableStateOf(false) }
-    var lastUpdatedText by remember {
-        mutableStateOf(libraryCache.getFormattedLastUpdated(initialCached?.lastFetchedTimestamp ?: 0L))
-    }
-    var forceRefreshTrigger by remember { mutableIntStateOf(0) }
-
     var selectedOnlinePlaylist by remember { mutableStateOf<OnlinePlaylist?>(null) }
     var playlistDetailSongs by remember { mutableStateOf<List<OnlineSong>>(emptyList()) }
     var isPlaylistDetailLoading by remember { mutableStateOf(false) }
-
-    // Fetch and cache curated feeds if expired
-    LaunchedEffect(onlineSourceFilter, forceRefreshTrigger) {
-        val cached = libraryCache.getCachedData()
-        val cachedPlaylistsForFilter = cached?.playlistsBySource?.get(onlineSourceFilter.name)
-        val isDailyExpired = libraryCache.shouldRefreshDaily(cached?.lastFetchedTimestamp ?: 0L)
-        val isManual = forceRefreshTrigger > 0
-
-        if (!isDailyExpired && !isManual && !cachedPlaylistsForFilter.isNullOrEmpty()) {
-            onlinePlaylists = cachedPlaylistsForFilter
-            lastUpdatedText = libraryCache.getFormattedLastUpdated(cached.lastFetchedTimestamp)
-            isOnlineFeedLoading = false
-        } else {
-            isOnlineFeedLoading = true
-            try {
-                val fetchedPlaylists = onlineRepository.getCuratedPlaylists(onlineSourceFilter)
-                onlinePlaylists = fetchedPlaylists
-
-                val updatedMap = cached?.playlistsBySource?.toMutableMap() ?: mutableMapOf()
-                updatedMap[onlineSourceFilter.name] = fetchedPlaylists
-
-                val newCache = CachedLibraryData(
-                    lastFetchedTimestamp = System.currentTimeMillis(),
-                    playlistsBySource = updatedMap,
-                    songFeed = cached?.songFeed ?: emptyList()
-                )
-                libraryCache.saveCachedData(newCache)
-                lastUpdatedText = libraryCache.getFormattedLastUpdated(newCache.lastFetchedTimestamp)
-            } catch (_: Exception) {
-                if (!cachedPlaylistsForFilter.isNullOrEmpty()) {
-                    onlinePlaylists = cachedPlaylistsForFilter
-                }
-            } finally {
-                isOnlineFeedLoading = false
-            }
-        }
-    }
-
-    LaunchedEffect(selectedOnlinePlaylist) {
-        val pl = selectedOnlinePlaylist
-        if (pl != null) {
-            isPlaylistDetailLoading = true
-            try {
-                playlistDetailSongs = onlineRepository.getPlaylistSongs(pl)
-            } catch (_: Exception) {
-                playlistDetailSongs = emptyList()
-            } finally {
-                isPlaylistDetailLoading = false
-            }
-        }
-    }
 
     // Drill down to Online Playlist Details
     if (selectedOnlinePlaylist != null) {
@@ -680,98 +616,6 @@ fun LibraryScreen(
                             }
                         }
 
-                        // Curated Online Playlists Header
-                        item {
-                            SectionHeader(
-                                title = "Curated Online Playlists",
-                                modifier = Modifier.padding(bottom = 6.dp)
-                            )
-                        }
-
-                        // Source Filter Chips for online playlists: All, JioSaavn, YouTube, Spotify
-                        item {
-                            LazyRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(AudioSource.values()) { src ->
-                                    val isSelected = onlineSourceFilter == src
-                                    val chipBg = if (isSelected) {
-                                        when (src) {
-                                            AudioSource.JIOSAAVN -> AuraCyan
-                                            AudioSource.YOUTUBE -> AuraPrimary
-                                            AudioSource.SPOTIFY -> Color(0xFF1DB954)
-                                            AudioSource.ALL -> MaterialTheme.colorScheme.primary
-                                        }
-                                    } else {
-                                        if (isDark) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.05f)
-                                    }
-                                    val chipText = if (isSelected) Color.Black else textColor.copy(alpha = 0.8f)
-
-                                    val chipLabel = when (src) {
-                                        AudioSource.ALL -> "All Catalogs"
-                                        AudioSource.JIOSAAVN -> "JioSaavn 320k"
-                                        AudioSource.YOUTUBE -> "YouTube Music"
-                                        AudioSource.SPOTIFY -> "Spotify Charts"
-                                    }
-
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(20.dp))
-                                            .background(chipBg)
-                                            .clickable { onlineSourceFilter = src }
-                                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                                    ) {
-                                        Text(
-                                            text = chipLabel,
-                                            fontSize = 12.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = chipText
-                                        )
-                                    }
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                        }
-
-                        // Curated Playlists Grid/Row
-                        if (onlinePlaylists.isNotEmpty()) {
-                            item {
-                                LazyRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    contentPadding = PaddingValues(horizontal = 20.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                                ) {
-                                    items(onlinePlaylists, key = { "curated_${it.id}" }) { playlist ->
-                                        PlaylistCard(
-                                            title = playlist.title,
-                                            songCountText = "${playlist.songCount} songs",
-                                            artworkModel = playlist.artworkUrl,
-                                            onClick = { selectedOnlinePlaylist = playlist }
-                                        )
-                                    }
-                                }
-                            }
-                        } else if (isOnlineFeedLoading) {
-                            item {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 20.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                                ) {
-                                    repeat(3) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(148.dp)
-                                                .clip(RoundedCornerShape(18.dp))
-                                                .background(cardBg)
-                                        )
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             }
