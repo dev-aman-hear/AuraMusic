@@ -263,6 +263,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     var hasAttemptedRestore by remember { mutableStateOf(false) }
 
     var selectedTab by remember { mutableStateOf(AppTab.Home) }
+    var homeReselectKey by remember { mutableIntStateOf(0) }
     var showPlayer by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
 
@@ -753,6 +754,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onSaveOnlineArtist = { musicViewModel.saveOnlineArtistToLibrary(it) },
                                     onRemoveSavedOnlineArtist = { musicViewModel.removeOnlineArtistFromLibrary(it) },
                                     savedOnlineAlbums = savedOnlineAlbums,
+                                    homeResetKey = homeReselectKey,
                                     onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
                                     onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
                                     onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
@@ -823,6 +825,9 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         BottomNavBar(
                             selectedTab = selectedTab,
                             onTabSelected = { 
+                                if (it == AppTab.Home && selectedTab == AppTab.Home) {
+                                    homeReselectKey++
+                                }
                                 selectedTab = it
                                 showSettings = false
                                 selectedPlaylistId = null
