@@ -243,10 +243,13 @@ class HomeTestViewModel @Inject constructor(
         forceRefresh: Boolean = false
     ) {
         viewModelScope.launch {
-            val listenAgainColumns = buildListenAgainFeed(localSongs, history)
+            val recommendationLocalSongs = localSongs.filterNot {
+                ExplicitTitleFilter.shouldHideTitle(it.title)
+            }
+            val listenAgainColumns = buildListenAgainFeed(recommendationLocalSongs, history)
 
             if (_uiState.value.trendingTracks.isNotEmpty() && !forceRefresh) {
-                updateLocalDerivedData(localSongs, history)
+                updateLocalDerivedData(recommendationLocalSongs, history)
                 _uiState.value = _uiState.value.copy(
                     listenAgainColumns = listenAgainColumns,
                     listenAgainTracks = listenAgainColumns.flatten()
@@ -259,9 +262,9 @@ class HomeTestViewModel @Inject constructor(
             // Immediately populate artists and quick hits from local tracks and cache so UI is instant
             val initialArtists = buildArtistList(localSongs, cachedDiscoveredArtists)
             val initialQuickHits = buildQuickHitsFeed(
-                localSongs = localSongs,
+                localSongs = recommendationLocalSongs,
                 history = history,
-                onlineTracks = cachedQuickHitsOnline,
+                onlineTracks = ExplicitTitleFilter.filterOnline(cachedQuickHitsOnline),
                 deduplicator = null
             )
 
@@ -403,7 +406,7 @@ class HomeTestViewModel @Inject constructor(
             // 5. Quick Hits: Interleave clean offline and clean online hits (guaranteed zero overlap with Daily Featured & Trending)
             val cleanQuickHitsOnline = ExplicitTitleFilter.filterOnline(rawQuickHitsOnline).filter { deduplicator.allocate(it) }
             val quickHitsColumns = buildQuickHitsFeed(
-                localSongs = localSongs,
+                localSongs = recommendationLocalSongs,
                 history = history,
                 onlineTracks = cleanQuickHitsOnline,
                 deduplicator = deduplicator
