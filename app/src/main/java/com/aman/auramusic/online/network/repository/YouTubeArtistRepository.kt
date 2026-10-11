@@ -231,6 +231,18 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
         private val artistCatalogueCache = LruCache<String, ArtistCatalogue>(100)
         private val artistSearchCache = LruCache<String, List<YouTubeArtist>>(50)
 
+        fun getCachedArtist(artistName: String): YouTubeArtist? {
+            val clean = artistName.trim().lowercase()
+            if (clean.isBlank()) return null
+            val fromSearch = artistSearchCache.get(clean)?.find { it.name.trim().equals(clean, ignoreCase = true) }
+            if (fromSearch != null && !fromSearch.profileImageUrl.isNullOrBlank()) return fromSearch
+            artistCache.snapshot().values.forEach { list ->
+                val match = list.find { it.name.trim().equals(clean, ignoreCase = true) }
+                if (match != null && !match.profileImageUrl.isNullOrBlank()) return match
+            }
+            return null
+        }
+
         /**
          * Reads track rows from the selected artist's actual YouTube Music browse response.
          * Extracts genuine title, artist, album, duration, and thumbnail without falling back

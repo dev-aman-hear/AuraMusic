@@ -9,6 +9,7 @@ import com.aman.auramusic.data.model.LiquidGlassPreset
 import com.aman.auramusic.data.model.Playlist
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.data.model.ThemeMode
+import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.data.repository.MusicRepository
 import com.aman.auramusic.data.repository.UserPreferencesRepository
@@ -61,6 +62,12 @@ class MusicViewModel @Inject constructor(
     )
 
     val playlists = userRepository.playlistsFlow.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        emptyList()
+    )
+
+    val savedOnlinePlaylists = userRepository.savedOnlinePlaylistsFlow.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
         emptyList()
@@ -154,9 +161,33 @@ class MusicViewModel @Inject constructor(
         }
     }
 
-    fun savePlaylist(name: String, songIds: List<Long>) {
+    fun addOnlineSongToPlaylist(playlistId: Long, onlineSong: OnlineSong) {
         viewModelScope.launch(Dispatchers.IO) {
-            userRepository.savePlaylist(name, songIds)
+            userRepository.addOnlineSongToPlaylist(playlistId, onlineSong)
+        }
+    }
+
+    fun removeOnlineSongFromPlaylist(playlistId: Long, songId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.removeOnlineSongFromPlaylist(playlistId, songId)
+        }
+    }
+
+    fun saveOnlinePlaylistToLibrary(playlist: OnlinePlaylist) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.saveOnlinePlaylist(playlist)
+        }
+    }
+
+    fun removeOnlinePlaylistFromLibrary(playlistId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.removeOnlinePlaylist(playlistId)
+        }
+    }
+
+    fun savePlaylist(name: String, songIds: List<Long>, onlineSongs: List<OnlineSong> = emptyList()) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.savePlaylist(name, songIds, onlineSongs = onlineSongs)
         }
     }
 

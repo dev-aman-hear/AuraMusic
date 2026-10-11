@@ -218,6 +218,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     val favoriteIds by musicViewModel.favoriteIds.collectAsStateWithLifecycle()
     val playbackHistory by musicViewModel.playbackHistory.collectAsStateWithLifecycle()
     val playlists by musicViewModel.playlists.collectAsStateWithLifecycle()
+    val savedOnlinePlaylists by musicViewModel.savedOnlinePlaylists.collectAsStateWithLifecycle()
     val lastImportResult by musicViewModel.lastImportResult.collectAsStateWithLifecycle()
     val externalSong by musicViewModel.externalSongToPlay.collectAsStateWithLifecycle()
 
@@ -398,6 +399,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     var selectedAlbumName by remember { mutableStateOf<String?>(null) }
     var selectedArtistName by remember { mutableStateOf<String?>(null) }
     var songToAddToPlaylist by remember { mutableStateOf<Song?>(null) }
+    var onlineSongToAddToPlaylist by remember { mutableStateOf<OnlineSong?>(null) }
     var songsToAddToPlaylist by remember { mutableStateOf<List<Song>?>(null) }
     var playlistToRename by remember { mutableStateOf<Playlist?>(null) }
 
@@ -581,7 +583,9 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         selectedPlaylistId != null -> {
                             val playlist = playlists.find { it.id == selectedPlaylistId }
                             playlist?.let { p: Playlist ->
-                                val playlistSongs = p.songIds.mapNotNull { id: Long -> songs.find { it.id == id } }
+                                val localPlaylistSongs = p.songIds.mapNotNull { id: Long -> songs.find { it.id == id } }
+                                val onlineAsLocalSongs = p.onlineSongs.map { it.toSong() }
+                                val playlistSongs = localPlaylistSongs + onlineAsLocalSongs
                                 CollectionDetailScreen(
                                     title = p.name,
                                     subtitle = "${playlistSongs.size} songs",
@@ -589,8 +593,26 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     favoriteIds = favoriteIds,
                                     currentSongId = playerViewModel.currentSong?.id,
                                     onBack = { selectedPlaylistId = null },
-                                    onSongSelected = { playSong(it, playlistSongs, p.id) },
-                                    onRemoveSong = { song -> musicViewModel.removeFromPlaylist(p.id, song.id) },
+                                    onSongSelected = { song ->
+                                        val onlineMatch = p.onlineSongs.find { 
+                                            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title == song.title 
+                                        }
+                                        if (onlineMatch != null) {
+                                            playOnlineSong(onlineMatch, p.onlineSongs)
+                                        } else {
+                                            playSong(song, localPlaylistSongs, p.id)
+                                        }
+                                    },
+                                    onRemoveSong = { song -> 
+                                        val onlineMatch = p.onlineSongs.find { 
+                                            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title == song.title 
+                                        }
+                                        if (onlineMatch != null) {
+                                            musicViewModel.removeOnlineSongFromPlaylist(p.id, onlineMatch.id)
+                                        } else {
+                                            musicViewModel.removeFromPlaylist(p.id, song.id)
+                                        }
+                                    },
                                     onDeletePlaylist = { 
                                         musicViewModel.deletePlaylist(p.id)
                                         selectedPlaylistId = null
@@ -684,7 +706,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onOnlineSongSelected = { onlineSong, queue ->
                                         playOnlineSong(onlineSong, queue)
                                     },
-                                    onOpenSettings = { showSettings = true }
+                                    onOpenSettings = { showSettings = true },
+                                    onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
                                 )
                                 AppTab.Library -> LibraryScreen(
                                     songs = filteredSongs,
@@ -714,7 +737,11 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onlinePlaybackManager = onlinePlaybackManager,
                                     onOnlineSongSelected = { onlineSong, queue ->
                                         playOnlineSong(onlineSong, queue)
-                                    }
+                                    },
+                                    savedOnlinePlaylists = savedOnlinePlaylists,
+                                    onSaveOnlinePlaylist = { musicViewModel.saveOnlinePlaylistToLibrary(it) },
+                                    onRemoveSavedOnlinePlaylist = { musicViewModel.removeOnlinePlaylistFromLibrary(it) },
+                                    onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
                                 )
                                 AppTab.Search -> SearchScreen(
                                     songs = songs,
@@ -845,7 +872,12 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                     onQueueClear = { onlinePlaybackManager.clearQueueExceptCurrent() },
                     onQueueSave = {},
                     onHistoryClear = {},
-                    onAddToPlaylist = { songToAddToPlaylist = onlineAsSong },
+                    onAddToPlaylist = { 
+                        val cur = onlinePlaybackState.currentSong ?: activeOnlineSong
+                        if (cur != null) {
+                            onlineSongToAddToPlaylist = cur
+                        }
+                    },
                     appSettings = appSettings,
                     playerViewModel = playerViewModel,
                     isFavorite = onlineAsSong.id in favoriteIds,
@@ -925,6 +957,24 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
             )
         }
 
+        if (onlineSongToAddToPlaylist != null) {
+            AddToPlaylistDialog(
+                playlists = playlists,
+                onDismiss = { onlineSongToAddToPlaylist = null },
+                onPlaylistSelected = { playlist ->
+                    val os = onlineSongToAddToPlaylist
+                    if (os != null) {
+                        musicViewModel.addOnlineSongToPlaylist(playlist.id, os)
+                        Toast.makeText(context, "Added to ${playlist.name}", Toast.LENGTH_SHORT).show()
+                    }
+                    onlineSongToAddToPlaylist = null
+                },
+                onCreateNew = {
+                    showNewPlaylistDialog = true
+                }
+            )
+        }
+
         if (songsToAddToPlaylist != null) {
             AddToPlaylistDialog(
                 playlists = playlists,
@@ -948,9 +998,11 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                     val ids = songsToAddToPlaylist?.map { it.id }
                         ?: songToAddToPlaylist?.let { listOf(it.id) }
                         ?: emptyList()
-                    musicViewModel.savePlaylist(name, ids)
+                    val onlineSongs = onlineSongToAddToPlaylist?.let { listOf(it) } ?: emptyList()
+                    musicViewModel.savePlaylist(name, ids, onlineSongs = onlineSongs)
                     showNewPlaylistDialog = false
                     songToAddToPlaylist = null
+                    onlineSongToAddToPlaylist = null
                     songsToAddToPlaylist = null
                 }
             )

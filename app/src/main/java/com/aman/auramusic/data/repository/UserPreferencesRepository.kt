@@ -15,6 +15,8 @@ import com.aman.auramusic.data.model.LiquidGlassPreset
 import com.aman.auramusic.data.model.ThemeMode
 import com.aman.auramusic.data.model.PlaybackHistoryEntry
 import com.aman.auramusic.data.model.Playlist
+import com.aman.auramusic.online.model.AudioSource
+import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
@@ -78,6 +80,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     val playlistsFlow: Flow<List<Playlist>> = dataStore.data.map { prefs ->
         prefs[Keys.playlists].decodePlaylists()
+    }.distinctUntilChanged()
+
+    val savedOnlinePlaylistsFlow: Flow<List<OnlinePlaylist>> = dataStore.data.map { prefs ->
+        prefs[Keys.savedOnlinePlaylists].decodeSavedOnlinePlaylists()
     }.distinctUntilChanged()
 
     suspend fun setUsername(name: String) {
@@ -287,13 +293,16 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun savePlaylist(
         name: String,
         songIds: List<Long>,
-        artworkSongId: Long? = songIds.firstOrNull()
+        artworkSongId: Long? = songIds.firstOrNull(),
+        onlineSongs: List<OnlineSong> = emptyList()
     ): Playlist {
+        val sanitizedOnline = onlineSongs.map { it.copy(streamUrl = "") }
         val playlist = Playlist(
             id = System.currentTimeMillis(),
             name = name.trim().ifBlank { "New Playlist" },
             songIds = songIds.distinct(),
-            artworkSongId = artworkSongId
+            artworkSongId = artworkSongId,
+            onlineSongs = sanitizedOnline
         )
         dataStore.edit { prefs ->
             val playlists = prefs[Keys.playlists].decodePlaylists().toMutableList()
@@ -366,6 +375,70 @@ class UserPreferencesRepository(private val context: Context) {
         }
     }
 
+
+    suspend fun addOnlineSongToPlaylist(playlistId: Long, song: OnlineSong): Boolean {
+        var added = false
+        val sanitized = song.copy(streamUrl = "")
+        dataStore.edit { prefs ->
+            val playlists = prefs[Keys.playlists].decodePlaylists().map { playlist ->
+                if (playlist.id == playlistId) {
+                    val exists = playlist.onlineSongs.any { it.id == sanitized.id && it.source == sanitized.source }
+                    if (!exists) {
+                        added = true
+                        playlist.copy(
+                            onlineSongs = playlist.onlineSongs + sanitized,
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    } else {
+                        playlist
+                    }
+                } else {
+                    playlist
+                }
+            }
+            prefs[Keys.playlists] = playlists.encodePlaylists()
+        }
+        return added
+    }
+
+    suspend fun removeOnlineSongFromPlaylist(playlistId: Long, songId: String) {
+        dataStore.edit { prefs ->
+            val playlists = prefs[Keys.playlists].decodePlaylists().map { playlist ->
+                if (playlist.id == playlistId) {
+                    playlist.copy(
+                        onlineSongs = playlist.onlineSongs.filterNot { it.id == songId },
+                        updatedAt = System.currentTimeMillis()
+                    )
+                } else {
+                    playlist
+                }
+            }
+            prefs[Keys.playlists] = playlists.encodePlaylists()
+        }
+    }
+
+    suspend fun saveOnlinePlaylist(playlist: OnlinePlaylist): Boolean {
+        var added = false
+        val reference = playlist.copy(songs = emptyList())
+        dataStore.edit { prefs ->
+            val list = prefs[Keys.savedOnlinePlaylists].decodeSavedOnlinePlaylists().toMutableList()
+            val exists = list.any { it.id == reference.id && it.source == reference.source }
+            if (!exists) {
+                added = true
+                list.add(0, reference)
+                prefs[Keys.savedOnlinePlaylists] = list.encodeSavedOnlinePlaylists()
+            }
+        }
+        return added
+    }
+
+    suspend fun removeOnlinePlaylist(playlistId: String) {
+        dataStore.edit { prefs ->
+            val list = prefs[Keys.savedOnlinePlaylists].decodeSavedOnlinePlaylists().filterNot { it.id == playlistId }
+            prefs[Keys.savedOnlinePlaylists] = list.encodeSavedOnlinePlaylists()
+        }
+    }
+
     fun isFavoriteFlow(songId: Long): Flow<Boolean> {
         return favoriteIdsFlow.map { ids -> ids.contains(songId) }.distinctUntilChanged()
     }
@@ -399,6 +472,7 @@ class UserPreferencesRepository(private val context: Context) {
             val recentSearches = stringPreferencesKey("recent_searches")
             val playbackHistory = stringPreferencesKey("playback_history")
             val playlists = stringPreferencesKey("playlists")
+            val savedOnlinePlaylists = stringPreferencesKey("saved_online_playlists")
         }
     }
 }
@@ -491,6 +565,32 @@ private fun String?.decodePlaylists(): List<Playlist> {
                             add(songsArray.optLong(j))
                         }
                     }
+                    val onlineSongs = buildList {
+                        val onlineArray = item.optJSONArray("onlineSongs")
+                        if (onlineArray != null) {
+                            for (j in 0 until onlineArray.length()) {
+                                val oObj = onlineArray.optJSONObject(j) ?: continue
+                                val id = oObj.optString("id")
+                                if (id.isBlank()) continue
+                                val srcStr = oObj.optString("source", AudioSource.JIOSAAVN.name)
+                                val source = runCatching { AudioSource.valueOf(srcStr) }.getOrDefault(AudioSource.JIOSAAVN)
+                                add(
+                                    OnlineSong(
+                                        id = id,
+                                        title = oObj.optString("title"),
+                                        artist = oObj.optString("artist"),
+                                        album = oObj.optString("album"),
+                                        artworkUrl = oObj.optString("artworkUrl"),
+                                        durationSeconds = oObj.optLong("durationSeconds", 0L),
+                                        source = source,
+                                        streamUrl = "", // NEVER store expiring stream URLs
+                                        bitrate = oObj.optString("bitrate", "320 kbps"),
+                                        format = oObj.optString("format", "AAC/MP4")
+                                    )
+                                )
+                            }
+                        }
+                    }
                     add(
                         Playlist(
                             id = item.optLong("id"),
@@ -498,7 +598,8 @@ private fun String?.decodePlaylists(): List<Playlist> {
                             songIds = songs,
                             createdAt = item.optLong("createdAt", System.currentTimeMillis()),
                             updatedAt = item.optLong("updatedAt", System.currentTimeMillis()),
-                            artworkSongId = if (item.has("artworkSongId") && !item.isNull("artworkSongId")) item.optLong("artworkSongId") else null
+                            artworkSongId = if (item.has("artworkSongId") && !item.isNull("artworkSongId")) item.optLong("artworkSongId") else null,
+                            onlineSongs = onlineSongs
                         )
                     )
                 }
@@ -510,6 +611,20 @@ private fun String?.decodePlaylists(): List<Playlist> {
 private fun List<Playlist>.encodePlaylists(): String {
     val array = JSONArray()
     forEach { playlist ->
+        val onlineArray = JSONArray()
+        playlist.onlineSongs.forEach { os ->
+            val obj = JSONObject()
+                .put("id", os.id)
+                .put("title", os.title)
+                .put("artist", os.artist)
+                .put("album", os.album)
+                .put("artworkUrl", os.artworkUrl)
+                .put("durationSeconds", os.durationSeconds)
+                .put("source", os.source.name)
+                .put("bitrate", os.bitrate)
+                .put("format", os.format)
+            onlineArray.put(obj)
+        }
         array.put(
             JSONObject()
                 .put("id", playlist.id)
@@ -518,6 +633,52 @@ private fun List<Playlist>.encodePlaylists(): String {
                 .put("createdAt", playlist.createdAt)
                 .put("updatedAt", playlist.updatedAt)
                 .put("artworkSongId", playlist.artworkSongId)
+                .put("onlineSongs", onlineArray)
+        )
+    }
+    return array.toString()
+}
+
+private fun String?.decodeSavedOnlinePlaylists(): List<OnlinePlaylist> {
+    if (this.isNullOrBlank()) return emptyList()
+    return runCatching {
+        JSONArray(this).let { array ->
+            buildList {
+                for (i in 0 until array.length()) {
+                    val item = array.optJSONObject(i) ?: continue
+                    val id = item.optString("id")
+                    if (id.isBlank()) continue
+                    val srcStr = item.optString("source", AudioSource.JIOSAAVN.name)
+                    val source = runCatching { AudioSource.valueOf(srcStr) }.getOrDefault(AudioSource.JIOSAAVN)
+                    add(
+                        OnlinePlaylist(
+                            id = id,
+                            title = item.optString("title"),
+                            subtitle = item.optString("subtitle"),
+                            artworkUrl = item.optString("artworkUrl"),
+                            songCount = item.optInt("songCount", 0),
+                            source = source,
+                            language = item.optString("language")
+                        )
+                    )
+                }
+            }
+        }
+    }.getOrDefault(emptyList())
+}
+
+private fun List<OnlinePlaylist>.encodeSavedOnlinePlaylists(): String {
+    val array = JSONArray()
+    forEach { pl ->
+        array.put(
+            JSONObject()
+                .put("id", pl.id)
+                .put("title", pl.title)
+                .put("subtitle", pl.subtitle)
+                .put("artworkUrl", pl.artworkUrl)
+                .put("songCount", pl.songCount)
+                .put("source", pl.source.name)
+                .put("language", pl.language)
         )
     }
     return array.toString()

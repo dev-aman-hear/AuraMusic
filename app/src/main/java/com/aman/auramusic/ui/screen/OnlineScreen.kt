@@ -214,6 +214,7 @@ fun OnlineScreen(
     onlinePlaybackManager: OnlinePlaybackManager,
     onOnlineSongSelected: (OnlineSong, List<OnlineSong>) -> Unit,
     onOpenSettings: () -> Unit,
+    onAddOnlineSongToPlaylist: ((OnlineSong) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
@@ -643,6 +644,7 @@ fun OnlineScreen(
                     isLoading = false,
                     onBack = { selectedCollection = null },
                     onSongSelected = onOnlineSongSelected,
+                    onAddOnlineSongToPlaylist = onAddOnlineSongToPlaylist,
                     modifier = Modifier.fillMaxSize()
                 )
             }

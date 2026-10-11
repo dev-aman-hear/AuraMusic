@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Playlist
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.online.model.toSong
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.theme.LocalIsDark
 
@@ -133,6 +134,7 @@ fun AllPlaylistsScreen(
                 ) {
                     items(playlists, key = { "all_pl_${it.id}" }) { playlist ->
                         val firstSong = playlist.songIds.firstOrNull()?.let { songById[it] }
+                        val repSong = firstSong ?: playlist.onlineSongs.firstOrNull()?.toSong()
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -142,7 +144,7 @@ fun AllPlaylistsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             SongArtwork(
-                                song = firstSong,
+                                song = repSong,
                                 size = 60,
                                 shape = RoundedCornerShape(12.dp)
                             )
@@ -158,7 +160,7 @@ fun AllPlaylistsScreen(
                                 )
                                 Spacer(modifier = Modifier.height(3.dp))
                                 Text(
-                                    text = "${playlist.songIds.size} songs",
+                                    text = "${playlist.songIds.size + playlist.onlineSongs.size} songs",
                                     fontSize = 13.sp,
                                     color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f)
                                 )
@@ -192,6 +194,7 @@ fun AllPlaylistsScreen(
                         ) {
                             pair.forEach { playlist ->
                                 val firstSong = playlist.songIds.firstOrNull()?.let { songById[it] }
+                                val repSong = firstSong ?: playlist.onlineSongs.firstOrNull()?.toSong()
                                 Column(
                                     modifier = Modifier
                                         .weight(1f)
@@ -205,9 +208,9 @@ fun AllPlaylistsScreen(
                                             .clip(RoundedCornerShape(16.dp))
                                             .background(MaterialTheme.colorScheme.surfaceVariant)
                                     ) {
-                                        if (firstSong != null) {
+                                        if (repSong != null) {
                                             SongArtwork(
-                                                song = firstSong,
+                                                song = repSong,
                                                 size = 200,
                                                 shape = RoundedCornerShape(16.dp),
                                                 modifier = Modifier.fillMaxSize()
@@ -233,7 +236,7 @@ fun AllPlaylistsScreen(
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        text = "${playlist.songIds.size} songs",
+                                        text = "${playlist.songIds.size + playlist.onlineSongs.size} songs",
                                         fontSize = 13.sp,
                                         color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
                                         maxLines = 1,

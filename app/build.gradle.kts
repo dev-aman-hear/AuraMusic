@@ -110,6 +110,7 @@ dependencies {
     implementation("com.pierfrancescosoffritti.androidyoutubeplayer:core:13.0.0")
     implementation("com.google.code.gson:gson:2.10.1")
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

@@ -18,6 +18,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.BookmarkAdded
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
@@ -53,6 +56,9 @@ fun OnlinePlaylistDetailScreen(
     isLoading: Boolean,
     onBack: () -> Unit,
     onSongSelected: (OnlineSong, List<OnlineSong>) -> Unit,
+    isSavedInLibrary: Boolean = false,
+    onToggleSaveToLibrary: (() -> Unit)? = null,
+    onAddOnlineSongToPlaylist: ((OnlineSong) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     BackHandler(onBack = onBack)
@@ -186,6 +192,32 @@ fun OnlinePlaylistDetailScreen(
                                 Text("Shuffle", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
                         }
+
+                        if (onToggleSaveToLibrary != null) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            OutlinedButton(
+                                onClick = onToggleSaveToLibrary,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(44.dp),
+                                shape = AuraShapes.Surface,
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = if (isSavedInLibrary) MaterialTheme.colorScheme.primary else textColor
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = if (isSavedInLibrary) Icons.Default.BookmarkAdded else Icons.Default.BookmarkAdd,
+                                    contentDescription = null,
+                                    tint = if (isSavedInLibrary) MaterialTheme.colorScheme.primary else textColor
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = if (isSavedInLibrary) "Saved to Library" else "Save to Library",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -217,7 +249,8 @@ fun OnlinePlaylistDetailScreen(
                     ) { _, song ->
                         OnlinePlaylistSongRow(
                             song = song,
-                            onClick = { onSongSelected(song, songs) }
+                            onClick = { onSongSelected(song, songs) },
+                            onAddToPlaylist = onAddOnlineSongToPlaylist
                         )
                     }
                 }
@@ -230,7 +263,8 @@ fun OnlinePlaylistDetailScreen(
 fun OnlinePlaylistSongRow(
     song: OnlineSong,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onAddToPlaylist: ((OnlineSong) -> Unit)? = null
 ) {
     val textColor = MaterialTheme.colorScheme.onBackground
     val mutedText = MaterialTheme.colorScheme.onSurfaceVariant
@@ -274,6 +308,20 @@ fun OnlinePlaylistSongRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+
+        if (onAddToPlaylist != null) {
+            IconButton(
+                onClick = { onAddToPlaylist(song) },
+                modifier = Modifier.size(38.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                    contentDescription = "Add to playlist",
+                    tint = mutedText,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
