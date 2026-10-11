@@ -345,64 +345,64 @@ fun HomeTestScreen(
                 }
             }
         }
-    }
-}
-    // Keep artist and online-release details inside the app content layer rather than a Dialog.
-    // This lets the global mini-player and bottom navigation remain visible above the page.
-    if (selectedOnlineAlbum != null) {
-        OnlinePlaylistDetailScreen(
-            playlist = selectedOnlineAlbum!!,
-            songs = selectedOnlineAlbumSongs,
-            isLoading = isAlbumLoading,
-            onBack = {
-                selectedOnlineAlbum = null
-                selectedOnlineAlbumSongs = emptyList()
-            },
-            onSongSelected = { song, queue ->
-                onOnlineSongSelected(song, queue)
-            }
-        )
-    } else if (selectedArtist != null) {
-        ArtistDetailSheet(
-            artist = selectedArtist!!,
-            onlineSongs = artistOnlineSongs,
-            localSongs = artistLocalSongs,
-            onlineAlbums = artistOnlineAlbums,
-            isLoading = isArtistLoading,
-            onDismiss = {
-                selectedArtist = null
-                artistOnlineSongs = emptyList()
-                artistLocalSongs = emptyList()
-                artistOnlineAlbums = emptyList()
-            },
-            onPlaySong = onSongSelected,
-            onPlayOnlineSong = onOnlineSongSelected,
-            onPlayAll = {
-                if (artistOnlineSongs.isNotEmpty()) {
-                    onOnlineSongSelected(artistOnlineSongs.first(), artistOnlineSongs)
-                } else if (artistLocalSongs.isNotEmpty()) {
-                    onSongSelected(artistLocalSongs.first(), artistLocalSongs)
+
+        // Keep artist and online-release details inside the app content layer rather than a Dialog.
+        // This lets the global mini-player and bottom navigation remain visible above the page.
+        if (selectedOnlineAlbum != null) {
+            OnlinePlaylistDetailScreen(
+                playlist = selectedOnlineAlbum!!,
+                songs = selectedOnlineAlbumSongs,
+                isLoading = isAlbumLoading,
+                onBack = {
+                    selectedOnlineAlbum = null
+                    selectedOnlineAlbumSongs = emptyList()
+                },
+                onSongSelected = { song, queue ->
+                    onOnlineSongSelected(song, queue)
                 }
-                selectedArtist = null
-            },
-            onShuffleAll = {
-                if (artistOnlineSongs.isNotEmpty()) {
-                    val shuffled = artistOnlineSongs.shuffled()
-                    onOnlineSongSelected(shuffled.first(), shuffled)
-                } else if (artistLocalSongs.isNotEmpty()) {
-                    val shuffled = artistLocalSongs.shuffled()
-                    onSongSelected(shuffled.first(), shuffled)
+            )
+        } else if (selectedArtist != null) {
+            ArtistDetailSheet(
+                artist = selectedArtist!!,
+                onlineSongs = artistOnlineSongs,
+                localSongs = artistLocalSongs,
+                onlineAlbums = artistOnlineAlbums,
+                isLoading = isArtistLoading,
+                onDismiss = {
+                    selectedArtist = null
+                    artistOnlineSongs = emptyList()
+                    artistLocalSongs = emptyList()
+                    artistOnlineAlbums = emptyList()
+                },
+                onPlaySong = onSongSelected,
+                onPlayOnlineSong = onOnlineSongSelected,
+                onPlayAll = {
+                    if (artistOnlineSongs.isNotEmpty()) {
+                        onOnlineSongSelected(artistOnlineSongs.first(), artistOnlineSongs)
+                    } else if (artistLocalSongs.isNotEmpty()) {
+                        onSongSelected(artistLocalSongs.first(), artistLocalSongs)
+                    }
+                    selectedArtist = null
+                },
+                onShuffleAll = {
+                    if (artistOnlineSongs.isNotEmpty()) {
+                        val shuffled = artistOnlineSongs.shuffled()
+                        onOnlineSongSelected(shuffled.first(), shuffled)
+                    } else if (artistLocalSongs.isNotEmpty()) {
+                        val shuffled = artistLocalSongs.shuffled()
+                        onSongSelected(shuffled.first(), shuffled)
+                    }
+                    selectedArtist = null
+                },
+                onOpenOnlineAlbum = { album ->
+                    selectedOnlineAlbum = album
+                    coroutineScope.launch {
+                        isAlbumLoading = true
+                        selectedOnlineAlbumSongs = viewModel.fetchAlbumTracks(album)
+                        isAlbumLoading = false
+                    }
                 }
-                selectedArtist = null
-            },
-            onOpenOnlineAlbum = { album ->
-                selectedOnlineAlbum = album
-                coroutineScope.launch {
-                    isAlbumLoading = true
-                    selectedOnlineAlbumSongs = viewModel.fetchAlbumTracks(album)
-                    isAlbumLoading = false
-                }
-            }
-        )
+            )
+        }
     }
 }
