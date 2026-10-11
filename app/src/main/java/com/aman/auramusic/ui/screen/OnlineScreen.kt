@@ -44,16 +44,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
 import com.aman.auramusic.online.player.OnlinePlaybackManager
+import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.AuraLoadingState
@@ -652,6 +656,7 @@ private fun FeaturedExploreCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -661,39 +666,53 @@ private fun FeaturedExploreCard(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF171217)),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            // Let the artwork own the whole hero card instead of appearing as a small inset poster.
-            AuraArtwork(
-                model = song.artworkUrl,
-                size = 420,
-                modifier = Modifier.fillMaxSize(),
-                shape = AuraShapes.Surface,
-                elevation = 0.dp
-            )
-
-            // Layered scrims keep the artwork prominent while maintaining reliable text contrast.
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colorStops = arrayOf(
-                                0.0f to Color.Black.copy(alpha = 0.08f),
-                                0.38f to Color.Transparent,
-                                1.0f to Color.Black.copy(alpha = 0.88f)
-                            )
-                        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(AuraShapes.Surface)
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(Color(0xFF682637), Color(0xFF24171C), Color(0xFF101010))
                     )
-            )
+                )
+        ) {
+            if (!song.artworkUrl.isNullOrBlank()) {
+                val imageRequest = remember(song.artworkUrl, context) {
+                    ArtworkQualityOptimizer.buildImageRequest(context, song.artworkUrl)
+                }
+                AsyncImage(
+                    model = imageRequest,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            // Horizontal gradient overlay for left-side text contrast
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.horizontalGradient(
-                            colorStops = arrayOf(
-                                0.0f to Color.Black.copy(alpha = 0.46f),
-                                0.55f to Color.Black.copy(alpha = 0.12f),
-                                1.0f to Color.Transparent
+                            listOf(
+                                Color.Black.copy(alpha = 0.85f),
+                                Color.Black.copy(alpha = 0.45f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+
+            // Vertical gradient overlay for bottom text and play button contrast
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.35f),
+                                Color.Black.copy(alpha = 0.85f)
                             )
                         )
                     )
@@ -702,8 +721,8 @@ private fun FeaturedExploreCard(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .fillMaxWidth(0.82f)
-                    .padding(start = 20.dp, end = 12.dp, top = 18.dp, bottom = 20.dp),
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 76.dp, bottom = 20.dp, top = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
                 Text(
@@ -737,12 +756,14 @@ private fun FeaturedExploreCard(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(16.dp)
-                    .size(46.dp)
-                    .liquidGlass(level = GlassLevel.Tinted, shape = CircleShape, tint = AuraCoral),
+                    .size(48.dp)
+                    .liquidGlass(level = GlassLevel.Tinted, shape = CircleShape, tint = AuraCoral)
+                    .clip(CircleShape)
+                    .clickable(onClick = onClick),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Default.PlayArrow,
+                    imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Play featured music",
                     tint = Color.White,
                     modifier = Modifier.size(26.dp)

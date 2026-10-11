@@ -319,4 +319,96 @@ class YouTubeArtistExtractionTest {
         assertTrue(ytTracks.all { it.source == com.aman.auramusic.online.model.AudioSource.YOUTUBE })
         assertFalse(ytTracks.any { it.source == com.aman.auramusic.online.model.AudioSource.JIOSAAVN })
     }
+
+    @Test
+    fun testMatchesArtistNameExactAndVariations() {
+        // Exact match
+        assertTrue(com.aman.auramusic.ui.screen.hometest.HomeTestViewModel.matchesArtistName("Gurjit Gill", "Gurjit Gill"))
+        // Case insensitive
+        assertTrue(com.aman.auramusic.ui.screen.hometest.HomeTestViewModel.matchesArtistName("gurjit gill", "GURJIT GILL"))
+        // Spacing variations
+        assertTrue(com.aman.auramusic.ui.screen.hometest.HomeTestViewModel.matchesArtistName("Gurjit  Gill", "Gurjit Gill"))
+        assertTrue(com.aman.auramusic.ui.screen.hometest.HomeTestViewModel.matchesArtistName("Gurjit Gill ", "Gurjit Gill"))
+        // Topic suffix variation
+        assertTrue(com.aman.auramusic.ui.screen.hometest.HomeTestViewModel.matchesArtistName("Gurjit Gill - Topic", "Gurjit Gill"))
+        // Punctuation variation
+        assertTrue(com.aman.auramusic.ui.screen.hometest.HomeTestViewModel.matchesArtistName("A.R. Rahman", "A. R. Rahman"))
+        assertTrue(com.aman.auramusic.ui.screen.hometest.HomeTestViewModel.matchesArtistName("A.R. Rahman", "AR Rahman"))
+    }
+
+    @Test
+    fun testMatchesArtistNameNegative() {
+        // Completely different or partial artist names must NOT match
+        assertFalse(com.aman.auramusic.ui.screen.hometest.HomeTestViewModel.matchesArtistName("Gurjit Gill", "Gill"))
+        assertFalse(com.aman.auramusic.ui.screen.hometest.HomeTestViewModel.matchesArtistName("Gurjit Gill", "Gurjit"))
+        assertFalse(com.aman.auramusic.ui.screen.hometest.HomeTestViewModel.matchesArtistName("Gurjit Gill", "Jassi Gill"))
+        assertFalse(com.aman.auramusic.ui.screen.hometest.HomeTestViewModel.matchesArtistName("Arijit Singh", "Diljit Dosanjh"))
+    }
+
+    @Test
+    fun testGurjitGillMetadataParsingFromInnerTubeResponse() {
+        val gurjitGillJson = """
+        {
+          "contents": {
+            "tabbedSearchResultsRenderer": {
+              "tabs": [{
+                "tabRenderer": {
+                  "content": {
+                    "sectionListRenderer": {
+                      "contents": [{
+                        "musicShelfRenderer": {
+                          "title": { "runs": [{ "text": "Artists" }] },
+                          "contents": [{
+                            "musicResponsiveListItemRenderer": {
+                              "thumbnail": {
+                                "musicThumbnailRenderer": {
+                                  "thumbnail": {
+                                    "thumbnails": [
+                                      { "url": "https://yt3.googleusercontent.com/KUfkpFydqshfndt0wa3rJrZbxl0EfXfAX3kxDPcM=w60-h60" },
+                                      { "url": "https://yt3.googleusercontent.com/KUfkpFydqshfndt0wa3rJrZbxl0EfXfAX3kxDPcM=w120-h120" }
+                                    ]
+                                  }
+                                }
+                              },
+                              "flexColumns": [
+                                {
+                                  "musicResponsiveListItemFlexColumnRenderer": {
+                                    "text": { "runs": [{ "text": "Gurjit Gill" }] }
+                                  }
+                                },
+                                {
+                                  "musicResponsiveListItemFlexColumnRenderer": {
+                                    "text": { "runs": [{ "text": "Artist • 58.5M monthly audience" }] }
+                                  }
+                                }
+                              ],
+                              "navigationEndpoint": {
+                                "browseEndpoint": {
+                                  "browseId": "UCfHedNWhY9Es395MezTHyZw",
+                                  "browseEndpointContextSupportedConfigs": {
+                                    "browseEndpointContextMusicConfig": { "pageType": "MUSIC_PAGE_TYPE_ARTIST" }
+                                  }
+                                }
+                              }
+                            }
+                          }]
+                        }
+                      }]
+                    }
+                  }
+                }
+              }]
+            }
+          }
+        }
+        """.trimIndent()
+
+        val parsed = com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl.parseInnerTubeArtistResults(gurjitGillJson)
+        assertEquals(1, parsed.size)
+        val artist = parsed.first()
+        assertEquals("Gurjit Gill", artist.name)
+        assertEquals("UCfHedNWhY9Es395MezTHyZw", artist.id)
+        assertTrue(artist.profileImageUrl?.contains("yt3.googleusercontent.com") == true)
+        assertTrue(artist.isVerified)
+    }
 }

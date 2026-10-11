@@ -34,12 +34,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.ui.component.AuraArtwork
@@ -490,7 +492,6 @@ fun TrendingSongsSection(
 
     Column(modifier = modifier.padding(top = 22.dp)) {
         HomeSectionHeader(
-            eyebrow = "YOUTUBE MUSIC CHARTS",
             title = "Trending Now"
         )
         Spacer(modifier = Modifier.height(10.dp))
@@ -642,7 +643,6 @@ fun ArtistsSection(
 
     Column(modifier = modifier.padding(top = 24.dp)) {
         HomeSectionHeader(
-            eyebrow = "ARTIST CLOUD",
             title = "Artist Discovery"
         )
         Spacer(modifier = Modifier.height(10.dp))
@@ -671,6 +671,8 @@ fun ArtistSquareCard(
 ) {
     val isDark = LocalIsDark.current
     val titleColor = if (isDark) Color.White else Color(0xFF111111)
+    var imageFailed by remember(artist.name, artist.artworkModel) { mutableStateOf(false) }
+    val showImage = artist.artworkModel != null && !imageFailed
 
     Column(
         modifier = modifier
@@ -689,15 +691,43 @@ fun ArtistSquareCard(
                     color = if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f),
                     shape = CircleShape
                 )
+                .background(
+                    Brush.linearGradient(
+                        if (isDark) {
+                            listOf(Color(0xFF34304A), Color(0xFF171923), Color(0xFF4A243A))
+                        } else {
+                            listOf(Color(0xFFFFD9E2), Color(0xFFE6E8FF), Color(0xFFFFE7C2))
+                        }
+                    )
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            AuraArtwork(
-                model = artist.artworkModel,
-                size = size.value.toInt(),
-                modifier = Modifier.fillMaxSize(),
-                shape = CircleShape,
-                elevation = 0.dp,
-                fallbackIcon = Icons.Default.Person
-            )
+            if (showImage) {
+                AsyncImage(
+                    model = artist.artworkModel,
+                    contentDescription = "${artist.name} artist portrait",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    onError = { imageFailed = true }
+                )
+            } else {
+                val initial = artist.name.trim().firstOrNull()?.uppercaseChar()?.toString()
+                if (!initial.isNullOrBlank()) {
+                    Text(
+                        text = initial,
+                        color = if (isDark) Color.White else Color(0xFF493044),
+                        fontSize = (size.value * 0.42f).sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = if (isDark) Color.White.copy(alpha = 0.75f) else Color(0xFF493044),
+                        modifier = Modifier.size(size * 0.42f)
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -1157,7 +1187,6 @@ fun DiscoverCategorySection(
 
     Column(modifier = modifier.padding(top = 26.dp, bottom = 18.dp)) {
         HomeSectionHeader(
-            eyebrow = "EXPLORE GENRES & MOODS",
             title = "Discover by Category"
         )
         Spacer(modifier = Modifier.height(10.dp))
