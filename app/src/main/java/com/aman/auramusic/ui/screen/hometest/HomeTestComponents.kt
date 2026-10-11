@@ -780,6 +780,9 @@ fun ArtistDetailSheet(
     }
     val totalTracks = onlineSongs.size + localSongs.size
 
+    // Preserve Android system-back behavior now that this is an in-app screen, not a Dialog.
+    androidx.activity.compose.BackHandler(onBack = onDismiss)
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = pageBackground
