@@ -783,6 +783,7 @@ fun ArtistDetailSheet(
             .sortedByDescending { it.value.size }
     }
     val totalTracks = onlineSongs.size + localSongs.size
+    var showArtistMenu by remember(artist.artistId, artist.name) { mutableStateOf(false) }
 
     // Preserve Android system-back behavior now that this is an in-app screen, not a Dialog.
     androidx.activity.compose.BackHandler(onBack = onDismiss)
@@ -850,98 +851,116 @@ fun ArtistDetailSheet(
                                 )
                         )
 
-                        // 4. Back button with status bar insets
-                        IconButton(
-                            onClick = onDismiss,
+                        // Minimal liquid-glass controls: Back on the left, artist actions on the right.
+                        Row(
                             modifier = Modifier
-                                .statusBarsPadding()
-                                .padding(start = 8.dp, top = 4.dp)
-                                .size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
-
-                        // 5. Artist Name, song count, and Play All
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
+                                .align(Alignment.TopCenter)
                                 .fillMaxWidth()
-                                .padding(start = 20.dp, end = 20.dp, bottom = 18.dp)
+                                .statusBarsPadding()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                text = artist.name,
-                                color = Color.White,
-                                fontSize = 34.sp,
-                                lineHeight = 38.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = when {
-                                    artist.songCountText.isNotBlank() && artist.isOnline -> artist.songCountText
-                                    totalTracks > 0 -> "$totalTracks tracks available"
-                                    else -> "Artist"
-                                },
-                                color = Color.White.copy(alpha = 0.78f),
-                                fontSize = 12.sp
-                            )
-                            Spacer(modifier = Modifier.height(14.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color.Black.copy(alpha = 0.30f),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.36f)),
+                                modifier = Modifier.size(44.dp)
+                            ) {
+                                IconButton(onClick = onDismiss) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(23.dp)
+                                    )
+                                }
+                            }
+
+                            Box {
                                 Surface(
-                                    onClick = onPlayAll,
                                     shape = CircleShape,
-                                    color = if (isDark) Color.White else AuraPrimary,
-                                    shadowElevation = 4.dp,
-                                    modifier = Modifier.size(56.dp)
+                                    color = Color.Black.copy(alpha = 0.30f),
+                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.36f)),
+                                    modifier = Modifier.size(44.dp)
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
+                                    IconButton(onClick = { showArtistMenu = true }) {
                                         Icon(
-                                            imageVector = Icons.Default.PlayArrow,
-                                            contentDescription = "Play all artist tracks",
-                                            tint = if (isDark) Color.Black else Color.White,
-                                            modifier = Modifier.size(34.dp)
+                                            imageVector = Icons.Default.MoreHoriz,
+                                            contentDescription = "Artist options",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(24.dp)
                                         )
                                     }
                                 }
-
-                                if (onToggleSaveToLibrary != null) {
-                                    Spacer(modifier = Modifier.width(14.dp))
-                                    Surface(
-                                        onClick = onToggleSaveToLibrary,
-                                        shape = RoundedCornerShape(20.dp),
-                                        color = if (isSavedInLibrary) (if (isDark) Color.White.copy(alpha = 0.22f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)) else Color.White.copy(alpha = 0.12f),
-                                        border = BorderStroke(
-                                            1.dp,
-                                            if (isSavedInLibrary) (if (isDark) Color.White else MaterialTheme.colorScheme.primary) else Color.White.copy(alpha = 0.35f)
-                                        ),
-                                        modifier = Modifier.height(44.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 16.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isSavedInLibrary) Icons.Default.BookmarkAdded else Icons.Default.BookmarkAdd,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(
-                                                text = if (isSavedInLibrary) "In Library" else "Save to Library",
-                                                color = Color.White,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
+                                DropdownMenu(
+                                    expanded = showArtistMenu,
+                                    onDismissRequest = { showArtistMenu = false }
+                                ) {
+                                    if (onToggleSaveToLibrary != null) {
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(if (isSavedInLibrary) "Remove from Library" else "Save to Library")
+                                            },
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = if (isSavedInLibrary) Icons.Default.BookmarkAdded else Icons.Default.BookmarkAdd,
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            onClick = {
+                                                showArtistMenu = false
+                                                onToggleSaveToLibrary()
+                                            }
+                                        )
                                     }
+                                }
+                            }
+                        }
+
+                        // Artist identity on the left, one prominent Play action on the right.
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .padding(start = 22.dp, end = 22.dp, bottom = 22.dp),
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                                Text(
+                                    text = artist.name,
+                                    color = Color.White,
+                                    fontSize = 32.sp,
+                                    lineHeight = 36.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(5.dp))
+                                Text(
+                                    text = when {
+                                        artist.songCountText.isNotBlank() && artist.isOnline -> artist.songCountText
+                                        totalTracks > 0 -> "$totalTracks tracks available"
+                                        else -> "Artist"
+                                    },
+                                    color = Color.White.copy(alpha = 0.78f),
+                                    fontSize = 12.sp
+                                )
+                            }
+                            Surface(
+                                onClick = onPlayAll,
+                                shape = CircleShape,
+                                color = AuraPrimary,
+                                shadowElevation = 8.dp,
+                                modifier = Modifier.size(58.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = "Play all artist tracks",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(34.dp)
+                                    )
                                 }
                             }
                         }
