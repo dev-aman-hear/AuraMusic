@@ -791,20 +791,46 @@ class HomeTestViewModel @Inject constructor(
      * and karaoke while prioritizing verified releases.
      */
     suspend fun fetchArtistSongs(
-        artistName: String,
+        artist: ArtistItem,
         localSongs: List<Song>
     ): Pair<List<OnlineSong>, List<Song>> = withContext(Dispatchers.IO) {
-        val onlineResults = try {
-            youtubeArtistRepository.getArtistSongs(artistName)
-        } catch (_: Exception) {
-            emptyList()
+        val artistName = artist.name.trim()
+        val localFiltered = localSongs.filter { song ->
+            extractSingleArtistNames(song.artist).any {
+                it.equals(artistName, ignoreCase = true)
+            }
+        }.distinctBy { it.id }
+
+        // Prefer the exact artist browse ID already attached to the YouTube Music card.
+        // For local-only artists, resolve a genuine artist entity first; never use a broad
+        // "$name songs" search that can fill the page with unrelated uploads.
+        val resolvedArtist = if (artist.isOnline &&
+            artist.artistId.isNotBlank() &&
+            !artist.artistId.startsWith("local_") &&
+            !artist.artistId.startsWith("yt_artist_")
+        ) {
+            artist.artistId
+        } else {
+            try {
+                youtubeArtistRepository.searchArtists(artistName)
+                    .firstOrNull { matchesArtistName(it.name, artistName) }
+                    ?.id
+            } catch (_: Exception) {
+                null
+            }
         }
 
-        val localFiltered = localSongs.filter { song ->
-            val singleNames = extractSingleArtistNames(song.artist)
-            singleNames.any { it.equals(artistName, ignoreCase = true) || it.contains(artistName, ignoreCase = true) } ||
-            song.title.contains(artistName, ignoreCase = true)
-        }.take(25)
+        val onlineResults = if (!resolvedArtist.isNullOrBlank()) {
+            try {
+                youtubeArtistRepository.getArtistSongs(artistName, resolvedArtist)
+                    .filter { it.source == AudioSource.YOUTUBE }
+                    .distinctBy { it.id }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        } else {
+            emptyList()
+        }
 
         Pair(onlineResults, localFiltered)
     }
