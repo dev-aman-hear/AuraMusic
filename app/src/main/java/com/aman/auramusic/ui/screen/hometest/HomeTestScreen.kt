@@ -1,8 +1,10 @@
 package com.aman.auramusic.ui.screen.hometest
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -65,6 +67,7 @@ fun HomeTestScreen(
     viewModel: HomeTestViewModel = hiltViewModel()
 ) {
     val isDark = LocalIsDark.current
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -420,7 +423,11 @@ fun HomeTestScreen(
                         // opened from a local-library artist card with local songs.
                         coroutineScope.launch {
                             val resolved = viewModel.resolveArtistForLibrary(curArtist)
-                            if (resolved != null) onSaveOnlineArtist?.invoke(resolved)
+                            if (resolved != null) {
+                                onSaveOnlineArtist?.invoke(resolved)
+                            } else {
+                                Toast.makeText(context, "Could not resolve artist for library", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                 },

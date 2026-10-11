@@ -1,6 +1,8 @@
 package com.aman.auramusic.ui.screen
 
 import android.content.Context
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -375,14 +377,54 @@ fun OnlineScreen(
             } catch (_: Exception) {
                 emptyList()
             }
-            loadError = feedSongs.isEmpty() && movieSongs.isEmpty() && movieAlbums.isEmpty()
+            if (feedSongs.isEmpty() && movieSongs.isEmpty() && movieAlbums.isEmpty()) {
+                val songsType = object : TypeToken<List<OnlineSong>>() {}.type
+                val albumsType = object : TypeToken<List<AlbumCollection>>() {}.type
+                val fallbackFeed = feedCacheGson.fromJson<List<OnlineSong>>(
+                    feedCachePrefs.getString("feed_songs", null), songsType
+                ).orEmpty()
+                val fallbackMovies = feedCacheGson.fromJson<List<OnlineSong>>(
+                    feedCachePrefs.getString("movie_songs", null), songsType
+                ).orEmpty()
+                val fallbackAlbums = feedCacheGson.fromJson<List<AlbumCollection>>(
+                    feedCachePrefs.getString("movie_albums", null), albumsType
+                ).orEmpty()
+                if (fallbackFeed.isNotEmpty() || fallbackMovies.isNotEmpty() || fallbackAlbums.isNotEmpty()) {
+                    feedSongs = fallbackFeed
+                    movieSongs = fallbackMovies
+                    movieAlbums = fallbackAlbums
+                    loadError = false
+                } else {
+                    loadError = true
+                }
+            } else {
+                loadError = false
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            feedSongs = emptyList()
-            movieSongs = emptyList()
-            movieAlbums = emptyList()
-            loadError = true
+            val songsType = object : TypeToken<List<OnlineSong>>() {}.type
+            val albumsType = object : TypeToken<List<AlbumCollection>>() {}.type
+            val fallbackFeed = feedCacheGson.fromJson<List<OnlineSong>>(
+                feedCachePrefs.getString("feed_songs", null), songsType
+            ).orEmpty()
+            val fallbackMovies = feedCacheGson.fromJson<List<OnlineSong>>(
+                feedCachePrefs.getString("movie_songs", null), songsType
+            ).orEmpty()
+            val fallbackAlbums = feedCacheGson.fromJson<List<AlbumCollection>>(
+                feedCachePrefs.getString("movie_albums", null), albumsType
+            ).orEmpty()
+            if (fallbackFeed.isNotEmpty() || fallbackMovies.isNotEmpty() || fallbackAlbums.isNotEmpty()) {
+                feedSongs = fallbackFeed
+                movieSongs = fallbackMovies
+                movieAlbums = fallbackAlbums
+                loadError = false
+            } else {
+                feedSongs = emptyList()
+                movieSongs = emptyList()
+                movieAlbums = emptyList()
+                loadError = true
+            }
         } finally {
             isLoading = false
             if (feedSongs.isNotEmpty() || movieSongs.isNotEmpty() || movieAlbums.isNotEmpty()) {

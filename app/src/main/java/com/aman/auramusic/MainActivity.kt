@@ -98,6 +98,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -708,7 +709,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onSaveOnlineArtist = { musicViewModel.saveOnlineArtistToLibrary(it) },
                                     onRemoveSavedOnlineArtist = { musicViewModel.removeOnlineArtistFromLibrary(it) },
                                     onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
-                                    onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) }
+                                    onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
+                                    homeResetKey = homeReselectKey
                                 )
                                 AppTab.Online -> OnlineScreen(
                                     onlinePlaybackManager = onlinePlaybackManager,
@@ -754,7 +756,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onSaveOnlineArtist = { musicViewModel.saveOnlineArtistToLibrary(it) },
                                     onRemoveSavedOnlineArtist = { musicViewModel.removeOnlineArtistFromLibrary(it) },
                                     savedOnlineAlbums = savedOnlineAlbums,
-                                    homeResetKey = homeReselectKey,
                                     onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
                                     onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
                                     onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }

@@ -303,16 +303,22 @@ class HomeTestViewModel @Inject constructor(
             var onlineArtistsDiscovered = emptyList<com.aman.auramusic.online.network.repository.YouTubeArtist>()
             var featuredTracks = emptyList<OnlineSong>()
 
-            val feedCacheFresh = !forceRefresh &&
-                System.currentTimeMillis() - feedCachePrefs.getLong("fetched_at", 0L) in 0..feedCacheTtlMs
+            val cachedAt = feedCachePrefs.getLong("fetched_at", 0L)
+            val feedCacheFresh = !forceRefresh && cachedAt > 0L &&
+                System.currentTimeMillis() - cachedAt in 0..feedCacheTtlMs
 
+            var cacheUsable = false
             if (feedCacheFresh) {
                 rawTrendingOnline = readCachedList("trending")
                 rawQuickHitsOnline = readCachedList("quick_hits")
                 curatedPlaylists = readCachedList("playlists")
                 onlineArtistsDiscovered = readCachedList("artists")
                 featuredTracks = readCachedList("featured_tracks")
-            } else {
+                cacheUsable = rawTrendingOnline.isNotEmpty() || rawQuickHitsOnline.isNotEmpty() ||
+                    curatedPlaylists.isNotEmpty() || onlineArtistsDiscovered.isNotEmpty()
+            }
+
+            if (!cacheUsable) {
                 try {
                 // Independent pipelines for Trending Now, Quick Hits, Playlists, and Artists
                 withContext(Dispatchers.IO) {
@@ -361,6 +367,18 @@ class HomeTestViewModel @Inject constructor(
                 } catch (e: Exception) {
                     isOfflineDetected = true
                 }
+
+                // If network fetch failed or returned empty, preserve usable cached content
+                if (rawTrendingOnline.isEmpty() && rawQuickHitsOnline.isEmpty() &&
+                    curatedPlaylists.isEmpty() && onlineArtistsDiscovered.isEmpty()) {
+                    rawTrendingOnline = readCachedList("trending")
+                    rawQuickHitsOnline = readCachedList("quick_hits")
+                    curatedPlaylists = readCachedList("playlists")
+                    onlineArtistsDiscovered = readCachedList("artists")
+                    if (featuredTracks.isEmpty()) {
+                        featuredTracks = readCachedList("featured_tracks")
+                    }
+                }
             }
 
             // 1. Resolve Daily Featured Item (Refreshes once per day)
@@ -376,7 +394,7 @@ class HomeTestViewModel @Inject constructor(
             }
 
             // 2. Fetch tracks belonging to Daily Featured Playlist / Album
-            if (featured?.onlinePlaylistId != null && featuredTracks.isEmpty()) {
+            if (!cacheUsable && featured?.onlinePlaylistId != null && featuredTracks.isEmpty()) {
                 val plObj = curatedPlaylists.find { it.id == featured.onlinePlaylistId }
                     ?: OnlinePlaylist(id = featured.onlinePlaylistId!!, title = featured.title, source = AudioSource.ALL)
                 withContext(Dispatchers.IO) {
@@ -387,15 +405,6 @@ class HomeTestViewModel @Inject constructor(
                         emptyList()
                     }
                 }
-            }
-
-            if (!feedCacheFresh && (rawTrendingOnline.isNotEmpty() || rawQuickHitsOnline.isNotEmpty() || curatedPlaylists.isNotEmpty() || onlineArtistsDiscovered.isNotEmpty())) {
-                feedCachePrefs.edit().putLong("fetched_at", System.currentTimeMillis()).apply()
-                writeCachedList("trending", rawTrendingOnline)
-                writeCachedList("quick_hits", rawQuickHitsOnline)
-                writeCachedList("playlists", curatedPlaylists)
-                writeCachedList("artists", onlineArtistsDiscovered)
-                writeCachedList("featured_tracks", featuredTracks)
             }
 
             // 3. Mutual Exclusivity Deduplication Barrier
@@ -410,7 +419,7 @@ class HomeTestViewModel @Inject constructor(
 
             // Allocate Trending Songs (guaranteed zero overlap with Daily Featured)
             var cleanTrending = ExplicitTitleFilter.filterOnline(rawTrendingOnline).filter { deduplicator.allocate(it) }
-            if (cleanTrending.size < 10) {
+            if (!cacheUsable && cleanTrending.size < 10) {
                 withContext(Dispatchers.IO) {
                     val secondary = try {
                         onlineRepository.search("Billboard Hot 100 2026", AudioSource.YOUTUBE)
@@ -418,7 +427,17 @@ class HomeTestViewModel @Inject constructor(
                     val cleanSecondary = ExplicitTitleFilter.filterOnline(onlineRepository.trendingFilter.filterSongs(secondary))
                         .filter { deduplicator.allocate(it) }
                     cleanTrending = (cleanTrending + cleanSecondary).take(20)
+                    rawTrendingOnline = (rawTrendingOnline + secondary).distinctBy { "${it.source.name}_${it.id}" }
                 }
+            }
+
+            if (!cacheUsable && (rawTrendingOnline.isNotEmpty() || rawQuickHitsOnline.isNotEmpty() || curatedPlaylists.isNotEmpty() || onlineArtistsDiscovered.isNotEmpty())) {
+                feedCachePrefs.edit().putLong("fetched_at", System.currentTimeMillis()).apply()
+                writeCachedList("trending", rawTrendingOnline)
+                writeCachedList("quick_hits", rawQuickHitsOnline)
+                writeCachedList("playlists", curatedPlaylists)
+                writeCachedList("artists", onlineArtistsDiscovered)
+                writeCachedList("featured_tracks", featuredTracks)
             }
 
             // Map Trending Songs with matching local tracks
@@ -912,6 +931,11 @@ class HomeTestViewModel @Inject constructor(
             ) {
                 cachedDiscoveredArtists.firstOrNull { it.id == artist.artistId }
                     ?: localArtistMetadataCache.values.firstOrNull { it.id == artist.artistId }
+                    ?: com.aman.auramusic.online.network.repository.YouTubeArtist(
+                        id = artist.artistId,
+                        name = artist.name,
+                        profileImageUrl = artist.artworkModel as? String
+                    )
             } else {
                 localArtistMetadataCache[normalizeArtistComparable(name)]
                     ?: cachedDiscoveredArtists.firstOrNull { matchesArtistName(it.name, name) }
