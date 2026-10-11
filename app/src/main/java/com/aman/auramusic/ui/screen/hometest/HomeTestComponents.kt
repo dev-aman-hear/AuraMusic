@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -14,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Equalizer
@@ -41,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.online.model.OnlineSong
@@ -762,210 +765,284 @@ fun ArtistDetailSheet(
     onPlayAll: () -> Unit = onShuffleAll
 ) {
     val isDark = LocalIsDark.current
-    val scrollState = rememberScrollState()
+    val pageBackground = if (isDark) Color(0xFF050505) else Color(0xFFF7F7F9)
+    val titleColor = if (isDark) Color.White else Color(0xFF111111)
+    val secondaryColor = if (isDark) Color.White.copy(alpha = 0.62f) else Color.Black.copy(alpha = 0.58f)
+    val realAlbums = remember(localSongs) {
+        localSongs.filter { it.album.isNotBlank() && !it.album.equals("unknown", true) }
+            .groupBy { it.album.trim() }
+            .entries
+            .sortedByDescending { it.value.size }
+    }
+    val totalTracks = onlineSongs.size + localSongs.size
+    val hasOnlineCatalog = onlineSongs.any {
+        it.album.isNotBlank() && !it.album.equals("YouTube Music", true)
+    }
 
-    ModalBottomSheet(
+    androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = AuraGlass.containerColor(isDark, 0.94f),
-        dragHandle = { BottomSheetDefaults.DragHandle() }
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .verticalScroll(scrollState)
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = pageBackground
         ) {
-            // Apple Music-inspired Editorial Artist Header
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 30.dp)
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = if (isDark) Color(0xFF222028) else Color(0xFFE5E7EB),
-                    border = BorderStroke(2.dp, AuraPrimary.copy(alpha = 0.5f)),
-                    modifier = Modifier
-                        .size(110.dp)
-                        .shadow(12.dp, CircleShape)
-                ) {
-                    AuraArtwork(
-                        model = artist.artworkModel,
-                        size = 110,
-                        shape = CircleShape,
-                        elevation = 0.dp,
-                        fallbackIcon = Icons.Default.Person,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Text(
-                    text = artist.name,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = if (artist.isOnline) "YouTube Music Artist Profile" else "Local Library Artist",
-                    fontSize = 12.5.sp,
-                    color = AuraPrimary,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Text(
-                    text = "${onlineSongs.size + localSongs.size} Tracks available",
-                    fontSize = 11.5.sp,
-                    color = if (isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.5f)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Play All & Shuffle Dual Actions
-                if (onlineSongs.isNotEmpty() || localSongs.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                item(key = "artist_hero") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(340.dp)
                     ) {
-                        Button(
-                            onClick = onPlayAll,
-                            colors = ButtonDefaults.buttonColors(containerColor = AuraPrimary),
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Play All",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                        if (artist.artworkModel != null) {
+                            AsyncImage(
+                                model = artist.artworkModel,
+                                contentDescription = "${artist.name} artist artwork",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Play All", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize().background(
+                                    Brush.linearGradient(
+                                        listOf(Color(0xFF33303A), Color(0xFF151419), Color(0xFF080808))
+                                    )
+                                ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    artist.name.take(1).uppercase(),
+                                    color = Color.White,
+                                    fontSize = 76.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
-
-                        OutlinedButton(
-                            onClick = onShuffleAll,
-                            shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.15f)),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (isDark) Color(0xFF201E26) else Color(0xFFF0F1F5)
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Shuffle,
-                                contentDescription = "Shuffle",
-                                tint = if (isDark) Color.White else Color.Black,
-                                modifier = Modifier.size(18.dp)
+                        Box(
+                            modifier = Modifier.fillMaxSize().background(
+                                Brush.verticalGradient(
+                                    0f to Color.Black.copy(alpha = 0.18f),
+                                    0.42f to Color.Transparent,
+                                    0.68f to Color.Black.copy(alpha = 0.55f),
+                                    1f to pageBackground
+                                )
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Shuffle", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color.White else Color.Black)
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = AuraPrimary, modifier = Modifier.size(36.dp))
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Fetching tracks from YouTube Music...",
-                            fontSize = 13.sp,
-                            color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f)
                         )
-                    }
-                }
-            } else if (onlineSongs.isEmpty() && localSongs.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No tracks found for ${artist.name}",
-                        fontSize = 14.sp,
-                        color = if (isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.5f)
-                    )
-                }
-            } else {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Local songs section
-                    if (localSongs.isNotEmpty()) {
-                        Text(
-                            text = "LOCAL SONGS (${localSongs.size})",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = AuraPrimary,
-                            letterSpacing = 0.8.sp
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier
+                                .statusBarsPadding()
+                                .padding(start = 16.dp, top = 8.dp)
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .clickable(onClick = onDismiss)
                         )
-                        localSongs.forEach { lSong ->
-                            val track = QuickHitTrack.LocalTrack(lSong, "Local")
-                            QuickHitTrackItem(
-                                track = track,
-                                isActive = false,
-                                isPlaying = false,
-                                onClick = {
-                                    onPlaySong(lSong, localSongs)
-                                    onDismiss()
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .fillMaxWidth()
+                                .padding(start = 20.dp, end = 20.dp, bottom = 18.dp)
+                        ) {
+                            Text(
+                                text = artist.name,
+                                color = Color.White,
+                                fontSize = 34.sp,
+                                lineHeight = 38.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = when {
+                                    artist.songCountText.isNotBlank() && artist.isOnline -> artist.songCountText
+                                    totalTracks > 0 -> "$totalTracks tracks available"
+                                    else -> "Artist"
                                 },
-                                onOptionsClick = {}
+                                color = Color.White.copy(alpha = 0.76f),
+                                fontSize = 12.sp
                             )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    onClick = onPlayAll,
+                                    shape = CircleShape,
+                                    color = Color.White,
+                                    modifier = Modifier.size(58.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Play all artist tracks",
+                                            tint = Color.Black,
+                                            modifier = Modifier.size(34.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
                     }
+                }
 
-                    // Online YouTube songs section
+                if (isLoading) {
+                    item(key = "artist_loading") {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(180.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = AuraPrimary)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("Loading artist catalogue from YouTube Music…", color = secondaryColor, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                } else if (onlineSongs.isEmpty() && localSongs.isEmpty()) {
+                    item(key = "artist_empty") {
+                        Text(
+                            text = "No tracks are available for this artist yet.",
+                            color = secondaryColor,
+                            fontSize = 14.sp,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 26.dp)
+                        )
+                    }
+                } else {
                     if (onlineSongs.isNotEmpty()) {
-                        Text(
-                            text = "YOUTUBE MUSIC SONGS (${onlineSongs.size})",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF00E5FF),
-                            letterSpacing = 0.8.sp
-                        )
-                        onlineSongs.forEach { oSong ->
-                            val track = QuickHitTrack.OnlineTrack(oSong, "YouTube")
-                            QuickHitTrackItem(
-                                track = track,
-                                isActive = false,
-                                isPlaying = false,
-                                onClick = {
-                                    onPlayOnlineSong(oSong, onlineSongs)
-                                    onDismiss()
-                                },
-                                onOptionsClick = {}
+                        item(key = "artist_top_songs_heading") {
+                            Text(
+                                text = "Top songs",
+                                color = titleColor,
+                                fontSize = 23.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 8.dp)
+                            )
+                        }
+                        items(onlineSongs.take(20), key = { "yt_artist_track_${it.id}" }) { song ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onPlayOnlineSong(song, onlineSongs) }
+                                    .padding(horizontal = 16.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AuraArtwork(
+                                    model = song.artworkUrl,
+                                    size = 54,
+                                    shape = RoundedCornerShape(6.dp),
+                                    elevation = 0.dp,
+                                    modifier = Modifier.size(54.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
+                                    Text(song.title, color = titleColor, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = listOf(song.artist, song.album.takeIf { it.isNotBlank() && !it.equals("YouTube Music", true) })
+                                            .filterNotNull().filter { it.isNotBlank() }.distinct().joinToString(" · "),
+                                        color = secondaryColor,
+                                        fontSize = 11.5.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Icon(Icons.Default.PlayArrow, contentDescription = "Play ${song.title}", tint = titleColor.copy(alpha = 0.8f), modifier = Modifier.size(22.dp))
+                            }
+                        }
+                    }
+
+                    if (localSongs.isNotEmpty()) {
+                        item(key = "artist_local_heading") {
+                            Text(
+                                text = "In your library",
+                                color = titleColor,
+                                fontSize = 23.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 8.dp)
+                            )
+                        }
+                        items(localSongs, key = { "local_artist_track_${it.id}" }) { song ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onPlaySong(song, localSongs) }
+                                    .padding(horizontal = 16.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                SongArtwork(song = song, size = 54.dp)
+                                Column(modifier = Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
+                                    Text(song.title, color = titleColor, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(song.album, color = secondaryColor, fontSize = 11.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                                Icon(Icons.Default.PlayArrow, contentDescription = "Play ${song.title}", tint = titleColor.copy(alpha = 0.8f), modifier = Modifier.size(22.dp))
+                            }
+                        }
+                    }
+
+                    if (realAlbums.isNotEmpty()) {
+                        item(key = "artist_albums_heading") {
+                            Text(
+                                text = "Albums in your library",
+                                color = titleColor,
+                                fontSize = 23.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 10.dp)
+                            )
+                        }
+                        item(key = "artist_albums_rail") {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 20.dp),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                items(realAlbums, key = { "artist_album_${it.key}" }) { entry ->
+                                    Column(
+                                        modifier = Modifier.width(142.dp).clickable {
+                                            val albumTracks = entry.value
+                                            albumTracks.firstOrNull()?.let { onPlaySong(it, albumTracks) }
+                                        }
+                                    ) {
+                                        AuraArtwork(
+                                            model = entry.value.firstOrNull()?.artworkUri,
+                                            size = 142,
+                                            shape = RoundedCornerShape(8.dp),
+                                            elevation = 0.dp,
+                                            modifier = Modifier.size(142.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(7.dp))
+                                        Text(entry.key, color = titleColor, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text("${entry.value.size} songs · Local library", color = secondaryColor, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (hasOnlineCatalog) {
+                        item(key = "artist_youtube_albums_note") {
+                            Text(
+                                text = "YouTube Music releases",
+                                color = titleColor,
+                                fontSize = 23.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 8.dp)
+                            )
+                            Text(
+                                text = "Only release metadata returned by YouTube Music is shown here.",
+                                color = secondaryColor,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
                             )
                         }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 }
