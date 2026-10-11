@@ -862,6 +862,44 @@ class HomeTestViewModel @Inject constructor(
         )
     }
 
+    /**
+     * Resolve a genuine YouTube Music artist entity for the Save to Library action.
+     * Local songs are not a prerequisite for saving an artist.
+     */
+    suspend fun resolveArtistForLibrary(artist: ArtistItem): com.aman.auramusic.online.model.SavedOnlineArtist? =
+        withContext(Dispatchers.IO) {
+            val name = artist.name.trim()
+            if (name.isBlank()) return@withContext null
+
+            val existing = if (artist.artistId.isNotBlank() &&
+                !artist.artistId.startsWith("local_") &&
+                !artist.artistId.startsWith("yt_artist_")
+            ) {
+                cachedDiscoveredArtists.firstOrNull { it.id == artist.artistId }
+                    ?: localArtistMetadataCache.values.firstOrNull { it.id == artist.artistId }
+            } else {
+                localArtistMetadataCache[normalizeArtistComparable(name)]
+                    ?: cachedDiscoveredArtists.firstOrNull { matchesArtistName(it.name, name) }
+            }
+
+            val resolved = existing ?: runCatching {
+                youtubeArtistRepository.searchArtists(name)
+                    .firstOrNull { matchesArtistName(it.name, name) }
+            }.getOrNull() ?: return@withContext null
+
+            if (resolved.id.isBlank() || resolved.id.startsWith("local_") || resolved.id.startsWith("yt_artist_")) {
+                return@withContext null
+            }
+
+            localArtistMetadataCache[normalizeArtistComparable(name)] = resolved
+            com.aman.auramusic.online.model.SavedOnlineArtist(
+                id = resolved.id,
+                name = resolved.name.ifBlank { name },
+                profileImageUrl = resolved.profileImageUrl ?: artist.artworkModel as? String,
+                source = AudioSource.YOUTUBE
+            )
+        }
+
     suspend fun fetchArtistSongs(
         artist: ArtistItem,
         localSongs: List<Song>
