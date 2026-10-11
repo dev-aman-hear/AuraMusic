@@ -2,10 +2,12 @@ package com.aman.auramusic.online.network.repository
 
 import android.util.LruCache
 import com.aman.auramusic.online.model.AudioSource
+import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.network.piped.PipedService
 import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.google.gson.JsonParser
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -30,12 +32,21 @@ data class YouTubeArtist(
 )
 
 /**
+ * Holds songs and genuine releases (albums, singles, EPs) extracted from an artist's browse page.
+ */
+data class ArtistCatalogue(
+    val songs: List<OnlineSong> = emptyList(),
+    val albums: List<OnlinePlaylist> = emptyList()
+)
+
+/**
  * Dedicated repository abstraction for discovering YouTube artists and fetching ranked artist releases.
  */
 interface YouTubeArtistRepository {
     suspend fun getTrendingArtists(): List<YouTubeArtist>
     suspend fun searchArtists(query: String): List<YouTubeArtist>
     suspend fun getArtistSongs(artistName: String, artistId: String? = null): List<OnlineSong>
+    suspend fun getArtistCatalogue(artistName: String, artistId: String? = null): ArtistCatalogue
 }
 
 @Singleton
@@ -104,18 +115,21 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
         emptyList()
     }
 
-    override suspend fun getArtistSongs(artistName: String, artistId: String?): List<OnlineSong> = withContext(Dispatchers.IO) {
+    override suspend fun getArtistSongs(artistName: String, artistId: String?): List<OnlineSong> =
+        getArtistCatalogue(artistName, artistId).songs
+
+    override suspend fun getArtistCatalogue(artistName: String, artistId: String?): ArtistCatalogue = withContext(Dispatchers.IO) {
         val browseId = artistId?.trim().orEmpty()
         // A real YouTube Music browse ID is required. Never substitute a broad text search:
         // it mixes covers, fan uploads, unrelated artists, and compilations into an artist page.
         if (browseId.isBlank() || browseId.startsWith("local_") || browseId.startsWith("yt_artist_")) {
-            return@withContext emptyList()
+            return@withContext ArtistCatalogue()
         }
 
         val cacheKey = "browse:$browseId"
-        artistSongsCache.get(cacheKey)?.let { return@withContext it }
+        artistCatalogueCache.get(cacheKey)?.let { return@withContext it }
 
-        val tracks = try {
+        val catalogue = try {
             val payload = """
                 {
                   "context": {
@@ -139,109 +153,21 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
                 .build()
 
             httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@use emptyList()
+                if (!response.isSuccessful) return@use ArtistCatalogue()
                 val json = response.body?.string().orEmpty()
-                parseArtistBrowseTracks(json, artistName)
+                val tracks = parseArtistBrowseTracks(json, artistName)
+                val albums = parseArtistBrowseAlbums(json)
+                ArtistCatalogue(tracks, albums)
             }
-        } catch (_: Exception) {
-            emptyList()
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ArtistCatalogue()
         }
 
-        val uniqueTracks = tracks.distinctBy { it.id }.take(50)
-        if (uniqueTracks.isNotEmpty()) artistSongsCache.put(cacheKey, uniqueTracks)
-        uniqueTracks
-    }
-
-    /**
-     * Reads track rows from the selected artist's actual YouTube Music browse response.
-     * It deliberately does not use broad search results as a fallback.
-     */
-    private fun parseArtistBrowseTracks(jsonString: String, artistName: String): List<OnlineSong> {
-        val result = mutableListOf<OnlineSong>()
-        try {
-            val root = JsonParser.parseString(jsonString)
-            fun textOf(element: com.google.gson.JsonElement?): String {
-                if (element == null || !element.isJsonObject) return ""
-                val obj = element.asJsonObject
-                obj.get("simpleText")?.let { return it.asString.replace('\u00A0', ' ').trim() }
-                return obj.getAsJsonArray("runs")?.mapNotNull { run ->
-                    run.asJsonObject.get("text")?.asString
-                }?.joinToString("")?.replace('\u00A0', ' ')?.trim().orEmpty()
-            }
-            fun walk(element: com.google.gson.JsonElement) {
-                if (element.isJsonArray) {
-                    element.asJsonArray.forEach(::walk)
-                    return
-                }
-                if (!element.isJsonObject) return
-                val obj = element.asJsonObject
-                val renderer = obj.getAsJsonObject("musicResponsiveListItemRenderer")
-                if (renderer != null) {
-                    val flex = renderer.getAsJsonArray("flexColumns")
-                    var videoId = renderer.getAsJsonObject("playlistItemData")?.get("videoId")?.asString.orEmpty()
-                    if (videoId.isBlank()) {
-                        videoId = renderer.getAsJsonObject("navigationEndpoint")
-                            ?.getAsJsonObject("watchEndpoint")?.get("videoId")?.asString.orEmpty()
-                    }
-                    if (videoId.isBlank()) {
-                        videoId = renderer.getAsJsonObject("overlay")
-                            ?.getAsJsonObject("musicItemThumbnailOverlayRenderer")
-                            ?.getAsJsonObject("content")
-                            ?.getAsJsonObject("musicPlayButtonRenderer")
-                            ?.getAsJsonObject("playNavigationEndpoint")
-                            ?.getAsJsonObject("watchEndpoint")?.get("videoId")?.asString.orEmpty()
-                    }
-
-                    if (videoId.isNotBlank() && flex != null && flex.size() > 0) {
-                        val title = textOf(
-                            flex[0].asJsonObject.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
-                                ?.getAsJsonObject("text")
-                        )
-                        val metadata = if (flex.size() > 1) textOf(
-                            flex[1].asJsonObject.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
-                                ?.getAsJsonObject("text")
-                        ) else ""
-                        val thumb = renderer.getAsJsonObject("thumbnail")
-                            ?.getAsJsonObject("musicThumbnailRenderer")
-                            ?.getAsJsonObject("thumbnail")
-                            ?.getAsJsonArray("thumbnails")
-                            ?.lastOrNull()?.asJsonObject?.get("url")?.asString.orEmpty()
-                        var durationSeconds = 0L
-                        val fixedColumns = renderer.getAsJsonArray("fixedColumns")
-                        if (fixedColumns != null) {
-                            for (column in fixedColumns) {
-                                val text = textOf(column.asJsonObject
-                                    .getAsJsonObject("musicResponsiveListItemFixedColumnRenderer")
-                                    ?.getAsJsonObject("text"))
-                                val seconds = com.aman.auramusic.online.filter.TrendingSongFilter.parseDurationToSeconds(text)
-                                if (seconds > 0) { durationSeconds = seconds; break }
-                            }
-                        }
-                        if (title.isNotBlank()) {
-                            result.add(
-                                OnlineSong(
-                                    id = videoId,
-                                    title = title,
-                                    artist = artistName,
-                                    album = "YouTube Music",
-                                    artworkUrl = ArtworkQualityOptimizer.optimizeUrl(thumb)
-                                        .ifBlank { "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" },
-                                    durationSeconds = durationSeconds,
-                                    source = AudioSource.YOUTUBE,
-                                    bitrate = "Adaptive",
-                                    format = "M4A/Opus"
-                                )
-                            )
-                        }
-                    }
-                }
-                obj.entrySet().forEach { (_, child) -> walk(child) }
-            }
-            walk(root)
-        } catch (_: Exception) {
-            return emptyList()
+        if (catalogue.songs.isNotEmpty() || catalogue.albums.isNotEmpty()) {
+            artistCatalogueCache.put(cacheKey, catalogue)
         }
-        return result
+        catalogue
     }
 
     /**
@@ -302,7 +228,223 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
     companion object {
         private val artistCache = LruCache<String, List<YouTubeArtist>>(100)
         private val artistSongsCache = LruCache<String, List<OnlineSong>>(100)
+        private val artistCatalogueCache = LruCache<String, ArtistCatalogue>(100)
         private val artistSearchCache = LruCache<String, List<YouTubeArtist>>(50)
+
+        /**
+         * Reads track rows from the selected artist's actual YouTube Music browse response.
+         * Extracts genuine title, artist, album, duration, and thumbnail without falling back
+         * to broad keyword search.
+         */
+        fun parseArtistBrowseTracks(jsonString: String, artistName: String): List<OnlineSong> {
+            val result = mutableListOf<OnlineSong>()
+            try {
+                val root = JsonParser.parseString(jsonString)
+                fun textOf(element: com.google.gson.JsonElement?): String {
+                    if (element == null || !element.isJsonObject) return ""
+                    val obj = element.asJsonObject
+                    obj.get("simpleText")?.let { return it.asString.replace('\u00A0', ' ').trim() }
+                    return obj.getAsJsonArray("runs")?.mapNotNull { run ->
+                        run.asJsonObject.get("text")?.asString
+                    }?.joinToString("")?.replace('\u00A0', ' ')?.trim().orEmpty()
+                }
+                fun walk(element: com.google.gson.JsonElement) {
+                    if (element.isJsonArray) {
+                        element.asJsonArray.forEach(::walk)
+                        return
+                    }
+                    if (!element.isJsonObject) return
+                    val obj = element.asJsonObject
+                    val renderer = obj.getAsJsonObject("musicResponsiveListItemRenderer")
+                    if (renderer != null) {
+                        val flex = renderer.getAsJsonArray("flexColumns")
+                        var videoId = renderer.getAsJsonObject("playlistItemData")?.get("videoId")?.asString.orEmpty()
+                        if (videoId.isBlank()) {
+                            videoId = renderer.getAsJsonObject("navigationEndpoint")
+                                ?.getAsJsonObject("watchEndpoint")?.get("videoId")?.asString.orEmpty()
+                        }
+                        if (videoId.isBlank()) {
+                            videoId = renderer.getAsJsonObject("overlay")
+                                ?.getAsJsonObject("musicItemThumbnailOverlayRenderer")
+                                ?.getAsJsonObject("content")
+                                ?.getAsJsonObject("musicPlayButtonRenderer")
+                                ?.getAsJsonObject("playNavigationEndpoint")
+                                ?.getAsJsonObject("watchEndpoint")?.get("videoId")?.asString.orEmpty()
+                        }
+
+                        if (videoId.isNotBlank() && flex != null && flex.size() > 0) {
+                            val title = textOf(
+                                flex[0].asJsonObject.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
+                                    ?.getAsJsonObject("text")
+                            )
+
+                            var songArtist = artistName
+                            var songAlbum = ""
+                            if (flex.size() > 1) {
+                                val col1Text = textOf(
+                                    flex[1].asJsonObject.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
+                                        ?.getAsJsonObject("text")
+                                )
+                                if (col1Text.isNotBlank()) {
+                                    songArtist = col1Text
+                                }
+                            }
+
+                            if (flex.size() > 3) {
+                                val col3Text = textOf(
+                                    flex[3].asJsonObject.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
+                                        ?.getAsJsonObject("text")
+                                )
+                                if (col3Text.isNotBlank()) {
+                                    songAlbum = col3Text
+                                }
+                            }
+                            if (songAlbum.isBlank()) {
+                                for (colIndex in 1 until flex.size()) {
+                                    val runs = flex[colIndex].asJsonObject
+                                        .getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
+                                        ?.getAsJsonObject("text")
+                                        ?.getAsJsonArray("runs") ?: continue
+                                    for (run in runs) {
+                                        val runObj = run.asJsonObject
+                                        val bId = runObj.getAsJsonObject("navigationEndpoint")
+                                            ?.getAsJsonObject("browseEndpoint")
+                                            ?.get("browseId")?.asString.orEmpty()
+                                        if (bId.startsWith("MPRE")) {
+                                            songAlbum = runObj.get("text")?.asString.orEmpty().trim()
+                                            break
+                                        }
+                                    }
+                                    if (songAlbum.isNotBlank()) break
+                                }
+                            }
+
+                            val thumb = renderer.getAsJsonObject("thumbnail")
+                                ?.getAsJsonObject("musicThumbnailRenderer")
+                                ?.getAsJsonObject("thumbnail")
+                                ?.getAsJsonArray("thumbnails")
+                                ?.lastOrNull()?.asJsonObject?.get("url")?.asString.orEmpty()
+
+                            var durationSeconds = 0L
+                            val fixedColumns = renderer.getAsJsonArray("fixedColumns")
+                            if (fixedColumns != null) {
+                                for (column in fixedColumns) {
+                                    val text = textOf(column.asJsonObject
+                                        .getAsJsonObject("musicResponsiveListItemFixedColumnRenderer")
+                                        ?.getAsJsonObject("text"))
+                                    val seconds = com.aman.auramusic.online.filter.TrendingSongFilter.parseDurationToSeconds(text)
+                                    if (seconds > 0) { durationSeconds = seconds; break }
+                                }
+                            }
+                            if (durationSeconds == 0L) {
+                                for (colIndex in 1 until flex.size()) {
+                                    val text = textOf(flex[colIndex].asJsonObject
+                                        .getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
+                                        ?.getAsJsonObject("text"))
+                                    val seconds = com.aman.auramusic.online.filter.TrendingSongFilter.parseDurationToSeconds(text)
+                                    if (seconds > 0) { durationSeconds = seconds; break }
+                                }
+                            }
+
+                            if (title.isNotBlank()) {
+                                result.add(
+                                    OnlineSong(
+                                        id = videoId,
+                                        title = title,
+                                        artist = songArtist,
+                                        album = songAlbum,
+                                        artworkUrl = ArtworkQualityOptimizer.optimizeUrl(thumb)
+                                            .ifBlank { "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" },
+                                        durationSeconds = durationSeconds,
+                                        source = AudioSource.YOUTUBE,
+                                        bitrate = "Adaptive",
+                                        format = "M4A/Opus"
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    obj.entrySet().forEach { (_, child) -> walk(child) }
+                }
+                walk(root)
+            } catch (_: Exception) {
+                return emptyList()
+            }
+            return result.distinctBy { it.id }.take(50)
+        }
+
+        /**
+         * Reads real album and single releases from the artist's InnerTube browse response.
+         */
+        fun parseArtistBrowseAlbums(jsonString: String): List<OnlinePlaylist> {
+            val result = mutableListOf<OnlinePlaylist>()
+            val seenIds = mutableSetOf<String>()
+            try {
+                val root = JsonParser.parseString(jsonString)
+                fun textOf(element: com.google.gson.JsonElement?): String {
+                    if (element == null || !element.isJsonObject) return ""
+                    val obj = element.asJsonObject
+                    obj.get("simpleText")?.let { return it.asString.replace('\u00A0', ' ').trim() }
+                    return obj.getAsJsonArray("runs")?.mapNotNull { run ->
+                        run.asJsonObject.get("text")?.asString
+                    }?.joinToString("")?.replace('\u00A0', ' ')?.trim().orEmpty()
+                }
+
+                fun walk(element: com.google.gson.JsonElement) {
+                    if (element.isJsonArray) {
+                        element.asJsonArray.forEach(::walk)
+                        return
+                    }
+                    if (!element.isJsonObject) return
+                    val obj = element.asJsonObject
+
+                    val twoRow = obj.getAsJsonObject("musicTwoRowItemRenderer")
+                    if (twoRow != null) {
+                        val nav = twoRow.getAsJsonObject("navigationEndpoint")?.getAsJsonObject("browseEndpoint")
+                            ?: twoRow.getAsJsonObject("title")?.getAsJsonArray("runs")?.firstOrNull()?.asJsonObject
+                                ?.getAsJsonObject("navigationEndpoint")?.getAsJsonObject("browseEndpoint")
+                        val bId = nav?.get("browseId")?.asString.orEmpty()
+                        val pType = nav?.getAsJsonObject("browseEndpointContextSupportedConfigs")
+                            ?.getAsJsonObject("browseEndpointContextMusicConfig")
+                            ?.get("pageType")?.asString.orEmpty()
+
+                        val isAlbumOrSingle = bId.isNotBlank() && (
+                            bId.startsWith("MPRE") ||
+                            pType.contains("ALBUM", ignoreCase = true) ||
+                            pType.contains("SINGLE", ignoreCase = true)
+                        )
+                        if (isAlbumOrSingle && seenIds.add(bId)) {
+                            val title = textOf(twoRow.getAsJsonObject("title"))
+                            val subtitle = textOf(twoRow.getAsJsonObject("subtitle"))
+                            val thumbs = twoRow.getAsJsonObject("thumbnailRenderer")
+                                ?.getAsJsonObject("musicThumbnailRenderer")
+                                ?.getAsJsonObject("thumbnail")
+                                ?.getAsJsonArray("thumbnails")
+                            val artwork = try { thumbs?.lastOrNull()?.asJsonObject?.get("url")?.asString.orEmpty() } catch (_: Exception) { "" }
+
+                            if (title.isNotBlank()) {
+                                result.add(
+                                    OnlinePlaylist(
+                                        id = "ytmusic:$bId",
+                                        title = title,
+                                        subtitle = subtitle,
+                                        artworkUrl = ArtworkQualityOptimizer.optimizeUrl(artwork),
+                                        songCount = 0,
+                                        source = AudioSource.YOUTUBE
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    obj.entrySet().forEach { (_, child) -> walk(child) }
+                }
+                walk(root)
+            } catch (_: Exception) {
+                return emptyList()
+            }
+            return result
+        }
 
         fun parseInnerTubeArtistResults(jsonString: String): List<YouTubeArtist> {
             val artists = mutableListOf<YouTubeArtist>()

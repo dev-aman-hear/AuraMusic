@@ -17,10 +17,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aman.auramusic.data.model.PlaybackHistoryEntry
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.model.toSong
 import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.SongOptionsDialog
+import com.aman.auramusic.ui.screen.OnlinePlaylistDetailScreen
 import com.aman.auramusic.ui.theme.AuraPrimary
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.LocalIsDark
@@ -65,7 +67,12 @@ fun HomeTestScreen(
     var selectedArtist by remember { mutableStateOf<ArtistItem?>(null) }
     var artistOnlineSongs by remember { mutableStateOf<List<OnlineSong>>(emptyList()) }
     var artistLocalSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
+    var artistOnlineAlbums by remember { mutableStateOf<List<OnlinePlaylist>>(emptyList()) }
     var isArtistLoading by remember { mutableStateOf(false) }
+
+    var selectedOnlineAlbum by remember { mutableStateOf<OnlinePlaylist?>(null) }
+    var selectedOnlineAlbumSongs by remember { mutableStateOf<List<OnlineSong>>(emptyList()) }
+    var isAlbumLoading by remember { mutableStateOf(false) }
 
     LaunchedEffect(songs, history) {
         viewModel.loadData(songs, history)
@@ -139,14 +146,20 @@ fun HomeTestScreen(
         )
     }
 
-    // Artist Detail Bottom Sheet (Fetches YouTube Music & Local tracks)
+    // Artist Detail Full-Screen Sheet (Fetches YouTube Music & Local tracks)
     if (selectedArtist != null) {
         ArtistDetailSheet(
             artist = selectedArtist!!,
             onlineSongs = artistOnlineSongs,
             localSongs = artistLocalSongs,
+            onlineAlbums = artistOnlineAlbums,
             isLoading = isArtistLoading,
-            onDismiss = { selectedArtist = null },
+            onDismiss = {
+                selectedArtist = null
+                artistOnlineSongs = emptyList()
+                artistLocalSongs = emptyList()
+                artistOnlineAlbums = emptyList()
+            },
             onPlaySong = onSongSelected,
             onPlayOnlineSong = onOnlineSongSelected,
             onPlayAll = {
@@ -166,6 +179,30 @@ fun HomeTestScreen(
                     onSongSelected(shuffled.first(), shuffled)
                 }
                 selectedArtist = null
+            },
+            onOpenOnlineAlbum = { album ->
+                selectedOnlineAlbum = album
+                coroutineScope.launch {
+                    isAlbumLoading = true
+                    selectedOnlineAlbumSongs = viewModel.fetchAlbumTracks(album)
+                    isAlbumLoading = false
+                }
+            }
+        )
+    }
+
+    // Online Album / Single Detail Screen
+    if (selectedOnlineAlbum != null) {
+        OnlinePlaylistDetailScreen(
+            playlist = selectedOnlineAlbum!!,
+            songs = selectedOnlineAlbumSongs,
+            isLoading = isAlbumLoading,
+            onBack = {
+                selectedOnlineAlbum = null
+                selectedOnlineAlbumSongs = emptyList()
+            },
+            onSongSelected = { song, queue ->
+                onOnlineSongSelected(song, queue)
             }
         )
     }
@@ -317,9 +354,10 @@ fun HomeTestScreen(
                                 selectedArtist = artistItem
                                 coroutineScope.launch {
                                     isArtistLoading = true
-                                    val (onlineRes, localRes) = viewModel.fetchArtistSongs(artistItem, songs)
-                                    artistOnlineSongs = onlineRes
-                                    artistLocalSongs = localRes
+                                    val catalogue = viewModel.fetchArtistCatalogue(artistItem, songs)
+                                    artistOnlineSongs = catalogue.onlineSongs
+                                    artistLocalSongs = catalogue.localSongs
+                                    artistOnlineAlbums = catalogue.onlineAlbums
                                     isArtistLoading = false
                                 }
                             }

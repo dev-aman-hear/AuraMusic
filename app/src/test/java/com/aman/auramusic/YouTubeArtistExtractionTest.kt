@@ -411,4 +411,268 @@ class YouTubeArtistExtractionTest {
         assertTrue(artist.profileImageUrl?.contains("yt3.googleusercontent.com") == true)
         assertTrue(artist.isVerified)
     }
+
+    @Test
+    fun testParseArtistBrowseTracksExtractsRealMetadata() {
+        val sampleBrowseJson = """
+        {
+          "contents": {
+            "singleColumnBrowseResultsRenderer": {
+              "tabs": [{
+                "tabRenderer": {
+                  "content": {
+                    "sectionListRenderer": {
+                      "contents": [{
+                        "musicShelfRenderer": {
+                          "title": { "runs": [{ "text": "Top songs" }] },
+                          "contents": [
+                            {
+                              "musicResponsiveListItemRenderer": {
+                                "playlistItemData": { "videoId": "vid_song_1" },
+                                "thumbnail": {
+                                  "musicThumbnailRenderer": {
+                                    "thumbnail": {
+                                      "thumbnails": [
+                                        { "url": "https://lh3.googleusercontent.com/song1=w60-h60" },
+                                        { "url": "https://lh3.googleusercontent.com/song1=w544-h544" }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "flexColumns": [
+                                  {
+                                    "musicResponsiveListItemFlexColumnRenderer": {
+                                      "text": { "runs": [{ "text": "Midnight Echoes" }] }
+                                    }
+                                  },
+                                  {
+                                    "musicResponsiveListItemFlexColumnRenderer": {
+                                      "text": { "runs": [{ "text": "Luna Ray" }] }
+                                    }
+                                  },
+                                  {
+                                    "musicResponsiveListItemFlexColumnRenderer": {
+                                      "text": { "runs": [{ "text": "12M plays" }] }
+                                    }
+                                  },
+                                  {
+                                    "musicResponsiveListItemFlexColumnRenderer": {
+                                      "text": { "runs": [{ "text": "Echoes EP" }] }
+                                    }
+                                  }
+                                ],
+                                "fixedColumns": [
+                                  {
+                                    "musicResponsiveListItemFixedColumnRenderer": {
+                                      "text": { "runs": [{ "text": "3:45" }] }
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }]
+                    }
+                  }
+                }
+              }]
+            }
+          }
+        }
+        """.trimIndent()
+
+        val songs = com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl.parseArtistBrowseTracks(
+            sampleBrowseJson,
+            "Luna Ray"
+        )
+        assertEquals(1, songs.size)
+        val song = songs.first()
+        assertEquals("vid_song_1", song.id)
+        assertEquals("Midnight Echoes", song.title)
+        assertEquals("Luna Ray", song.artist)
+        assertEquals("Echoes EP", song.album)
+        assertEquals(225L, song.durationSeconds)
+        assertTrue(song.artworkUrl?.contains("w1080-h1080") == true || song.artworkUrl?.contains("song1") == true)
+        assertEquals(com.aman.auramusic.online.model.AudioSource.YOUTUBE, song.source)
+    }
+
+    @Test
+    fun testParseArtistBrowseTracksDeduplicatesAndHandlesMissingFields() {
+        val sampleDuplicateJson = """
+        {
+          "contents": {
+            "singleColumnBrowseResultsRenderer": {
+              "tabs": [{
+                "tabRenderer": {
+                  "content": {
+                    "sectionListRenderer": {
+                      "contents": [{
+                        "musicShelfRenderer": {
+                          "title": { "runs": [{ "text": "Top songs" }] },
+                          "contents": [
+                            {
+                              "musicResponsiveListItemRenderer": {
+                                "playlistItemData": { "videoId": "track_duplicate" },
+                                "flexColumns": [
+                                  { "musicResponsiveListItemFlexColumnRenderer": { "text": { "runs": [{ "text": "Version A" }] } } }
+                                ]
+                              }
+                            },
+                            {
+                              "musicResponsiveListItemRenderer": {
+                                "playlistItemData": { "videoId": "track_duplicate" },
+                                "flexColumns": [
+                                  { "musicResponsiveListItemFlexColumnRenderer": { "text": { "runs": [{ "text": "Version B" }] } } }
+                                ]
+                              }
+                            },
+                            {
+                              "musicResponsiveListItemRenderer": {
+                                "flexColumns": [
+                                  { "musicResponsiveListItemFlexColumnRenderer": { "text": { "runs": [{ "text": "No ID Song" }] } } }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }]
+                    }
+                  }
+                }
+              }]
+            }
+          }
+        }
+        """.trimIndent()
+
+        val songs = com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl.parseArtistBrowseTracks(
+            sampleDuplicateJson,
+            "Artist X"
+        )
+        // Deduplicated: should only contain 1 song with videoId = track_duplicate; No ID song should be skipped
+        assertEquals(1, songs.size)
+        assertEquals("track_duplicate", songs.first().id)
+        assertEquals("Version A", songs.first().title)
+        assertEquals("Artist X", songs.first().artist)
+        assertEquals(0L, songs.first().durationSeconds)
+    }
+
+    @Test
+    fun testParseArtistBrowseAlbumsExtractsGenuineReleases() {
+        val sampleAlbumsJson = """
+        {
+          "contents": {
+            "singleColumnBrowseResultsRenderer": {
+              "tabs": [{
+                "tabRenderer": {
+                  "content": {
+                    "sectionListRenderer": {
+                      "contents": [{
+                        "musicCarouselShelfRenderer": {
+                          "header": {
+                            "musicCarouselShelfBasicHeaderRenderer": {
+                              "title": { "runs": [{ "text": "Singles & EPs" }] }
+                            }
+                          },
+                          "contents": [
+                            {
+                              "musicTwoRowItemRenderer": {
+                                "thumbnailRenderer": {
+                                  "musicThumbnailRenderer": {
+                                    "thumbnail": {
+                                      "thumbnails": [
+                                        { "url": "https://lh3.googleusercontent.com/cover1=w544-h544" }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "title": { "runs": [{ "text": "Summer Glow" }] },
+                                "subtitle": { "runs": [{ "text": "Single • 2026" }] },
+                                "navigationEndpoint": {
+                                  "browseEndpoint": {
+                                    "browseId": "MPREb_summer_glow_id"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "musicTwoRowItemRenderer": {
+                                "thumbnailRenderer": {
+                                  "musicThumbnailRenderer": {
+                                    "thumbnail": {
+                                      "thumbnails": [
+                                        { "url": "https://lh3.googleusercontent.com/cover2=w544-h544" }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "title": { "runs": [{ "text": "Summer Glow (Duplicate)" }] },
+                                "subtitle": { "runs": [{ "text": "Single • 2026" }] },
+                                "navigationEndpoint": {
+                                  "browseEndpoint": {
+                                    "browseId": "MPREb_summer_glow_id"
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }]
+                    }
+                  }
+                }
+              }]
+            }
+          }
+        }
+        """.trimIndent()
+
+        val albums = com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl.parseArtistBrowseAlbums(
+            sampleAlbumsJson
+        )
+        // Should extract 1 unique album with MPRE browseId
+        assertEquals(1, albums.size)
+        val album = albums.first()
+        assertEquals("ytmusic:MPREb_summer_glow_id", album.id)
+        assertEquals("Summer Glow", album.title)
+        assertEquals("Single • 2026", album.subtitle)
+        assertTrue(album.artworkUrl?.contains("cover1") == true)
+        assertEquals(com.aman.auramusic.online.model.AudioSource.YOUTUBE, album.source)
+    }
+
+    @Test
+    fun testParseArtistBrowseHandlesMalformedOrEmptyJson() {
+        val malformed = "{ this is not valid json! }"
+        val tracks = com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl.parseArtistBrowseTracks(malformed, "Artist")
+        val albums = com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl.parseArtistBrowseAlbums(malformed)
+        assertTrue(tracks.isEmpty())
+        assertTrue(albums.isEmpty())
+
+        val empty = ""
+        val emptyTracks = com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl.parseArtistBrowseTracks(empty, "Artist")
+        val emptyAlbums = com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl.parseArtistBrowseAlbums(empty)
+        assertTrue(emptyTracks.isEmpty())
+        assertTrue(emptyAlbums.isEmpty())
+    }
+
+    @Test
+    fun testPlaceholderArtistIdsAreNotGenuineBrowseIds() {
+        val placeholderIds = listOf("local_123", "local_The_Beatles", "yt_artist_taylorswift", "", "   ")
+        for (id in placeholderIds) {
+            val isGenuine = id.isNotBlank() &&
+                !id.startsWith("local_", ignoreCase = true) &&
+                !id.startsWith("yt_artist_", ignoreCase = true) &&
+                id.startsWith("UC")
+            assertFalse("ID $id must not be considered a genuine YouTube browse ID", isGenuine)
+        }
+
+        val genuineId = "UCfHedNWhY9Es395MezTHyZw"
+        val isGenuine = genuineId.isNotBlank() &&
+            !genuineId.startsWith("local_", ignoreCase = true) &&
+            !genuineId.startsWith("yt_artist_", ignoreCase = true) &&
+            genuineId.startsWith("UC")
+        assertTrue(isGenuine)
+    }
 }
+

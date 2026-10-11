@@ -15,6 +15,7 @@ import com.aman.auramusic.online.network.repository.OnlineMusicRepository
 import com.aman.auramusic.util.formatDuration
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,6 +69,12 @@ data class ArtistItem(
     val artworkModel: Any? = null,
     val isOnline: Boolean = false,
     val artistId: String = ""
+)
+
+data class ArtistProfileData(
+    val onlineSongs: List<OnlineSong> = emptyList(),
+    val localSongs: List<Song> = emptyList(),
+    val onlineAlbums: List<OnlinePlaylist> = emptyList()
 )
 
 data class CategoryDiscoverItem(
@@ -786,14 +793,13 @@ class HomeTestViewModel @Inject constructor(
     }
 
     /**
-     * Fetches tracks related to an artist from online YouTube Music + matching local library songs.
-     * Uses YouTubeArtistRepository's intelligent candidate ranking to filter out covers, reaction videos,
-     * and karaoke while prioritizing verified releases.
+     * Resolves genuine artist catalogue (tracks and albums) from YouTube Music
+     * while preserving local library tracks for the selected artist.
      */
-    suspend fun fetchArtistSongs(
+    suspend fun fetchArtistCatalogue(
         artist: ArtistItem,
         localSongs: List<Song>
-    ): Pair<List<OnlineSong>, List<Song>> = withContext(Dispatchers.IO) {
+    ): ArtistProfileData = withContext(Dispatchers.IO) {
         val artistName = artist.name.trim()
         val localFiltered = localSongs.filter { song ->
             extractSingleArtistNames(song.artist).any {
@@ -804,35 +810,67 @@ class HomeTestViewModel @Inject constructor(
         // Prefer the exact artist browse ID already attached to the YouTube Music card.
         // For local-only artists, resolve a genuine artist entity first; never use a broad
         // "$name songs" search that can fill the page with unrelated uploads.
-        val resolvedArtist = if (artist.isOnline &&
+        val resolvedBrowseId = if (artist.isOnline &&
             artist.artistId.isNotBlank() &&
             !artist.artistId.startsWith("local_") &&
             !artist.artistId.startsWith("yt_artist_")
         ) {
             artist.artistId
         } else {
-            try {
-                youtubeArtistRepository.searchArtists(artistName)
-                    .firstOrNull { matchesArtistName(it.name, artistName) }
-                    ?.id
-            } catch (_: Exception) {
-                null
+            // 1. Reuse cached YouTube Music artist metadata when available
+            val cached = localArtistMetadataCache[normalizeArtistComparable(artistName)]
+                ?: cachedDiscoveredArtists.firstOrNull { matchesArtistName(it.name, artistName) }
+            if (cached != null && cached.id.isNotBlank() && !cached.id.startsWith("local_") && !cached.id.startsWith("yt_artist_")) {
+                cached.id
+            } else {
+                // 2. Otherwise, resolve a genuine artist entity matching the requested artist
+                try {
+                    val found = youtubeArtistRepository.searchArtists(artistName)
+                        .firstOrNull { matchesArtistName(it.name, artistName) }
+                    if (found != null && found.id.isNotBlank() && !found.id.startsWith("local_") && !found.id.startsWith("yt_artist_")) {
+                        localArtistMetadataCache[normalizeArtistComparable(artistName)] = found
+                        found.id
+                    } else null
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    null
+                }
             }
         }
 
-        val onlineResults = if (!resolvedArtist.isNullOrBlank()) {
+        val catalogue = if (!resolvedBrowseId.isNullOrBlank()) {
             try {
-                youtubeArtistRepository.getArtistSongs(artistName, resolvedArtist)
-                    .filter { it.source == AudioSource.YOUTUBE }
-                    .distinctBy { it.id }
-            } catch (_: Exception) {
-                emptyList()
+                youtubeArtistRepository.getArtistCatalogue(artistName, resolvedBrowseId)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                com.aman.auramusic.online.network.repository.ArtistCatalogue()
             }
         } else {
-            emptyList()
+            com.aman.auramusic.online.network.repository.ArtistCatalogue()
         }
 
-        Pair(onlineResults, localFiltered)
+        ArtistProfileData(
+            onlineSongs = catalogue.songs.filter { it.source == AudioSource.YOUTUBE }.distinctBy { it.id },
+            localSongs = localFiltered,
+            onlineAlbums = catalogue.albums
+        )
+    }
+
+    suspend fun fetchArtistSongs(
+        artist: ArtistItem,
+        localSongs: List<Song>
+    ): Pair<List<OnlineSong>, List<Song>> {
+        val data = fetchArtistCatalogue(artist, localSongs)
+        return Pair(data.onlineSongs, data.localSongs)
+    }
+
+    suspend fun fetchAlbumTracks(album: OnlinePlaylist): List<OnlineSong> = withContext(Dispatchers.IO) {
+        try {
+            onlineRepository.getYouTubeMusicCollectionSongs(album)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            emptyList()
+        }
     }
 
     /**
