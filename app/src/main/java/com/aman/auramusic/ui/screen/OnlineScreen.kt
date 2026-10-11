@@ -595,7 +595,6 @@ fun OnlineScreen(
                 if (exploreSongs.isNotEmpty()) {
                     item(key = "more_explore_heading") {
                         SectionHeader(
-                            eyebrow = "A LITTLE OF EVERYTHING",
                             title = "More to Explore",
                             modifier = Modifier.padding(top = 18.dp)
                         )
