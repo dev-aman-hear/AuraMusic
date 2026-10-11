@@ -561,7 +561,7 @@ fun OnlineScreen(
                 if (movieAlbums.isNotEmpty()) {
                     item(key = "movie_albums_heading") {
                         SectionHeader(
-                            title = "Movie Albums",
+                            title = "Album Mix",
                             modifier = Modifier.padding(top = 18.dp)
                         )
                     }
