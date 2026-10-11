@@ -958,7 +958,6 @@ fun QuickHitsSection(
 
     Column(modifier = modifier.padding(top = 26.dp)) {
         HomeSectionHeader(
-            eyebrow = "ONLINE & LOCAL HITS",
             title = "Quick Hits"
         )
         Spacer(modifier = Modifier.height(10.dp))
