@@ -780,23 +780,17 @@ fun ArtistDetailSheet(
     }
     val totalTracks = onlineSongs.size + localSongs.size
 
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = pageBackground
     ) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = pageBackground
+        androidx.compose.foundation.lazy.LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding(),
+            // Keep scrollable content clear of the global mini-player and bottom navigation.
+            contentPadding = PaddingValues(bottom = 176.dp)
         ) {
-            androidx.compose.foundation.lazy.LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .navigationBarsPadding(),
-                contentPadding = PaddingValues(bottom = 32.dp)
-            ) {
                 item(key = "artist_hero") {
                     Box(
                         modifier = Modifier
@@ -1096,7 +1090,6 @@ fun ArtistDetailSheet(
                         }
                     }
                 }
-            }
         }
     }
 }
