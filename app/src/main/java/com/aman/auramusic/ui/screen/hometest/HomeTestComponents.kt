@@ -454,7 +454,6 @@ fun ListenAgainSection(
 
     Column(modifier = modifier.padding(top = 22.dp)) {
         HomeSectionHeader(
-            eyebrow = "RECENT ACTIVITY",
             title = "Listen Again"
         )
         Spacer(modifier = Modifier.height(10.dp))
