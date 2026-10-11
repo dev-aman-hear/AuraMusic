@@ -15,6 +15,7 @@ import com.aman.auramusic.online.filter.SectionDeduplicator
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
 import com.aman.auramusic.util.formatDuration
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -111,6 +112,19 @@ class HomeTestViewModel @Inject constructor(
 ) : AndroidViewModel(application) {
 
     private val dailyCache = DailyFeaturedCache(application.applicationContext)
+    private val feedCachePrefs = application.getSharedPreferences("aura_home_feed_cache", android.app.Application.MODE_PRIVATE)
+    private val feedCacheTtlMs = 6L * 60L * 60L * 1000L
+
+    private inline fun <reified T> readCachedList(key: String): List<T> = runCatching {
+        Gson().fromJson<List<T>>(
+            feedCachePrefs.getString(key, null),
+            object : TypeToken<List<T>>() {}.type
+        ).orEmpty()
+    }.getOrDefault(emptyList())
+
+    private fun writeCachedList(key: String, value: Any) {
+        feedCachePrefs.edit().putString(key, Gson().toJson(value)).apply()
+    }
     private val _uiState = MutableStateFlow(HomeTestUiState())
     val uiState: StateFlow<HomeTestUiState> = _uiState.asStateFlow()
 
@@ -289,7 +303,17 @@ class HomeTestViewModel @Inject constructor(
             var onlineArtistsDiscovered = emptyList<com.aman.auramusic.online.network.repository.YouTubeArtist>()
             var featuredTracks = emptyList<OnlineSong>()
 
-            try {
+            val feedCacheFresh = !forceRefresh &&
+                System.currentTimeMillis() - feedCachePrefs.getLong("fetched_at", 0L) in 0..feedCacheTtlMs
+
+            if (feedCacheFresh) {
+                rawTrendingOnline = readCachedList("trending")
+                rawQuickHitsOnline = readCachedList("quick_hits")
+                curatedPlaylists = readCachedList("playlists")
+                onlineArtistsDiscovered = readCachedList("artists")
+                featuredTracks = readCachedList("featured_tracks")
+            } else {
+                try {
                 // Independent pipelines for Trending Now, Quick Hits, Playlists, and Artists
                 withContext(Dispatchers.IO) {
                     val playlistsDeferred = async {
@@ -333,8 +357,10 @@ class HomeTestViewModel @Inject constructor(
                     rawQuickHitsOnline = quickHitsDeferred.await()
                     onlineArtistsDiscovered = ytArtistsDeferred.await()
                 }
-            } catch (e: Exception) {
-                isOfflineDetected = true
+
+                } catch (e: Exception) {
+                    isOfflineDetected = true
+                }
             }
 
             // 1. Resolve Daily Featured Item (Refreshes once per day)
@@ -350,7 +376,7 @@ class HomeTestViewModel @Inject constructor(
             }
 
             // 2. Fetch tracks belonging to Daily Featured Playlist / Album
-            if (featured?.onlinePlaylistId != null) {
+            if (featured?.onlinePlaylistId != null && featuredTracks.isEmpty()) {
                 val plObj = curatedPlaylists.find { it.id == featured.onlinePlaylistId }
                     ?: OnlinePlaylist(id = featured.onlinePlaylistId!!, title = featured.title, source = AudioSource.ALL)
                 withContext(Dispatchers.IO) {
@@ -361,6 +387,15 @@ class HomeTestViewModel @Inject constructor(
                         emptyList()
                     }
                 }
+            }
+
+            if (!feedCacheFresh && (rawTrendingOnline.isNotEmpty() || rawQuickHitsOnline.isNotEmpty() || curatedPlaylists.isNotEmpty() || onlineArtistsDiscovered.isNotEmpty())) {
+                feedCachePrefs.edit().putLong("fetched_at", System.currentTimeMillis()).apply()
+                writeCachedList("trending", rawTrendingOnline)
+                writeCachedList("quick_hits", rawQuickHitsOnline)
+                writeCachedList("playlists", curatedPlaylists)
+                writeCachedList("artists", onlineArtistsDiscovered)
+                writeCachedList("featured_tracks", featuredTracks)
             }
 
             // 3. Mutual Exclusivity Deduplication Barrier
