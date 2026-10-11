@@ -317,7 +317,7 @@ fun HomeTestScreen(
                                 selectedArtist = artistItem
                                 coroutineScope.launch {
                                     isArtistLoading = true
-                                    val (onlineRes, localRes) = viewModel.fetchArtistSongs(artistItem.name, songs)
+                                    val (onlineRes, localRes) = viewModel.fetchArtistSongs(artistItem, songs)
                                     artistOnlineSongs = onlineRes
                                     artistLocalSongs = localRes
                                     isArtistLoading = false
