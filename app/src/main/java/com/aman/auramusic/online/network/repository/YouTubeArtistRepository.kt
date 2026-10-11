@@ -105,26 +105,143 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getArtistSongs(artistName: String, artistId: String?): List<OnlineSong> = withContext(Dispatchers.IO) {
-        val cacheKey = artistName.trim().lowercase()
+        val browseId = artistId?.trim().orEmpty()
+        // A real YouTube Music browse ID is required. Never substitute a broad text search:
+        // it mixes covers, fan uploads, unrelated artists, and compilations into an artist page.
+        if (browseId.isBlank() || browseId.startsWith("local_") || browseId.startsWith("yt_artist_")) {
+            return@withContext emptyList()
+        }
+
+        val cacheKey = "browse:$browseId"
         artistSongsCache.get(cacheKey)?.let { return@withContext it }
 
-        // Artist discography results must stay on YouTube Music. Do not silently
-        // switch providers to JioSaavn when the YouTube Music request is empty.
-        val candidates = try {
-            onlineRepository.search("$artistName songs", AudioSource.YOUTUBE)
-                .filter { it.source == AudioSource.YOUTUBE }
-                .take(30)
+        val tracks = try {
+            val payload = """
+                {
+                  "context": {
+                    "client": {
+                      "clientName": "WEB_REMIX",
+                      "clientVersion": "1.20250601.01.00",
+                      "hl": "en",
+                      "gl": "IN"
+                    }
+                  },
+                  "browseId": "${browseId.replace("\\", "\\\\").replace("\"", "\\\"")}"
+                }
+            """.trimIndent()
+            val request = Request.Builder()
+                .url("https://music.youtube.com/youtubei/v1/browse?prettyPrint=false")
+                .post(payload.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull()))
+                .header("Content-Type", "application/json")
+                .header("Origin", "https://music.youtube.com")
+                .header("Referer", "https://music.youtube.com/")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36")
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use emptyList()
+                val json = response.body?.string().orEmpty()
+                parseArtistBrowseTracks(json, artistName)
+            }
         } catch (_: Exception) {
             emptyList()
         }
 
-        // Apply intelligent ranking and noise filtering
-        val ranked = filterAndRankArtistTracks(candidates, artistName)
+        val uniqueTracks = tracks.distinctBy { it.id }.take(50)
+        if (uniqueTracks.isNotEmpty()) artistSongsCache.put(cacheKey, uniqueTracks)
+        uniqueTracks
+    }
 
-        if (ranked.isNotEmpty()) {
-            artistSongsCache.put(cacheKey, ranked)
+    /**
+     * Reads track rows from the selected artist's actual YouTube Music browse response.
+     * It deliberately does not use broad search results as a fallback.
+     */
+    private fun parseArtistBrowseTracks(jsonString: String, artistName: String): List<OnlineSong> {
+        val result = mutableListOf<OnlineSong>()
+        try {
+            val root = JsonParser.parseString(jsonString)
+            fun textOf(element: com.google.gson.JsonElement?): String {
+                if (element == null || !element.isJsonObject) return ""
+                val obj = element.asJsonObject
+                obj.get("simpleText")?.let { return it.asString.replace('\u00A0', ' ').trim() }
+                return obj.getAsJsonArray("runs")?.mapNotNull { run ->
+                    run.asJsonObject.get("text")?.asString
+                }?.joinToString("")?.replace('\u00A0', ' ')?.trim().orEmpty()
+            }
+            fun walk(element: com.google.gson.JsonElement) {
+                if (element.isJsonArray) {
+                    element.asJsonArray.forEach(::walk)
+                    return
+                }
+                if (!element.isJsonObject) return
+                val obj = element.asJsonObject
+                val renderer = obj.getAsJsonObject("musicResponsiveListItemRenderer")
+                if (renderer != null) {
+                    val flex = renderer.getAsJsonArray("flexColumns")
+                    var videoId = renderer.getAsJsonObject("playlistItemData")?.get("videoId")?.asString.orEmpty()
+                    if (videoId.isBlank()) {
+                        videoId = renderer.getAsJsonObject("navigationEndpoint")
+                            ?.getAsJsonObject("watchEndpoint")?.get("videoId")?.asString.orEmpty()
+                    }
+                    if (videoId.isBlank()) {
+                        videoId = renderer.getAsJsonObject("overlay")
+                            ?.getAsJsonObject("musicItemThumbnailOverlayRenderer")
+                            ?.getAsJsonObject("content")
+                            ?.getAsJsonObject("musicPlayButtonRenderer")
+                            ?.getAsJsonObject("playNavigationEndpoint")
+                            ?.getAsJsonObject("watchEndpoint")?.get("videoId")?.asString.orEmpty()
+                    }
+
+                    if (videoId.isNotBlank() && flex != null && flex.size() > 0) {
+                        val title = textOf(
+                            flex[0].asJsonObject.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
+                                ?.getAsJsonObject("text")
+                        )
+                        val metadata = if (flex.size() > 1) textOf(
+                            flex[1].asJsonObject.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer")
+                                ?.getAsJsonObject("text")
+                        ) else ""
+                        val thumb = renderer.getAsJsonObject("thumbnail")
+                            ?.getAsJsonObject("musicThumbnailRenderer")
+                            ?.getAsJsonObject("thumbnail")
+                            ?.getAsJsonArray("thumbnails")
+                            ?.lastOrNull()?.asJsonObject?.get("url")?.asString.orEmpty()
+                        var durationSeconds = 0L
+                        val fixedColumns = renderer.getAsJsonArray("fixedColumns")
+                        if (fixedColumns != null) {
+                            for (column in fixedColumns) {
+                                val text = textOf(column.asJsonObject
+                                    .getAsJsonObject("musicResponsiveListItemFixedColumnRenderer")
+                                    ?.getAsJsonObject("text"))
+                                val seconds = com.aman.auramusic.online.filter.TrendingSongFilter.parseDurationToSeconds(text)
+                                if (seconds > 0) { durationSeconds = seconds; break }
+                            }
+                        }
+                        if (title.isNotBlank()) {
+                            result.add(
+                                OnlineSong(
+                                    id = videoId,
+                                    title = title,
+                                    artist = metadata.ifBlank { artistName },
+                                    album = "YouTube Music",
+                                    artworkUrl = ArtworkQualityOptimizer.optimizeUrl(thumb)
+                                        .ifBlank { "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" },
+                                    durationSeconds = durationSeconds,
+                                    source = AudioSource.YOUTUBE,
+                                    bitrate = "Adaptive",
+                                    format = "M4A/Opus"
+                                )
+                            )
+                        }
+                    }
+                }
+                obj.entrySet().forEach { (_, child) -> walk(child) }
+            }
+            walk(root)
+        } catch (_: Exception) {
+            return emptyList()
         }
-        ranked
+        return result
     }
 
     /**
