@@ -655,43 +655,65 @@ private fun FeaturedExploreCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(258.dp)
+            .height(280.dp)
             .clickable(onClick = onClick),
         shape = AuraShapes.Surface,
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF24171C)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF171217)),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(Color(0xFF682637), Color(0xFF24171C), Color(0xFF101010))
-                    )
-                )
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Let the artwork own the whole hero card instead of appearing as a small inset poster.
             AuraArtwork(
                 model = song.artworkUrl,
-                size = 280,
-                modifier = Modifier.align(Alignment.CenterEnd).size(220.dp),
-                shape = AuraShapes.Artwork,
-                elevation = 10.dp
+                size = 420,
+                modifier = Modifier.fillMaxSize(),
+                shape = AuraShapes.Surface,
+                elevation = 0.dp
+            )
+
+            // Layered scrims keep the artwork prominent while maintaining reliable text contrast.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f to Color.Black.copy(alpha = 0.08f),
+                                0.38f to Color.Transparent,
+                                1.0f to Color.Black.copy(alpha = 0.88f)
+                            )
+                        )
+                    )
             )
             Box(
-                modifier = Modifier.fillMaxSize().background(
-                    Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.68f), Color.Transparent))
-                )
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            colorStops = arrayOf(
+                                0.0f to Color.Black.copy(alpha = 0.46f),
+                                0.55f to Color.Black.copy(alpha = 0.12f),
+                                1.0f to Color.Transparent
+                            )
+                        )
+                    )
             )
+
             Column(
-                modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(0.76f).padding(20.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth(0.82f)
+                    .padding(start = 20.dp, end = 12.dp, top = 18.dp, bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
                 Text(
                     text = if (song.album.isNotBlank()) "MOVIE MUSIC SPOTLIGHT" else "FEATURED MUSIC",
-                    color = Color(0xFFFFA1B1),
+                    color = Color(0xFFFFB4C0),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp
+                    letterSpacing = 1.1.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = song.album.ifBlank { song.title },
@@ -704,18 +726,27 @@ private fun FeaturedExploreCard(
                 )
                 Text(
                     text = song.artist,
-                    color = Color.White.copy(alpha = 0.82f),
+                    color = Color.White.copy(alpha = 0.88f),
                     fontSize = 13.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
+
             Box(
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).size(48.dp)
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+                    .size(46.dp)
                     .liquidGlass(level = GlassLevel.Tinted, shape = CircleShape, tint = AuraCoral),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = "Play featured music", tint = Color.White, modifier = Modifier.size(26.dp))
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = "Play featured music",
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp)
+                )
             }
         }
     }
