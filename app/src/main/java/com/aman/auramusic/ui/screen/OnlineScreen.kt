@@ -1,5 +1,7 @@
 package com.aman.auramusic.ui.screen
 
+import android.content.Context
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -218,7 +220,13 @@ fun OnlineScreen(
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val repository = remember { OnlineMusicRepository() }
+    val feedCachePrefs = remember(context) {
+        context.getSharedPreferences("aura_explore_feed_cache", Context.MODE_PRIVATE)
+    }
+    val feedCacheGson = remember { Gson() }
+    val feedCacheTtlMs = 6L * 60L * 60L * 1000L
 
     var feedSongs by remember { mutableStateOf(emptyList<OnlineSong>()) }
     var movieSongs by remember { mutableStateOf(emptyList<OnlineSong>()) }
@@ -311,7 +319,36 @@ fun OnlineScreen(
         }
     }
 
-    suspend fun loadCatalog() {
+    suspend fun loadCatalog(forceRefresh: Boolean = false) {
+        // Reuse a recent disk cache on tab re-entry and app restart. Manual refresh
+        // deliberately bypasses this cache.
+        val cachedAt = feedCachePrefs.getLong("fetched_at", 0L)
+        val cacheFresh = !forceRefresh &&
+            System.currentTimeMillis() - cachedAt in 0..feedCacheTtlMs
+        if (cacheFresh) {
+            runCatching {
+                val songsType = object : TypeToken<List<OnlineSong>>() {}.type
+                val albumsType = object : TypeToken<List<AlbumCollection>>() {}.type
+                val cachedFeed = feedCacheGson.fromJson<List<OnlineSong>>(
+                    feedCachePrefs.getString("feed_songs", null), songsType
+                ).orEmpty()
+                val cachedMovies = feedCacheGson.fromJson<List<OnlineSong>>(
+                    feedCachePrefs.getString("movie_songs", null), songsType
+                ).orEmpty()
+                val cachedAlbums = feedCacheGson.fromJson<List<AlbumCollection>>(
+                    feedCachePrefs.getString("movie_albums", null), albumsType
+                ).orEmpty()
+                if (cachedFeed.isNotEmpty() || cachedMovies.isNotEmpty() || cachedAlbums.isNotEmpty()) {
+                    feedSongs = cachedFeed
+                    movieSongs = cachedMovies
+                    movieAlbums = cachedAlbums
+                    loadError = false
+                    isLoading = false
+                    return
+                }
+            }
+        }
+
         isLoading = true
         loadError = false
         try {
@@ -348,6 +385,14 @@ fun OnlineScreen(
             loadError = true
         } finally {
             isLoading = false
+            if (feedSongs.isNotEmpty() || movieSongs.isNotEmpty() || movieAlbums.isNotEmpty()) {
+                feedCachePrefs.edit()
+                    .putString("feed_songs", feedCacheGson.toJson(feedSongs))
+                    .putString("movie_songs", feedCacheGson.toJson(movieSongs))
+                    .putString("movie_albums", feedCacheGson.toJson(movieAlbums))
+                    .putLong("fetched_at", System.currentTimeMillis())
+                    .apply()
+            }
         }
     }
 
