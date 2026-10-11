@@ -481,7 +481,6 @@ fun OnlineScreen(
                 if (uniqueSongs.isNotEmpty()) {
                     item(key = "mood_heading") {
                         SectionHeader(
-                            eyebrow = "FIND YOUR VIBE",
                             title = "Music by Mood",
                             modifier = Modifier.padding(top = 14.dp)
                         )
@@ -536,7 +535,6 @@ fun OnlineScreen(
                 if (trendingSongs.isNotEmpty()) {
                     item(key = "fresh_heading") {
                         SectionHeader(
-                            eyebrow = "FRESH FINDS",
                             title = "Trending & Fresh",
                             modifier = Modifier.padding(top = 18.dp)
                         )
@@ -559,7 +557,6 @@ fun OnlineScreen(
                 if (movieAlbums.isNotEmpty()) {
                     item(key = "movie_albums_heading") {
                         SectionHeader(
-                            eyebrow = if (movieAlbums.all { it.source == AudioSource.YOUTUBE }) "YOUTUBE MUSIC" else "SOUNDTRACKS",
                             title = "Movie Albums",
                             modifier = Modifier.padding(top = 18.dp)
                         )
