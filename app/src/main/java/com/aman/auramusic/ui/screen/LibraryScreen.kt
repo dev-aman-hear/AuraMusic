@@ -499,7 +499,7 @@ fun LibraryScreen(
                                 AlbumCard(
                                     title = albumName,
                                     subtitle = representativeSong?.artist ?: "Unknown Artist",
-                                    artworkModel = representativeSong,
+                                    artworkModel = representativeSong?.artworkUri,
                                     size = 150.dp,
                                     onClick = { onAlbumSelected(albumName) }
                                 )
@@ -529,7 +529,7 @@ fun LibraryScreen(
                                 ArtistCard(
                                     name = artistName,
                                     songCountText = "${artistSongs.size} songs",
-                                    artworkModel = representativeSong,
+                                    artworkModel = representativeSong?.artworkUri,
                                     size = 110.dp,
                                     onClick = { onArtistSelected(artistName) }
                                 )
@@ -590,7 +590,7 @@ fun LibraryScreen(
                                         PlaylistCard(
                                             title = playlist.name,
                                             songCountText = "${playlist.songIds.size} songs",
-                                            artworkModel = firstSong,
+                                            artworkModel = firstSong?.artworkUri,
                                             onClick = { onPlaylistSelected(playlist) }
                                         )
                                     }
@@ -639,8 +639,7 @@ fun LibraryScreen(
                         item {
                             SectionHeader(
                                 title = "Curated Online Playlists",
-                                eyebrow = "Stream & Discover",
-                                modifier = Modifier.padding(bottom = 6.dp)
+                                                                modifier = Modifier.padding(bottom = 6.dp)
                             )
                         }
 
@@ -708,15 +707,6 @@ fun LibraryScreen(
                                         )
                                     }
                                 }
-                            }
-                        } else if (isOnlineFeedLoading) {
-                            item {
-                                AuraLoadingState(
-                                    message = "Fetching online playlists...",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 32.dp)
-                                )
                             }
                         }
                     }
