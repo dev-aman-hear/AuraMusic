@@ -222,7 +222,7 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
                                 OnlineSong(
                                     id = videoId,
                                     title = title,
-                                    artist = metadata.ifBlank { artistName },
+                                    artist = artistName,
                                     album = "YouTube Music",
                                     artworkUrl = ArtworkQualityOptimizer.optimizeUrl(thumb)
                                         .ifBlank { "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" },
