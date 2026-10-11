@@ -6,27 +6,24 @@ import java.util.Locale
 
 /**
  * Conservative title-only filter for explicit content in automatic Home
- * recommendations and ordinary Library listings.
- *
- * This is deliberately separate from TrendingSongFilter: compilation filtering
- * and explicit-title filtering solve different problems. Search and playback
- * must not call this utility globally.
+ * recommendations and ordinary Library listings. Search and playback must
+ * not call this utility globally.
  */
 object ExplicitTitleFilter {
     private val explicitTitlePatterns = listOf(
-        Regex("""\\b(?:porn|porno|pornography|xxx|hentai|blowjob|handjob|deepthroat|cumshot|orgasm|masturbat(?:e|ion|ing)|dildo|vibrator)\\b""", RegexOption.IGNORE_CASE),
-        Regex("""\\b(?:fuck(?:ing|ed|er|ers)?|motherfucker|bitch(?:es)?|whore|slut)\\b""", RegexOption.IGNORE_CASE),
-        Regex("""\\b(?:pussy|cock|dick|penis|vagina|boobs?|tits?)\\b""", RegexOption.IGNORE_CASE),
-        Regex("""\\b(?:sex|erotic|nudes?|naked)\\s+(?:playlist|mix|songs?|audio|video|collection)\\b""", RegexOption.IGNORE_CASE),
-        Regex("""\\b(?:adult|18\\+)\\s+(?:content|playlist|songs?|mix)\\b""", RegexOption.IGNORE_CASE)
+        Regex("\\b(?:porn|porno|pornography|xxx|hentai|blowjob|handjob|deepthroat|cumshot|orgasm|masturbat(?:e|ion|ing)|dildo|vibrator)\\b", RegexOption.IGNORE_CASE),
+        Regex("\\b(?:fuck(?:ing|ed|er|ers)?|motherfucker|bitch(?:es)?|whore|slut)\\b", RegexOption.IGNORE_CASE),
+        Regex("\\b(?:pussy|cock|dick|penis|vagina|boobs?|tits?)\\b", RegexOption.IGNORE_CASE),
+        Regex("\\b(?:sex|erotic|nudes?|naked)\\s+(?:playlist|mix|songs?|audio|video|collection)\\b", RegexOption.IGNORE_CASE),
+        Regex("\\b(?:adult|18\\+)\\s+(?:content|playlist|songs?|mix)\\b", RegexOption.IGNORE_CASE)
     )
 
     fun normalize(title: String?): String {
         if (title.isNullOrBlank()) return ""
         return Normalizer.normalize(title, Normalizer.Form.NFKC)
             .lowercase(Locale.ROOT)
-            .replace(Regex("""[\\p{Punct}\\p{S}]+"""), " ")
-            .replace(Regex("""\\s+"""), " ")
+            .replace(Regex("[\\p{Punct}\\p{S}]+"), " ")
+            .replace(Regex("\\s+"), " ")
             .trim()
     }
 
