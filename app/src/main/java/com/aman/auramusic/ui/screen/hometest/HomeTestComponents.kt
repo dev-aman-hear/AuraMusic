@@ -975,7 +975,7 @@ fun ArtistDetailSheet(
                                     .padding(horizontal = 16.dp, vertical = 7.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                SongArtwork(song = song, size = 54.dp)
+                                SongArtwork(song = song, size = 54)
                                 Column(modifier = Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
                                     Text(song.title, color = titleColor, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Spacer(modifier = Modifier.height(3.dp))
