@@ -39,6 +39,7 @@ import com.aman.auramusic.online.data.LibraryOnlineCache
 import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.online.filter.ExplicitTitleFilter
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
 import com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl
 import com.aman.auramusic.online.player.OnlinePlaybackManager
@@ -138,16 +139,22 @@ fun LibraryScreen(
     val songById = remember(allSongs) { allSongs.associateBy { it.id } }
 
     // Filtered lists based on query
-    val filteredSongs = remember(songs, query) {
-        if (query.isBlank()) songs else songs.filter {
+    // Hide explicit-title tracks from Library browsing without deleting them
+    // or applying this rule to the dedicated Search screen.
+    val libraryVisibleSongs = remember(songs) {
+        songs.filterNot { ExplicitTitleFilter.shouldHideTitle(it.title) }
+    }
+
+    val filteredSongs = remember(libraryVisibleSongs, query) {
+        if (query.isBlank()) libraryVisibleSongs else libraryVisibleSongs.filter {
             it.title.contains(query, ignoreCase = true) ||
             it.artist.contains(query, ignoreCase = true) ||
             it.album.contains(query, ignoreCase = true)
         }
     }
 
-    val albumsList = remember(songs, query) {
-        val grouped = songs.groupBy { it.album }
+    val albumsList = remember(libraryVisibleSongs, query) {
+        val grouped = libraryVisibleSongs.groupBy { it.album }
         if (query.isBlank()) {
             grouped.entries.toList()
         } else {
@@ -158,8 +165,8 @@ fun LibraryScreen(
         }
     }
 
-    val artistsList = remember(songs, query) {
-        val grouped = songs.groupBy { it.artist }
+    val artistsList = remember(libraryVisibleSongs, query) {
+        val grouped = libraryVisibleSongs.groupBy { it.artist }
         if (query.isBlank()) {
             grouped.entries.toList()
         } else {
@@ -206,7 +213,7 @@ fun LibraryScreen(
                         letterSpacing = 0.sp
                     )
                     Text(
-                        text = "${songs.size} tracks collected",
+                        text = "${libraryVisibleSongs.size} tracks collected",
                         style = MaterialTheme.typography.labelMedium,
                         color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.55f),
                         fontWeight = FontWeight.Medium
