@@ -110,6 +110,8 @@ class HomeTestViewModel @Inject constructor(
     private var cachedQuickHitsOnline = emptyList<OnlineSong>()
     private var cachedFeaturedTracks = emptyList<OnlineSong>()
     private var cachedDiscoveredArtists = emptyList<com.aman.auramusic.online.network.repository.YouTubeArtist>()
+    private val localArtistMetadataCache = java.util.concurrent.ConcurrentHashMap<String, com.aman.auramusic.online.network.repository.YouTubeArtist>()
+    private val attemptedArtistLookups = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     private val defaultCategories = listOf(
         CategoryDiscoverItem(
@@ -264,6 +266,7 @@ class HomeTestViewModel @Inject constructor(
                 isRefreshing = forceRefresh,
                 errorMessage = null
             )
+            resolveMissingArtistPortraits(initialArtists)
 
             val currentDayKey = DailyFeaturedCache.getCurrentDayKey()
             var featured = dailyCache.getDailyFeatured(currentDayKey)
@@ -417,6 +420,7 @@ class HomeTestViewModel @Inject constructor(
                 quickHitsColumns = quickHitsColumns,
                 categories = defaultCategories
             )
+            resolveMissingArtistPortraits(artistsList)
         }
     }
 
@@ -444,6 +448,7 @@ class HomeTestViewModel @Inject constructor(
             listenAgainColumns = listenAgainColumns,
             listenAgainTracks = listenAgainColumns.flatten()
         )
+        resolveMissingArtistPortraits(artistsList)
     }
 
     /**
@@ -515,14 +520,17 @@ class HomeTestViewModel @Inject constructor(
         val localArtists = localArtistMap.entries
             .sortedByDescending { it.value.size }
             .map { (artistName, songList) ->
+                val cached = localArtistMetadataCache[normalizeArtistComparable(artistName)]
+                val onlineMatch = discoveredOnline.firstOrNull {
+                    matchesArtistName(it.name, artistName) && !it.profileImageUrl.isNullOrBlank()
+                }
+                val portraitUrl = (cached?.profileImageUrl ?: onlineMatch?.profileImageUrl)?.takeIf { it.isNotBlank() }
                 ArtistItem(
                     name = artistName,
                     songCountText = "${songList.size} songs",
                     // Artist portraits come from YouTube Music artist metadata only.
                     // Never substitute a local track's album artwork for an artist photo.
-                    artworkModel = discoveredOnline.firstOrNull {
-                        it.name.equals(artistName, ignoreCase = true) && !it.profileImageUrl.isNullOrBlank()
-                    }?.profileImageUrl,
+                    artworkModel = portraitUrl,
                     isOnline = false,
                     artistId = "local_${artistName.hashCode()}"
                 )
@@ -743,9 +751,12 @@ class HomeTestViewModel @Inject constructor(
                 .map { name ->
                     val matchingSongs = localSongs.filter { it.artist.contains(name, ignoreCase = true) }
                     val matchingOnline = onlineResults.firstOrNull {
-                        it.name.equals(name, ignoreCase = true) && !it.profileImageUrl.isNullOrBlank()
+                        matchesArtistName(it.name, name) && !it.profileImageUrl.isNullOrBlank()
                     } ?: cachedDiscoveredArtists.firstOrNull {
-                        it.name.equals(name, ignoreCase = true) && !it.profileImageUrl.isNullOrBlank()
+                        matchesArtistName(it.name, name) && !it.profileImageUrl.isNullOrBlank()
+                    } ?: localArtistMetadataCache[normalizeArtistComparable(name)]
+                    if (matchingOnline != null && !matchingOnline.profileImageUrl.isNullOrBlank()) {
+                        localArtistMetadataCache[normalizeArtistComparable(name)] = matchingOnline
                     }
                     ArtistItem(
                         name = name,
@@ -796,5 +807,89 @@ class HomeTestViewModel @Inject constructor(
         }.take(25)
 
         Pair(onlineResults, localFiltered)
+    }
+
+    /**
+     * Asynchronously resolves high-fidelity YouTube Music artist portraits for local library artists
+     * whose profile pictures are not yet cached or discovered in the global trending artist set.
+     */
+    private fun resolveMissingArtistPortraits(currentArtists: List<ArtistItem>) {
+        val missing = currentArtists.filter { !it.isOnline && it.artworkModel == null }
+        if (missing.isEmpty()) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            for (artist in missing) {
+                val key = normalizeArtistComparable(artist.name)
+                if (key.isBlank() || !attemptedArtistLookups.add(key)) continue
+
+                val artistName = artist.name.trim()
+                val searchQuery = artistName
+                android.util.Log.d("AuraPlaybackDebug", "Local artist name extracted: $artistName")
+                android.util.Log.d("AuraPlaybackDebug", "Search query used: $searchQuery")
+
+                try {
+                    val results = youtubeArtistRepository.searchArtists(searchQuery)
+                    val entity = results.firstOrNull {
+                        matchesArtistName(it.name, artistName)
+                    }
+
+                    if (entity != null) {
+                        android.util.Log.d("AuraPlaybackDebug", "Whether an artist entity was found: true")
+                        android.util.Log.d("AuraPlaybackDebug", "Extracted artist ID: ${entity.id}")
+
+                        val profileUrl = entity.profileImageUrl?.takeIf { it.isNotBlank() }
+                        if (profileUrl != null) {
+                            android.util.Log.d("AuraPlaybackDebug", "Whether a profile image URL was found: true")
+                            localArtistMetadataCache[key] = entity
+                            cachedDiscoveredArtists = (cachedDiscoveredArtists + entity).distinctBy { it.id }
+
+                            withContext(Dispatchers.Main) {
+                                _uiState.value = _uiState.value.copy(
+                                    artists = _uiState.value.artists.map { item ->
+                                        if (!item.isOnline && matchesArtistName(item.name, artistName)) {
+                                            item.copy(artworkModel = profileUrl)
+                                        } else {
+                                            item
+                                        }
+                                    }
+                                )
+                            }
+                        } else {
+                            android.util.Log.d("AuraPlaybackDebug", "Whether a profile image URL was found: false")
+                            android.util.Log.d("AuraPlaybackDebug", "Why the lookup failed, if applicable: YouTube Music artist entity has no profile image thumbnail")
+                        }
+                    } else {
+                        android.util.Log.d("AuraPlaybackDebug", "Whether an artist entity was found: false")
+                        android.util.Log.d("AuraPlaybackDebug", "Extracted artist ID: None")
+                        android.util.Log.d("AuraPlaybackDebug", "Whether a profile image URL was found: false")
+                        android.util.Log.d("AuraPlaybackDebug", "Why the lookup failed, if applicable: No matching artist entity returned from YouTube Music search")
+                    }
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    android.util.Log.d("AuraPlaybackDebug", "Why the lookup failed, if applicable: Network or parsing failure: ${e.message}")
+                }
+            }
+        }
+    }
+
+    companion object {
+        fun normalizeArtistComparable(raw: String): String {
+            return raw
+                .replace(" - Topic", "", ignoreCase = true)
+                .replace("Official", "", ignoreCase = true)
+                .replace("VEVO", "", ignoreCase = true)
+                .replace('\u00A0', ' ')
+                .replace(Regex("""[^\p{L}\p{Nd}]"""), "")
+                .trim()
+                .lowercase()
+        }
+
+        fun matchesArtistName(name1: String, name2: String): Boolean {
+            if (name1.equals(name2, ignoreCase = true)) return true
+            val c1 = normalizeArtistComparable(name1)
+            val c2 = normalizeArtistComparable(name2)
+            if (c1.isNotBlank() && c1 == c2) return true
+            return false
+        }
     }
 }
