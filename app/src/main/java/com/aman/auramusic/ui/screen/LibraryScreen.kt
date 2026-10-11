@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -39,11 +40,14 @@ import com.aman.auramusic.online.data.LibraryOnlineCache
 import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.online.model.SavedOnlineArtist
 import com.aman.auramusic.online.filter.ExplicitTitleFilter
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
 import com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl
 import com.aman.auramusic.online.player.OnlinePlaybackManager
 import com.aman.auramusic.ui.component.*
+import com.aman.auramusic.ui.screen.hometest.ArtistDetailSheet
+import com.aman.auramusic.ui.screen.hometest.ArtistItem
 import com.aman.auramusic.ui.theme.*
 
 enum class LibraryTab(val label: String) {
@@ -79,6 +83,12 @@ fun LibraryScreen(
     savedOnlinePlaylists: List<OnlinePlaylist> = emptyList(),
     onSaveOnlinePlaylist: ((OnlinePlaylist) -> Unit)? = null,
     onRemoveSavedOnlinePlaylist: ((String) -> Unit)? = null,
+    savedOnlineArtists: List<SavedOnlineArtist> = emptyList(),
+    onSaveOnlineArtist: ((SavedOnlineArtist) -> Unit)? = null,
+    onRemoveSavedOnlineArtist: ((String) -> Unit)? = null,
+    savedOnlineAlbums: List<OnlinePlaylist> = emptyList(),
+    onSaveOnlineAlbum: ((OnlinePlaylist) -> Unit)? = null,
+    onRemoveSavedOnlineAlbum: ((String) -> Unit)? = null,
     onAddOnlineSongToPlaylist: ((OnlineSong) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -88,16 +98,60 @@ fun LibraryScreen(
     var showAllPlaylists by remember { mutableStateOf(false) }
 
     val onlineRepository = remember { OnlineMusicRepository() }
+    val youtubeArtistRepository = remember(onlineRepository) {
+        YouTubeArtistRepositoryImpl(
+            pipedService = com.aman.auramusic.online.network.piped.PipedService(),
+            onlineRepository = onlineRepository
+        )
+    }
     var selectedOnlinePlaylist by remember { mutableStateOf<OnlinePlaylist?>(null) }
     var playlistDetailSongs by remember { mutableStateOf<List<OnlineSong>>(emptyList()) }
     var isPlaylistDetailLoading by remember { mutableStateOf(false) }
+
+    var selectedOnlineArtist by remember { mutableStateOf<SavedOnlineArtist?>(null) }
+    var artistDetailSongs by remember { mutableStateOf<List<OnlineSong>>(emptyList()) }
+    var artistDetailAlbums by remember { mutableStateOf<List<OnlinePlaylist>>(emptyList()) }
+    var isArtistDetailLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedOnlinePlaylist) {
+        val pl = selectedOnlinePlaylist
+        if (pl != null) {
+            isPlaylistDetailLoading = true
+            try {
+                playlistDetailSongs = onlineRepository.getPlaylistSongs(pl)
+            } catch (_: Exception) {
+                playlistDetailSongs = emptyList()
+            } finally {
+                isPlaylistDetailLoading = false
+            }
+        }
+    }
+
+    LaunchedEffect(selectedOnlineArtist) {
+        val artist = selectedOnlineArtist
+        if (artist != null) {
+            isArtistDetailLoading = true
+            try {
+                val catalogue = youtubeArtistRepository.getArtistCatalogue(artist.name, artist.id)
+                artistDetailSongs = catalogue.songs
+                artistDetailAlbums = catalogue.albums
+            } catch (_: Exception) {
+                artistDetailSongs = emptyList()
+                artistDetailAlbums = emptyList()
+            } finally {
+                isArtistDetailLoading = false
+            }
+        }
+    }
 
     // Drill down to Online Playlist Details
     if (selectedOnlinePlaylist != null) {
         BackHandler {
             selectedOnlinePlaylist = null
         }
-        val isSaved = savedOnlinePlaylists.any { it.id == selectedOnlinePlaylist!!.id }
+        val isSavedAlbum = savedOnlineAlbums.any { it.id == selectedOnlinePlaylist!!.id }
+        val isSavedPlaylist = savedOnlinePlaylists.any { it.id == selectedOnlinePlaylist!!.id }
+        val isSaved = isSavedAlbum || isSavedPlaylist
         OnlinePlaylistDetailScreen(
             playlist = selectedOnlinePlaylist!!,
             songs = playlistDetailSongs,
@@ -106,15 +160,84 @@ fun LibraryScreen(
             onToggleSaveToLibrary = {
                 val cur = selectedOnlinePlaylist ?: return@OnlinePlaylistDetailScreen
                 if (isSaved) {
-                    onRemoveSavedOnlinePlaylist?.invoke(cur.id)
+                    if (isSavedAlbum) {
+                        onRemoveSavedOnlineAlbum?.invoke(cur.id)
+                    }
+                    if (isSavedPlaylist) {
+                        onRemoveSavedOnlinePlaylist?.invoke(cur.id)
+                    }
                 } else {
-                    onSaveOnlinePlaylist?.invoke(cur)
+                    if (cur.id.startsWith("ytmusic:MPRE") || cur.id.startsWith("album_")) {
+                        onSaveOnlineAlbum?.invoke(cur)
+                    } else {
+                        onSaveOnlinePlaylist?.invoke(cur)
+                    }
                 }
             },
             onAddOnlineSongToPlaylist = onAddOnlineSongToPlaylist,
             onBack = { selectedOnlinePlaylist = null },
             onSongSelected = { song, queue ->
                 onOnlineSongSelected(song, queue)
+            }
+        )
+        return
+    }
+
+    // Drill down to Online Artist Details
+    if (selectedOnlineArtist != null) {
+        val curArtist = selectedOnlineArtist!!
+        val isSaved = savedOnlineArtists.any { it.id == curArtist.id }
+        val artistItem = ArtistItem(
+            name = curArtist.name,
+            songCountText = "${curArtist.source.badgeText} • Saved",
+            artworkModel = curArtist.profileImageUrl,
+            isOnline = true,
+            artistId = curArtist.id
+        )
+        val localMatchingSongs = remember(curArtist.name, allSongs) {
+            allSongs.filter { it.artist.contains(curArtist.name, ignoreCase = true) }
+        }
+        ArtistDetailSheet(
+            artist = artistItem,
+            onlineSongs = artistDetailSongs,
+            localSongs = localMatchingSongs,
+            onlineAlbums = artistDetailAlbums,
+            isLoading = isArtistDetailLoading,
+            isSavedInLibrary = isSaved,
+            onToggleSaveToLibrary = {
+                if (isSaved) {
+                    onRemoveSavedOnlineArtist?.invoke(curArtist.id)
+                } else {
+                    onSaveOnlineArtist?.invoke(curArtist)
+                }
+            },
+            onDismiss = {
+                selectedOnlineArtist = null
+                artistDetailSongs = emptyList()
+                artistDetailAlbums = emptyList()
+            },
+            onPlaySong = onSongSelected,
+            onPlayOnlineSong = onOnlineSongSelected,
+            onPlayAll = {
+                if (artistDetailSongs.isNotEmpty()) {
+                    onOnlineSongSelected(artistDetailSongs.first(), artistDetailSongs)
+                } else if (localMatchingSongs.isNotEmpty()) {
+                    onSongSelected(localMatchingSongs.first(), localMatchingSongs)
+                }
+                selectedOnlineArtist = null
+            },
+            onShuffleAll = {
+                if (artistDetailSongs.isNotEmpty()) {
+                    val shuffled = artistDetailSongs.shuffled()
+                    onOnlineSongSelected(shuffled.first(), shuffled)
+                } else if (localMatchingSongs.isNotEmpty()) {
+                    val shuffled = localMatchingSongs.shuffled()
+                    onSongSelected(shuffled.first(), shuffled)
+                }
+                selectedOnlineArtist = null
+            },
+            onOpenOnlineAlbum = { album ->
+                selectedOnlinePlaylist = album
             }
         )
         return
@@ -224,10 +347,7 @@ fun LibraryScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    IconButton(onClick = {
-                        forceRefreshTrigger++
-                        onRefresh()
-                    }) {
+                    IconButton(onClick = onRefresh) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refresh",
@@ -438,10 +558,15 @@ fun LibraryScreen(
                 }
 
                 LibraryTab.ALBUMS -> {
-                    if (albumsList.isEmpty()) {
+                    val filteredOnlineAlbums = remember(savedOnlineAlbums, query) {
+                        if (query.isBlank()) savedOnlineAlbums else savedOnlineAlbums.filter {
+                            it.title.contains(query, ignoreCase = true) || it.subtitle.contains(query, ignoreCase = true)
+                        }
+                    }
+                    if (albumsList.isEmpty() && filteredOnlineAlbums.isEmpty()) {
                         AuraEmptyState(
                             title = "No Albums Found",
-                            message = if (query.isNotBlank()) "No albums matching \"$query\"." else "Your albums will appear here once audio files are indexed.",
+                            message = if (query.isNotBlank()) "No albums matching \"$query\"." else "Your albums will appear here once audio files or online albums are saved.",
                             icon = Icons.Default.Album,
                             modifier = Modifier.align(Alignment.Center)
                         )
@@ -453,25 +578,57 @@ fun LibraryScreen(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            items(albumsList, key = { it.key }) { (albumName, albumSongs) ->
-                                val representativeSong = albumSongs.firstOrNull { !it.artworkUri.isNullOrBlank() } ?: albumSongs.firstOrNull()
-                                AlbumCard(
-                                    title = albumName,
-                                    subtitle = representativeSong?.artist ?: "Unknown Artist",
-                                    artworkModel = representativeSong?.artworkUri,
-                                    size = 150.dp,
-                                    onClick = { onAlbumSelected(albumName) }
-                                )
+                            if (filteredOnlineAlbums.isNotEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    SectionHeader(
+                                        title = "Saved Online Albums",
+                                        modifier = Modifier.padding(bottom = 6.dp)
+                                    )
+                                }
+                                items(filteredOnlineAlbums, key = { "saved_online_album_${it.id}" }) { album ->
+                                    AlbumCard(
+                                        title = album.title,
+                                        subtitle = "${album.source.badgeText} • ${album.subtitle.ifBlank { "Album" }}",
+                                        artworkModel = album.artworkUrl,
+                                        size = 150.dp,
+                                        onClick = { selectedOnlinePlaylist = album }
+                                    )
+                                }
+                            }
+                            if (albumsList.isNotEmpty()) {
+                                if (filteredOnlineAlbums.isNotEmpty()) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        SectionHeader(
+                                            title = "Local Albums",
+                                            modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
+                                        )
+                                    }
+                                }
+                                items(albumsList, key = { it.key }) { (albumName, albumSongs) ->
+                                    val representativeSong = albumSongs.firstOrNull { !it.artworkUri.isNullOrBlank() } ?: albumSongs.firstOrNull()
+                                    AlbumCard(
+                                        title = albumName,
+                                        subtitle = representativeSong?.artist ?: "Unknown Artist",
+                                        artworkModel = representativeSong?.artworkUri,
+                                        size = 150.dp,
+                                        onClick = { onAlbumSelected(albumName) }
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
                 LibraryTab.ARTISTS -> {
-                    if (artistsList.isEmpty()) {
+                    val filteredOnlineArtists = remember(savedOnlineArtists, query) {
+                        if (query.isBlank()) savedOnlineArtists else savedOnlineArtists.filter {
+                            it.name.contains(query, ignoreCase = true)
+                        }
+                    }
+                    if (artistsList.isEmpty() && filteredOnlineArtists.isEmpty()) {
                         AuraEmptyState(
                             title = "No Artists Found",
-                            message = if (query.isNotBlank()) "No artists matching \"$query\"." else "Artists from your local collection will be listed here.",
+                            message = if (query.isNotBlank()) "No artists matching \"$query\"." else "Artists from your local collection or saved online artists will be listed here.",
                             icon = Icons.Default.Person,
                             modifier = Modifier.align(Alignment.Center)
                         )
@@ -483,15 +640,42 @@ fun LibraryScreen(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
-                            items(artistsList, key = { it.key }) { (artistName, artistSongs) ->
-                                val cachedArtist = YouTubeArtistRepositoryImpl.getCachedArtist(artistName)
-                                ArtistCard(
-                                    name = artistName,
-                                    songCountText = "${artistSongs.size} songs",
-                                    artworkModel = cachedArtist?.profileImageUrl,
-                                    size = 110.dp,
-                                    onClick = { onArtistSelected(artistName) }
-                                )
+                            if (filteredOnlineArtists.isNotEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    SectionHeader(
+                                        title = "Saved Online Artists",
+                                        modifier = Modifier.padding(bottom = 6.dp)
+                                    )
+                                }
+                                items(filteredOnlineArtists, key = { "saved_online_artist_${it.id}" }) { artist ->
+                                    ArtistCard(
+                                        name = artist.name,
+                                        songCountText = "${artist.source.badgeText} • Saved",
+                                        artworkModel = artist.profileImageUrl,
+                                        size = 110.dp,
+                                        onClick = { selectedOnlineArtist = artist }
+                                    )
+                                }
+                            }
+                            if (artistsList.isNotEmpty()) {
+                                if (filteredOnlineArtists.isNotEmpty()) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        SectionHeader(
+                                            title = "Local Artists",
+                                            modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
+                                        )
+                                    }
+                                }
+                                items(artistsList, key = { it.key }) { (artistName, artistSongs) ->
+                                    val cachedArtist = YouTubeArtistRepositoryImpl.getCachedArtist(artistName)
+                                    ArtistCard(
+                                        name = artistName,
+                                        songCountText = "${artistSongs.size} songs",
+                                        artworkModel = cachedArtist?.profileImageUrl,
+                                        size = 110.dp,
+                                        onClick = { onArtistSelected(artistName) }
+                                    )
+                                }
                             }
                         }
                     }

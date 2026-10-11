@@ -17,9 +17,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aman.auramusic.data.model.PlaybackHistoryEntry
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.online.model.SavedOnlineArtist
 import com.aman.auramusic.online.model.toSong
+import com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl
 import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.SongOptionsDialog
 import com.aman.auramusic.ui.screen.OnlinePlaylistDetailScreen
@@ -51,6 +54,12 @@ fun HomeTestScreen(
     onArtistSelected: (String) -> Unit,
     onPlaylistSelected: (Long) -> Unit = {},
     onOpenSettings: () -> Unit,
+    savedOnlineArtists: List<SavedOnlineArtist> = emptyList(),
+    savedOnlineAlbums: List<OnlinePlaylist> = emptyList(),
+    onSaveOnlineArtist: ((SavedOnlineArtist) -> Unit)? = null,
+    onRemoveSavedOnlineArtist: ((String) -> Unit)? = null,
+    onSaveOnlineAlbum: ((OnlinePlaylist) -> Unit)? = null,
+    onRemoveSavedOnlineAlbum: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
     viewModel: HomeTestViewModel = hiltViewModel()
 ) {
@@ -349,10 +358,20 @@ fun HomeTestScreen(
         // Keep artist and online-release details inside the app content layer rather than a Dialog.
         // This lets the global mini-player and bottom navigation remain visible above the page.
         if (selectedOnlineAlbum != null) {
+            val curAlbum = selectedOnlineAlbum!!
+            val isAlbumSaved = savedOnlineAlbums.any { it.id == curAlbum.id }
             OnlinePlaylistDetailScreen(
-                playlist = selectedOnlineAlbum!!,
+                playlist = curAlbum,
                 songs = selectedOnlineAlbumSongs,
                 isLoading = isAlbumLoading,
+                isSavedInLibrary = isAlbumSaved,
+                onToggleSaveToLibrary = {
+                    if (isAlbumSaved) {
+                        onRemoveSavedOnlineAlbum?.invoke(curAlbum.id)
+                    } else {
+                        onSaveOnlineAlbum?.invoke(curAlbum)
+                    }
+                },
                 onBack = {
                     selectedOnlineAlbum = null
                     selectedOnlineAlbumSongs = emptyList()
@@ -362,12 +381,41 @@ fun HomeTestScreen(
                 }
             )
         } else if (selectedArtist != null) {
+            val curArtist = selectedArtist!!
+            val isArtistSaved = savedOnlineArtists.any {
+                it.id == curArtist.artistId || (it.name.equals(curArtist.name, ignoreCase = true) && curArtist.isOnline)
+            }
             ArtistDetailSheet(
-                artist = selectedArtist!!,
+                artist = curArtist,
                 onlineSongs = artistOnlineSongs,
                 localSongs = artistLocalSongs,
                 onlineAlbums = artistOnlineAlbums,
                 isLoading = isArtistLoading,
+                isSavedInLibrary = isArtistSaved,
+                onToggleSaveToLibrary = {
+                    if (isArtistSaved) {
+                        val savedId = savedOnlineArtists.find {
+                            it.id == curArtist.artistId || it.name.equals(curArtist.name, ignoreCase = true)
+                        }?.id ?: curArtist.artistId
+                        onRemoveSavedOnlineArtist?.invoke(savedId)
+                    } else {
+                        val artistIdToSave = if (curArtist.artistId.isNotBlank() && !curArtist.artistId.startsWith("local_")) {
+                            curArtist.artistId
+                        } else {
+                            YouTubeArtistRepositoryImpl.getCachedArtist(curArtist.name)?.id.orEmpty()
+                        }
+                        if (artistIdToSave.isNotBlank() && !artistIdToSave.startsWith("local_")) {
+                            onSaveOnlineArtist?.invoke(
+                                SavedOnlineArtist(
+                                    id = artistIdToSave,
+                                    name = curArtist.name,
+                                    profileImageUrl = curArtist.artworkModel as? String,
+                                    source = AudioSource.YOUTUBE
+                                )
+                            )
+                        }
+                    }
+                },
                 onDismiss = {
                     selectedArtist = null
                     artistOnlineSongs = emptyList()

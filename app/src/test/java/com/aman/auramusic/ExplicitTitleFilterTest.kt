@@ -28,6 +28,18 @@ class ExplicitTitleFilterTest {
     fun normalizesCaseAndPunctuation() {
         assertTrue(ExplicitTitleFilter.shouldHideTitle("XXX---MIX"))
         assertTrue(ExplicitTitleFilter.shouldHideTitle("sex   playlist"))
+        assertTrue(ExplicitTitleFilter.shouldHideTitle("  \tsex\nplaylist\r  "))
+    }
+
+    @Test
+    fun handlesNullBlankAndUnusualUnicodeSafely() {
+        assertFalse(ExplicitTitleFilter.shouldHideTitle(null))
+        assertFalse(ExplicitTitleFilter.shouldHideTitle(""))
+        assertFalse(ExplicitTitleFilter.shouldHideTitle("   "))
+        // Fullwidth letters
+        assertTrue(ExplicitTitleFilter.shouldHideTitle("\uFF58\uFF58\uFF58 \uFF4D\uFF49\uFF58")) // ｘｘｘ ｍｉｘ
+        // Non-breaking spaces and accents
+        assertFalse(ExplicitTitleFilter.shouldHideTitle("Caf\u00E9\u00A0Del\u00A0Mar"))
     }
 
     @Test
@@ -40,5 +52,13 @@ class ExplicitTitleFilterTest {
 
         assertEquals(listOf(normal), result)
         assertEquals(2, input.size)
+    }
+
+    @Test
+    fun explicitArtistNameAloneDoesNotHideSong() {
+        val song = OnlineSong(id = "3", title = "Beautiful Day", artist = "Pornstar / XXX Artist", source = AudioSource.YOUTUBE)
+        assertFalse(ExplicitTitleFilter.shouldHideTitle(song.title))
+        val result = ExplicitTitleFilter.filterOnline(listOf(song))
+        assertEquals(1, result.size)
     }
 }

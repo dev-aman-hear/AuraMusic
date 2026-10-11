@@ -17,6 +17,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.BookmarkAdded
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Equalizer
@@ -766,7 +768,9 @@ fun ArtistDetailSheet(
     onPlayOnlineSong: (OnlineSong, List<OnlineSong>) -> Unit,
     onOpenOnlineAlbum: (OnlinePlaylist) -> Unit = {},
     onShuffleAll: () -> Unit,
-    onPlayAll: () -> Unit = onShuffleAll
+    onPlayAll: () -> Unit = onShuffleAll,
+    isSavedInLibrary: Boolean = false,
+    onToggleSaveToLibrary: (() -> Unit)? = null
 ) {
     val isDark = LocalIsDark.current
     val pageBackground = if (isDark) Color(0xFF050505) else Color(0xFFF7F7F9)
@@ -904,6 +908,39 @@ fun ArtistDetailSheet(
                                             tint = if (isDark) Color.Black else Color.White,
                                             modifier = Modifier.size(34.dp)
                                         )
+                                    }
+                                }
+
+                                if (onToggleSaveToLibrary != null) {
+                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Surface(
+                                        onClick = onToggleSaveToLibrary,
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = if (isSavedInLibrary) (if (isDark) Color.White.copy(alpha = 0.22f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)) else Color.White.copy(alpha = 0.12f),
+                                        border = BorderStroke(
+                                            1.dp,
+                                            if (isSavedInLibrary) (if (isDark) Color.White else MaterialTheme.colorScheme.primary) else Color.White.copy(alpha = 0.35f)
+                                        ),
+                                        modifier = Modifier.height(44.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 16.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isSavedInLibrary) Icons.Default.BookmarkAdded else Icons.Default.BookmarkAdd,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = if (isSavedInLibrary) "In Library" else "Save to Library",
+                                                color = Color.White,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
                                     }
                                 }
                             }

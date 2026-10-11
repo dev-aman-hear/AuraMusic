@@ -18,6 +18,7 @@ import com.aman.auramusic.data.model.Playlist
 import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.online.model.SavedOnlineArtist
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -84,6 +85,14 @@ class UserPreferencesRepository(private val context: Context) {
 
     val savedOnlinePlaylistsFlow: Flow<List<OnlinePlaylist>> = dataStore.data.map { prefs ->
         prefs[Keys.savedOnlinePlaylists].decodeSavedOnlinePlaylists()
+    }.distinctUntilChanged()
+
+    val savedOnlineArtistsFlow: Flow<List<SavedOnlineArtist>> = dataStore.data.map { prefs ->
+        prefs[Keys.savedOnlineArtists].decodeSavedOnlineArtists()
+    }.distinctUntilChanged()
+
+    val savedOnlineAlbumsFlow: Flow<List<OnlinePlaylist>> = dataStore.data.map { prefs ->
+        prefs[Keys.savedOnlineAlbums].decodeSavedOnlinePlaylists()
     }.distinctUntilChanged()
 
     suspend fun setUsername(name: String) {
@@ -439,6 +448,53 @@ class UserPreferencesRepository(private val context: Context) {
         }
     }
 
+    suspend fun saveOnlineArtist(artist: SavedOnlineArtist): Boolean {
+        if (artist.id.isBlank() || artist.name.isBlank()) return false
+        var added = false
+        dataStore.edit { prefs ->
+            val list = prefs[Keys.savedOnlineArtists].decodeSavedOnlineArtists().toMutableList()
+            val exists = list.any { it.id == artist.id || (it.name.equals(artist.name, ignoreCase = true) && it.source == artist.source) }
+            if (!exists) {
+                added = true
+                list.add(0, artist)
+                prefs[Keys.savedOnlineArtists] = list.encodeSavedOnlineArtists()
+            }
+        }
+        return added
+    }
+
+    suspend fun removeOnlineArtist(artistId: String) {
+        if (artistId.isBlank()) return
+        dataStore.edit { prefs ->
+            val list = prefs[Keys.savedOnlineArtists].decodeSavedOnlineArtists().filterNot { it.id == artistId }
+            prefs[Keys.savedOnlineArtists] = list.encodeSavedOnlineArtists()
+        }
+    }
+
+    suspend fun saveOnlineAlbum(album: OnlinePlaylist): Boolean {
+        if (album.id.isBlank() || album.title.isBlank()) return false
+        var added = false
+        val reference = album.copy(songs = emptyList())
+        dataStore.edit { prefs ->
+            val list = prefs[Keys.savedOnlineAlbums].decodeSavedOnlinePlaylists().toMutableList()
+            val exists = list.any { it.id == reference.id && it.source == reference.source }
+            if (!exists) {
+                added = true
+                list.add(0, reference)
+                prefs[Keys.savedOnlineAlbums] = list.encodeSavedOnlinePlaylists()
+            }
+        }
+        return added
+    }
+
+    suspend fun removeOnlineAlbum(albumId: String) {
+        if (albumId.isBlank()) return
+        dataStore.edit { prefs ->
+            val list = prefs[Keys.savedOnlineAlbums].decodeSavedOnlinePlaylists().filterNot { it.id == albumId }
+            prefs[Keys.savedOnlineAlbums] = list.encodeSavedOnlinePlaylists()
+        }
+    }
+
     fun isFavoriteFlow(songId: Long): Flow<Boolean> {
         return favoriteIdsFlow.map { ids -> ids.contains(songId) }.distinctUntilChanged()
     }
@@ -473,6 +529,8 @@ class UserPreferencesRepository(private val context: Context) {
             val playbackHistory = stringPreferencesKey("playback_history")
             val playlists = stringPreferencesKey("playlists")
             val savedOnlinePlaylists = stringPreferencesKey("saved_online_playlists")
+            val savedOnlineArtists = stringPreferencesKey("saved_online_artists")
+            val savedOnlineAlbums = stringPreferencesKey("saved_online_albums")
         }
     }
 }
@@ -683,3 +741,45 @@ private fun List<OnlinePlaylist>.encodeSavedOnlinePlaylists(): String {
     }
     return array.toString()
 }
+
+private fun String?.decodeSavedOnlineArtists(): List<SavedOnlineArtist> {
+    if (this.isNullOrBlank()) return emptyList()
+    return runCatching {
+        JSONArray(this).let { array ->
+            buildList {
+                for (i in 0 until array.length()) {
+                    val item = array.optJSONObject(i) ?: continue
+                    val id = item.optString("id")
+                    val name = item.optString("name")
+                    if (id.isBlank() || name.isBlank()) continue
+                    val srcStr = item.optString("source", AudioSource.YOUTUBE.name)
+                    val source = runCatching { AudioSource.valueOf(srcStr) }.getOrDefault(AudioSource.YOUTUBE)
+                    val profileImageUrl = item.optString("profileImageUrl").takeIf { it.isNotBlank() }
+                    add(
+                        SavedOnlineArtist(
+                            id = id,
+                            name = name,
+                            profileImageUrl = profileImageUrl,
+                            source = source
+                        )
+                    )
+                }
+            }
+        }
+    }.getOrDefault(emptyList())
+}
+
+private fun List<SavedOnlineArtist>.encodeSavedOnlineArtists(): String {
+    val array = JSONArray()
+    forEach { artist ->
+        array.put(
+            JSONObject()
+                .put("id", artist.id)
+                .put("name", artist.name)
+                .put("profileImageUrl", artist.profileImageUrl.orEmpty())
+                .put("source", artist.source.name)
+        )
+    }
+    return array.toString()
+}
+

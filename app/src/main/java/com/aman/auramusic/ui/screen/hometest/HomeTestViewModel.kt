@@ -718,16 +718,18 @@ class HomeTestViewModel @Inject constructor(
         localSongs: List<Song>
     ): Pair<List<OnlineSong>, List<Song>> = withContext(Dispatchers.IO) {
         val onlineResults = try {
-            onlineRepository.search(category.searchQuery, AudioSource.ALL).take(25)
+            val raw = onlineRepository.search(category.searchQuery, AudioSource.ALL).take(25)
+            ExplicitTitleFilter.filterOnline(raw)
         } catch (_: Exception) {
             emptyList()
         }
 
         val localFiltered = localSongs.filter { song ->
             val queryLower = category.title.lowercase()
-            song.title.contains(queryLower, ignoreCase = true) ||
+            (song.title.contains(queryLower, ignoreCase = true) ||
                     song.artist.contains(queryLower, ignoreCase = true) ||
-                    song.album.contains(queryLower, ignoreCase = true)
+                    song.album.contains(queryLower, ignoreCase = true)) &&
+                    !ExplicitTitleFilter.shouldHideTitle(song.title)
         }.take(25)
 
         Pair(onlineResults, localFiltered)

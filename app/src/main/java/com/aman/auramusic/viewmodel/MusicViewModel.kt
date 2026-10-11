@@ -11,6 +11,7 @@ import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.data.model.ThemeMode
 import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.online.model.SavedOnlineArtist
 import com.aman.auramusic.data.repository.MusicRepository
 import com.aman.auramusic.data.repository.UserPreferencesRepository
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +69,18 @@ class MusicViewModel @Inject constructor(
     )
 
     val savedOnlinePlaylists = userRepository.savedOnlinePlaylistsFlow.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        emptyList()
+    )
+
+    val savedOnlineArtists = userRepository.savedOnlineArtistsFlow.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        emptyList()
+    )
+
+    val savedOnlineAlbums = userRepository.savedOnlineAlbumsFlow.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
         emptyList()
@@ -182,6 +195,30 @@ class MusicViewModel @Inject constructor(
     fun removeOnlinePlaylistFromLibrary(playlistId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.removeOnlinePlaylist(playlistId)
+        }
+    }
+
+    fun saveOnlineArtistToLibrary(artist: SavedOnlineArtist) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.saveOnlineArtist(artist)
+        }
+    }
+
+    fun removeOnlineArtistFromLibrary(artistId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.removeOnlineArtist(artistId)
+        }
+    }
+
+    fun saveOnlineAlbumToLibrary(album: OnlinePlaylist) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.saveOnlineAlbum(album)
+        }
+    }
+
+    fun removeOnlineAlbumFromLibrary(albumId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.removeOnlineAlbum(albumId)
         }
     }
 

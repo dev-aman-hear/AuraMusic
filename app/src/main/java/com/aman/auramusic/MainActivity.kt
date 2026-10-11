@@ -219,6 +219,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     val playbackHistory by musicViewModel.playbackHistory.collectAsStateWithLifecycle()
     val playlists by musicViewModel.playlists.collectAsStateWithLifecycle()
     val savedOnlinePlaylists by musicViewModel.savedOnlinePlaylists.collectAsStateWithLifecycle()
+    val savedOnlineArtists by musicViewModel.savedOnlineArtists.collectAsStateWithLifecycle()
+    val savedOnlineAlbums by musicViewModel.savedOnlineAlbums.collectAsStateWithLifecycle()
     val lastImportResult by musicViewModel.lastImportResult.collectAsStateWithLifecycle()
     val externalSong by musicViewModel.externalSongToPlay.collectAsStateWithLifecycle()
 
@@ -699,7 +701,13 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onAlbumSelected = { selectedAlbumName = it },
                                     onArtistSelected = { selectedArtistName = it },
                                     onPlaylistSelected = { selectedPlaylistId = it },
-                                    onOpenSettings = { showSettings = true }
+                                    onOpenSettings = { showSettings = true },
+                                    savedOnlineArtists = savedOnlineArtists,
+                                    savedOnlineAlbums = savedOnlineAlbums,
+                                    onSaveOnlineArtist = { musicViewModel.saveOnlineArtistToLibrary(it) },
+                                    onRemoveSavedOnlineArtist = { musicViewModel.removeOnlineArtistFromLibrary(it) },
+                                    onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
+                                    onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) }
                                 )
                                 AppTab.Online -> OnlineScreen(
                                     onlinePlaybackManager = onlinePlaybackManager,
@@ -741,6 +749,12 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     savedOnlinePlaylists = savedOnlinePlaylists,
                                     onSaveOnlinePlaylist = { musicViewModel.saveOnlinePlaylistToLibrary(it) },
                                     onRemoveSavedOnlinePlaylist = { musicViewModel.removeOnlinePlaylistFromLibrary(it) },
+                                    savedOnlineArtists = savedOnlineArtists,
+                                    onSaveOnlineArtist = { musicViewModel.saveOnlineArtistToLibrary(it) },
+                                    onRemoveSavedOnlineArtist = { musicViewModel.removeOnlineArtistFromLibrary(it) },
+                                    savedOnlineAlbums = savedOnlineAlbums,
+                                    onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
+                                    onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
                                     onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
                                 )
                                 AppTab.Search -> SearchScreen(
