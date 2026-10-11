@@ -496,7 +496,7 @@ fun OnlineScreen(
                             }
                             IconButton(onClick = {
                                 if (!isLoading) {
-                                    scope.launch { loadCatalog() }
+                                    scope.launch { loadCatalog(forceRefresh = true) }
                                 }
                             }) {
                                 Icon(Icons.Default.Refresh, contentDescription = "Refresh Explore", tint = textColor)
@@ -675,7 +675,7 @@ fun OnlineScreen(
                             message = "Check your connection and refresh to discover online music.",
                             icon = Icons.Default.MusicNote,
                             actionLabel = "Try again",
-                            onAction = { scope.launch { loadCatalog() } },
+                            onAction = { scope.launch { loadCatalog(forceRefresh = true) } },
                             modifier = Modifier.fillMaxWidth().padding(top = 28.dp)
                         )
                     }
