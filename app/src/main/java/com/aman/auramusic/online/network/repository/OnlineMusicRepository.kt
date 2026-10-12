@@ -265,7 +265,14 @@ class OnlineMusicRepository(
             return playlist.songs
         }
 
-        var songs = if (playlist.id.contains("ytmusic:") || (playlist.source == AudioSource.YOUTUBE && !playlist.id.startsWith("yt_"))) {
+        val isYouTube = playlist.source == AudioSource.YOUTUBE ||
+            playlist.id.startsWith("ytmusic") ||
+            playlist.id.startsWith("VL") ||
+            playlist.id.startsWith("PL") ||
+            playlist.id.startsWith("MPRE") ||
+            playlist.id.startsWith("RDCLAK")
+
+        var songs = if (isYouTube && !playlist.id.startsWith("yt_")) {
             pipedService.getMusicCollectionSongs(playlist)
         } else if (playlist.id.startsWith("yt_")) {
             pipedService.searchSongs(playlist.title)
@@ -274,7 +281,12 @@ class OnlineMusicRepository(
         } else {
             val list = jioSaavnService.getPlaylistDetails(playlist.id)
             if (list.isEmpty()) {
-                jioSaavnService.searchSongs(playlist.title, limit = 20)
+                val ytCandidate = pipedService.searchMusicCollections(playlist.title, limit = 3).firstOrNull()
+                if (ytCandidate != null) {
+                    pipedService.getMusicCollectionSongs(ytCandidate)
+                } else {
+                    jioSaavnService.searchSongs(playlist.title, limit = 20)
+                }
             } else list
         }
 

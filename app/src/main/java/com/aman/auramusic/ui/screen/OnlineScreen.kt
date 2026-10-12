@@ -789,7 +789,10 @@ fun OnlineScreen(
                             val playlistToSave = if (selectedCollectionSongs.isNotEmpty()) {
                                 cur.copy(songs = selectedCollectionSongs)
                             } else cur
-                            if (cur.id.startsWith("ytmusic:MPRE") || cur.id.startsWith("album_")) {
+                            val isAlbum = cur.id.startsWith("ytmusic:MPRE") ||
+                                cur.id.startsWith("ytmusic_album_MPRE") ||
+                                cur.id.startsWith("album_")
+                            if (isAlbum) {
                                 onSaveOnlineAlbum?.invoke(playlistToSave)
                             } else {
                                 onSaveOnlinePlaylist?.invoke(playlistToSave)

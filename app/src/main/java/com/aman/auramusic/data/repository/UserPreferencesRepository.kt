@@ -428,11 +428,20 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun saveOnlinePlaylist(playlist: OnlinePlaylist): Boolean {
         var added = false
-        val reference = if (playlist.songs.isNotEmpty()) playlist.copy(songs = playlist.songs.take(50)) else playlist
+        val reference = if (playlist.songs.isNotEmpty()) playlist.copy(songs = playlist.songs.take(100)) else playlist
         dataStore.edit { prefs ->
             val list = prefs[Keys.savedOnlinePlaylists].decodeSavedOnlinePlaylists().toMutableList()
-            val exists = list.any { it.id == reference.id && it.source == reference.source }
-            if (!exists) {
+            val existingIndex = list.indexOfFirst { it.id == reference.id }
+            if (existingIndex >= 0) {
+                val existing = list[existingIndex]
+                if (existing.songs.isEmpty() && reference.songs.isNotEmpty()) {
+                    list[existingIndex] = existing.copy(
+                        songs = reference.songs,
+                        songCount = if (existing.songCount > 0) existing.songCount else reference.songs.size
+                    )
+                    prefs[Keys.savedOnlinePlaylists] = list.encodeSavedOnlinePlaylists()
+                }
+            } else {
                 added = true
                 list.add(0, reference)
                 prefs[Keys.savedOnlinePlaylists] = list.encodeSavedOnlinePlaylists()
@@ -474,11 +483,20 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun saveOnlineAlbum(album: OnlinePlaylist): Boolean {
         if (album.id.isBlank() || album.title.isBlank()) return false
         var added = false
-        val reference = if (album.songs.isNotEmpty()) album.copy(songs = album.songs.take(50)) else album
+        val reference = if (album.songs.isNotEmpty()) album.copy(songs = album.songs.take(100)) else album
         dataStore.edit { prefs ->
             val list = prefs[Keys.savedOnlineAlbums].decodeSavedOnlinePlaylists().toMutableList()
-            val exists = list.any { it.id == reference.id && it.source == reference.source }
-            if (!exists) {
+            val existingIndex = list.indexOfFirst { it.id == reference.id }
+            if (existingIndex >= 0) {
+                val existing = list[existingIndex]
+                if (existing.songs.isEmpty() && reference.songs.isNotEmpty()) {
+                    list[existingIndex] = existing.copy(
+                        songs = reference.songs,
+                        songCount = if (existing.songCount > 0) existing.songCount else reference.songs.size
+                    )
+                    prefs[Keys.savedOnlineAlbums] = list.encodeSavedOnlinePlaylists()
+                }
+            } else {
                 added = true
                 list.add(0, reference)
                 prefs[Keys.savedOnlineAlbums] = list.encodeSavedOnlinePlaylists()
@@ -708,15 +726,44 @@ private fun String?.decodeSavedOnlinePlaylists(): List<OnlinePlaylist> {
                     if (id.isBlank()) continue
                     val srcStr = item.optString("source", AudioSource.JIOSAAVN.name)
                     val source = runCatching { AudioSource.valueOf(srcStr) }.getOrDefault(AudioSource.JIOSAAVN)
+                    val songs = buildList {
+                        val songsArray = item.optJSONArray("songs") ?: item.optJSONArray("onlineSongs")
+                        if (songsArray != null) {
+                            for (j in 0 until songsArray.length()) {
+                                val oObj = songsArray.optJSONObject(j) ?: continue
+                                val sId = oObj.optString("id")
+                                if (sId.isBlank()) continue
+                                val sSrcStr = oObj.optString("source", source.name)
+                                val sSource = runCatching { AudioSource.valueOf(sSrcStr) }.getOrDefault(source)
+                                add(
+                                    OnlineSong(
+                                        id = sId,
+                                        title = oObj.optString("title"),
+                                        artist = oObj.optString("artist"),
+                                        album = oObj.optString("album"),
+                                        artworkUrl = oObj.optString("artworkUrl"),
+                                        durationSeconds = oObj.optLong("durationSeconds", 0L),
+                                        source = sSource,
+                                        streamUrl = "", // NEVER store expiring stream URLs
+                                        bitrate = oObj.optString("bitrate", "320 kbps"),
+                                        format = oObj.optString("format", "AAC/MP4")
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    val rawSongCount = item.optInt("songCount", 0)
+                    val finalSongCount = if (rawSongCount > 0) rawSongCount else songs.size
                     add(
                         OnlinePlaylist(
                             id = id,
                             title = item.optString("title"),
                             subtitle = item.optString("subtitle"),
                             artworkUrl = item.optString("artworkUrl"),
-                            songCount = item.optInt("songCount", 0),
+                            songCount = finalSongCount,
                             source = source,
-                            language = item.optString("language")
+                            language = item.optString("language"),
+                            songs = songs
                         )
                     )
                 }
@@ -728,15 +775,30 @@ private fun String?.decodeSavedOnlinePlaylists(): List<OnlinePlaylist> {
 private fun List<OnlinePlaylist>.encodeSavedOnlinePlaylists(): String {
     val array = JSONArray()
     forEach { pl ->
+        val songsArray = JSONArray()
+        pl.songs.take(100).forEach { os ->
+            val sObj = JSONObject()
+                .put("id", os.id)
+                .put("title", os.title)
+                .put("artist", os.artist)
+                .put("album", os.album)
+                .put("artworkUrl", os.artworkUrl)
+                .put("durationSeconds", os.durationSeconds)
+                .put("source", os.source.name)
+                .put("bitrate", os.bitrate)
+                .put("format", os.format)
+            songsArray.put(sObj)
+        }
         array.put(
             JSONObject()
                 .put("id", pl.id)
                 .put("title", pl.title)
                 .put("subtitle", pl.subtitle)
                 .put("artworkUrl", pl.artworkUrl)
-                .put("songCount", pl.songCount)
+                .put("songCount", if (pl.songCount > 0) pl.songCount else pl.songs.size)
                 .put("source", pl.source.name)
                 .put("language", pl.language)
+                .put("songs", songsArray)
         )
     }
     return array.toString()

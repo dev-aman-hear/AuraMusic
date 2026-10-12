@@ -146,11 +146,21 @@ fun LibraryScreen(
     LaunchedEffect(selectedOnlinePlaylist) {
         val pl = selectedOnlinePlaylist
         if (pl != null) {
-            isPlaylistDetailLoading = true
+            if (pl.songs.isNotEmpty()) {
+                playlistDetailSongs = pl.songs
+                isPlaylistDetailLoading = false
+            } else {
+                isPlaylistDetailLoading = true
+            }
             try {
-                playlistDetailSongs = onlineRepository.getPlaylistSongs(pl)
+                val fetched = onlineRepository.getPlaylistSongs(pl)
+                if (fetched.isNotEmpty()) {
+                    playlistDetailSongs = fetched
+                }
             } catch (_: Exception) {
-                playlistDetailSongs = emptyList()
+                if (playlistDetailSongs.isEmpty()) {
+                    playlistDetailSongs = emptyList()
+                }
             } finally {
                 isPlaylistDetailLoading = false
             }
@@ -246,7 +256,8 @@ fun LibraryScreen(
             onSongSelected = { onSongSelected(it, albumSongs) },
             onToggleFavorite = onFavoriteToggle,
             onAddToPlaylist = onAddToPlaylist,
-            showShareButton = false
+            showShareButton = false,
+            showAddButton = false
         )
         return
     }
@@ -264,6 +275,7 @@ fun LibraryScreen(
             songs = playlistDetailSongs,
             isLoading = isPlaylistDetailLoading,
             isSavedInLibrary = isSaved,
+            showAddButton = !isSavedAlbum,
             onToggleSaveToLibrary = {
                 val cur = selectedOnlinePlaylist ?: return@OnlinePlaylistDetailScreen
                 if (isSaved) {
@@ -274,10 +286,16 @@ fun LibraryScreen(
                         onRemoveSavedOnlinePlaylist?.invoke(cur.id)
                     }
                 } else {
-                    if (cur.id.startsWith("ytmusic:MPRE") || cur.id.startsWith("album_")) {
-                        onSaveOnlineAlbum?.invoke(cur)
+                    val toSave = if (playlistDetailSongs.isNotEmpty()) {
+                        cur.copy(songs = playlistDetailSongs)
+                    } else cur
+                    val isAlbum = cur.id.startsWith("ytmusic:MPRE") ||
+                        cur.id.startsWith("ytmusic_album_MPRE") ||
+                        cur.id.startsWith("album_")
+                    if (isAlbum) {
+                        onSaveOnlineAlbum?.invoke(toSave)
                     } else {
-                        onSaveOnlinePlaylist?.invoke(cur)
+                        onSaveOnlinePlaylist?.invoke(toSave)
                     }
                 }
             },

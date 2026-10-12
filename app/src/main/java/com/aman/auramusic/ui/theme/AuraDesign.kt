@@ -150,6 +150,8 @@ fun AuraScreenBackground(
     content: @Composable () -> Unit
 ) {
     val isDark = LocalIsDark.current
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -158,8 +160,8 @@ fun AuraScreenBackground(
                 val w = size.width
                 val h = size.height
 
-                // Ambient colored nebula bloom at top right
-                val orb1Color = if (isDark) Color(0xFFE91E63).copy(alpha = 0.08f) else Color(0xFFFFB3C6).copy(alpha = 0.22f)
+                // Ambient colored nebula bloom at top right (dynamically follows primary theme color)
+                val orb1Color = if (isDark) primary.copy(alpha = 0.12f) else primary.copy(alpha = 0.18f)
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(orb1Color, Color.Transparent),
@@ -170,8 +172,8 @@ fun AuraScreenBackground(
                     radius = w * 0.75f
                 )
 
-                // Ambient cyan/indigo bloom at middle left
-                val orb2Color = if (isDark) Color(0xFF6366F1).copy(alpha = 0.06f) else Color(0xFFBAE6FD).copy(alpha = 0.25f)
+                // Ambient bloom at middle left (dynamically follows tertiary theme color)
+                val orb2Color = if (isDark) tertiary.copy(alpha = 0.08f) else tertiary.copy(alpha = 0.16f)
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(orb2Color, Color.Transparent),

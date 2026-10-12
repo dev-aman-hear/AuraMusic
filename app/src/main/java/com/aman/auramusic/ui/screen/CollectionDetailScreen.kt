@@ -2,8 +2,9 @@ package com.aman.auramusic.ui.screen
 
 import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
+import com.aman.auramusic.ui.theme.LocalIsDark
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -22,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.theme.AuraPrimary
+import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.GlassLevel
 import com.aman.auramusic.ui.theme.liquidGlass
 
@@ -55,19 +58,23 @@ fun CollectionDetailScreen(
     onFavoriteCollection: (() -> Unit)? = null,
     showShareButton: Boolean = true,
     showMenuButton: Boolean = true,
+    showAddButton: Boolean = true,
 ) {
     val context = LocalContext.current
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDark.current
+    val dynamicPrimary = MaterialTheme.colorScheme.primary
+    val onPrimary = MaterialTheme.colorScheme.onPrimary
     val firstSong = songs.firstOrNull()
     val totalMinutes = songs.sumOf { it.duration / 1000 } / 60
 
     var showTopMenu by remember { mutableStateOf(false) }
     var showPlusMenu by remember { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 140.dp)
-    ) {
+    AuraScreenBackground(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 140.dp)
+        ) {
         item {
             Column(
                 modifier = Modifier
@@ -234,7 +241,7 @@ fun CollectionDetailScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Liquid Glass Action Controls (Shuffle circle, Pill Play, Add circle)
+                // Liquid Glass Action Controls (Shuffle, Play, and optional Add button)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -242,59 +249,7 @@ fun CollectionDetailScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .liquidGlass(
-                                shape = CircleShape,
-                                level = GlassLevel.UltraThin,
-                                isDark = isDark,
-                                elevation = 6.dp,
-                                borderWidth = 1.1.dp
-                            )
-                            .clickable { songs.shuffled().firstOrNull()?.let { onSongSelected(it) } },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Shuffle,
-                            contentDescription = "Shuffle",
-                            tint = if (isDark) Color.White else Color.Black,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Box(
-                        modifier = Modifier
-                            .height(48.dp)
-                            .weight(1f)
-                            .liquidGlass(
-                                shape = RoundedCornerShape(24.dp),
-                                level = GlassLevel.Regular,
-                                isDark = isDark,
-                                tint = AuraPrimary,
-                                elevation = 10.dp,
-                                borderWidth = 1.3.dp
-                            )
-                            .clickable { songs.firstOrNull()?.let { onSongSelected(it) } },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Play", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Box {
+                    if (showAddButton) {
                         Box(
                             modifier = Modifier
                                 .size(48.dp)
@@ -305,59 +260,208 @@ fun CollectionDetailScreen(
                                     elevation = 6.dp,
                                     borderWidth = 1.1.dp
                                 )
-                                .clickable { showPlusMenu = true },
+                                .clickable { songs.shuffled().firstOrNull()?.let { onSongSelected(it) } },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Add options",
+                                imageVector = Icons.Default.Shuffle,
+                                contentDescription = "Shuffle",
                                 tint = if (isDark) Color.White else Color.Black,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
 
-                        DropdownMenu(
-                            expanded = showPlusMenu,
-                            onDismissRequest = { showPlusMenu = false }
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .height(48.dp)
+                                .weight(1f)
+                                .shadow(
+                                    elevation = 8.dp,
+                                    shape = RoundedCornerShape(24.dp),
+                                    spotColor = dynamicPrimary.copy(alpha = 0.5f),
+                                    ambientColor = dynamicPrimary.copy(alpha = 0.2f)
+                                )
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            dynamicPrimary,
+                                            dynamicPrimary.copy(alpha = 0.88f)
+                                        )
+                                    )
+                                )
+                                .border(
+                                    width = 1.2.dp,
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.40f),
+                                            Color.White.copy(alpha = 0.08f)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(24.dp)
+                                )
+                                .clickable { songs.firstOrNull()?.let { onSongSelected(it) } },
+                            contentAlignment = Alignment.Center
                         ) {
-                            if (onAddCollectionToPlaylist != null) {
-                                DropdownMenuItem(
-                                    text = { Text("Add to Playlist", fontWeight = FontWeight.SemiBold) },
-                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null) },
-                                    onClick = {
-                                        showPlusMenu = false
-                                        onAddCollectionToPlaylist()
-                                    }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = onPrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Play", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = onPrimary)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Box {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .liquidGlass(
+                                        shape = CircleShape,
+                                        level = GlassLevel.UltraThin,
+                                        isDark = isDark,
+                                        elevation = 6.dp,
+                                        borderWidth = 1.1.dp
+                                    )
+                                    .clickable { showPlusMenu = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add options",
+                                    tint = if (isDark) Color.White else Color.Black,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
-                            if (onAddCollectionToQueue != null) {
-                                DropdownMenuItem(
-                                    text = { Text("Add to Queue", fontWeight = FontWeight.SemiBold) },
-                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
-                                    onClick = {
-                                        showPlusMenu = false
-                                        onAddCollectionToQueue()
-                                    }
-                                )
+
+                            DropdownMenu(
+                                expanded = showPlusMenu,
+                                onDismissRequest = { showPlusMenu = false }
+                            ) {
+                                if (onAddCollectionToPlaylist != null) {
+                                    DropdownMenuItem(
+                                        text = { Text("Add to Playlist", fontWeight = FontWeight.SemiBold) },
+                                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null) },
+                                        onClick = {
+                                            showPlusMenu = false
+                                            onAddCollectionToPlaylist()
+                                        }
+                                    )
+                                }
+                                if (onAddCollectionToQueue != null) {
+                                    DropdownMenuItem(
+                                        text = { Text("Add to Queue", fontWeight = FontWeight.SemiBold) },
+                                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
+                                        onClick = {
+                                            showPlusMenu = false
+                                            onAddCollectionToQueue()
+                                        }
+                                    )
+                                }
+                                if (onFavoriteCollection != null) {
+                                    DropdownMenuItem(
+                                        text = { Text("Favorite All Tracks", fontWeight = FontWeight.SemiBold) },
+                                        leadingIcon = { Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFFFA2D48)) },
+                                        onClick = {
+                                            showPlusMenu = false
+                                            onFavoriteCollection()
+                                        }
+                                    )
+                                }
+                                if (onDeletePlaylist != null) {
+                                    DropdownMenuItem(
+                                        text = { Text("Delete Playlist", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error) },
+                                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                                        onClick = {
+                                            showPlusMenu = false
+                                            onDeletePlaylist()
+                                        }
+                                    )
+                                }
                             }
-                            if (onFavoriteCollection != null) {
-                                DropdownMenuItem(
-                                    text = { Text("Favorite All Tracks", fontWeight = FontWeight.SemiBold) },
-                                    leadingIcon = { Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFFFA2D48)) },
-                                    onClick = {
-                                        showPlusMenu = false
-                                        onFavoriteCollection()
-                                    }
+                        }
+                    } else {
+                        // Symmetrical Apple Music dual-action pills for albums
+                        Box(
+                            modifier = Modifier
+                                .height(48.dp)
+                                .weight(1f)
+                                .shadow(
+                                    elevation = 8.dp,
+                                    shape = RoundedCornerShape(24.dp),
+                                    spotColor = dynamicPrimary.copy(alpha = 0.5f),
+                                    ambientColor = dynamicPrimary.copy(alpha = 0.2f)
                                 )
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            dynamicPrimary,
+                                            dynamicPrimary.copy(alpha = 0.88f)
+                                        )
+                                    )
+                                )
+                                .border(
+                                    width = 1.2.dp,
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.40f),
+                                            Color.White.copy(alpha = 0.08f)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(24.dp)
+                                )
+                                .clickable { songs.firstOrNull()?.let { onSongSelected(it) } },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = onPrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Play", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = onPrimary)
                             }
-                            if (onDeletePlaylist != null) {
-                                DropdownMenuItem(
-                                    text = { Text("Delete Playlist", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error) },
-                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                                    onClick = {
-                                        showPlusMenu = false
-                                        onDeletePlaylist()
-                                    }
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .height(48.dp)
+                                .weight(1f)
+                                .liquidGlass(
+                                    shape = RoundedCornerShape(24.dp),
+                                    level = GlassLevel.UltraThin,
+                                    isDark = isDark,
+                                    elevation = 6.dp,
+                                    borderWidth = 1.1.dp
+                                )
+                                .clickable { songs.shuffled().firstOrNull()?.let { onSongSelected(it) } },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Shuffle,
+                                    contentDescription = "Shuffle",
+                                    tint = if (isDark) Color.White else Color.Black,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "Shuffle",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) Color.White else Color.Black
                                 )
                             }
                         }
@@ -613,5 +717,6 @@ fun CollectionDetailScreen(
                 }
             }
         }
+    }
     }
 }

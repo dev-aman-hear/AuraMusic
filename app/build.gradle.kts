@@ -22,8 +22,8 @@ android {
         applicationId = "com.aman.auramusic"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "3.2.0"
+        versionCode = 13
+        versionName = "1.0.0"
 
         manifestPlaceholders["appName"] = "Aura Music"
     }
@@ -135,4 +135,7 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
     implementation(libs.okhttp.logging)
+
+    testImplementation(libs.junit)
+    testImplementation("org.json:json:20231013")
 }

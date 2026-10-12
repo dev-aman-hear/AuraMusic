@@ -242,8 +242,19 @@ class PipedService(
     /** Browse a YouTube Music album/playlist and return the tracks actually in it. */
     suspend fun getMusicCollectionSongs(collection: OnlinePlaylist): List<OnlineSong> =
         withContext(Dispatchers.IO) {
-            val browseId = collection.id.substringAfter("ytmusic:").trim()
+            var browseId = collection.id.trim()
+            for (prefix in listOf("ytmusic:", "ytmusic_album_", "ytmusic_", "album_")) {
+                if (browseId.startsWith(prefix, ignoreCase = true)) {
+                    browseId = browseId.substring(prefix.length).trim()
+                }
+            }
             if (browseId.isBlank()) return@withContext emptyList()
+
+            // If it's a playlist or release collection starting with PL, RDCLAK, or OLAK, InnerTube requires VL prefix
+            if (browseId.startsWith("PL") || browseId.startsWith("RDCLAK") || browseId.startsWith("OLAK")) {
+                browseId = "VL$browseId"
+            }
+
             try {
                 val payload = """
                     {

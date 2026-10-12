@@ -88,27 +88,45 @@ class JioSaavnService(
     }
 
     suspend fun getPlaylistDetails(listId: String): List<OnlineSong> = withContext(Dispatchers.IO) {
-        val url = "$baseUrl?__call=playlist.getDetails&_format=json&_marker=0&cc=in&listid=$listId"
+        val cleanId = listId
+            .removePrefix("jio_")
+            .removePrefix("saavn_")
+            .trim()
+        if (cleanId.isBlank()) return@withContext emptyList()
 
-        val request = Request.Builder()
-            .url(url)
-            .header("User-Agent", userAgent)
-            .build()
+        val endpoints = mutableListOf<String>()
+        // 1. Standard playlist getDetails
+        endpoints.add("$baseUrl?__call=playlist.getDetails&_format=json&_marker=0&cc=in&listid=$cleanId")
+        // 2. Album getDetails if it's an album
+        endpoints.add("$baseUrl?__call=content.getAlbumDetails&_format=json&_marker=0&cc=in&albumid=$cleanId")
+        // 3. Encrypted token playlist getDetails
+        endpoints.add("$baseUrl?__call=playlist.getDetails&_format=json&_marker=0&cc=in&token=$cleanId&type=playlist")
 
-        try {
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext emptyList()
-                val body = response.body?.string() ?: return@withContext emptyList()
-                val root = JsonParser.parseString(body).asJsonObject
-                val songsArray = root.getAsJsonArray("songs") ?: root.getAsJsonArray("results")
-                if (songsArray != null) {
-                    parseSongElements(songsArray)
-                } else emptyList()
+        for (url in endpoints) {
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", userAgent)
+                .build()
+
+            try {
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@use
+                    val body = response.body?.string() ?: return@use
+                    val root = try { JsonParser.parseString(body).asJsonObject } catch (_: Exception) { null } ?: return@use
+                    val songsArray = root.getAsJsonArray("songs")
+                        ?: root.getAsJsonArray("list")
+                        ?: root.getAsJsonArray("results")
+                        ?: root.getAsJsonObject("more_info")?.getAsJsonArray("songs")
+                    if (songsArray != null && songsArray.size() > 0) {
+                        val parsed = parseSongElements(songsArray)
+                        if (parsed.isNotEmpty()) return@withContext parsed
+                    }
+                }
+            } catch (e: Exception) {
+                // Try next endpoint fallback
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
         }
+        emptyList()
     }
 
     fun resolveStream(song: OnlineSong, targetBitrate: String = "320"): OnlineSong {

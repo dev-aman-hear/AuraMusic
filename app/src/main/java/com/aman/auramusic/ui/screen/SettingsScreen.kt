@@ -391,7 +391,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Default.Info,
                         title = "About Aura Music",
-                        subtitle = "Version 3.2.0 (Liquid Glass)",
+                        subtitle = "Version 1.0.0 (Liquid Glass)",
                         onClick = onShowAbout
                     )
                 }
@@ -436,7 +436,7 @@ fun AboutDialog(onDismiss: () -> Unit) {
                     fontWeight = FontWeight.ExtraBold
                 )
                 Text(
-                    text = "Version 3.2.0 (Liquid Glass Edition)",
+                    text = "Version 1.0.0 (Liquid Glass Edition)",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary
                 )

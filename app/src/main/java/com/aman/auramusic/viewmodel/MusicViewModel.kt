@@ -35,6 +35,8 @@ class MusicViewModel @Inject constructor(
     private val userRepository: UserPreferencesRepository
 ) : AndroidViewModel(application) {
 
+    private val onlineRepository by lazy { com.aman.auramusic.online.network.repository.OnlineMusicRepository() }
+
     private val _songs = MutableStateFlow<List<Song>>(emptyList())
     val songs: StateFlow<List<Song>> = _songs.asStateFlow()
 
@@ -188,7 +190,14 @@ class MusicViewModel @Inject constructor(
 
     fun saveOnlinePlaylistToLibrary(playlist: OnlinePlaylist) {
         viewModelScope.launch(Dispatchers.IO) {
-            userRepository.saveOnlinePlaylist(playlist)
+            var pl = playlist
+            if (pl.songs.isEmpty()) {
+                val fetched = onlineRepository.getPlaylistSongs(pl)
+                if (fetched.isNotEmpty()) {
+                    pl = pl.copy(songs = fetched, songCount = fetched.size)
+                }
+            }
+            userRepository.saveOnlinePlaylist(pl)
         }
     }
 
@@ -212,7 +221,14 @@ class MusicViewModel @Inject constructor(
 
     fun saveOnlineAlbumToLibrary(album: OnlinePlaylist) {
         viewModelScope.launch(Dispatchers.IO) {
-            userRepository.saveOnlineAlbum(album)
+            var al = album
+            if (al.songs.isEmpty()) {
+                val fetched = onlineRepository.getPlaylistSongs(al)
+                if (fetched.isNotEmpty()) {
+                    al = al.copy(songs = fetched, songCount = fetched.size)
+                }
+            }
+            userRepository.saveOnlineAlbum(al)
         }
     }
 

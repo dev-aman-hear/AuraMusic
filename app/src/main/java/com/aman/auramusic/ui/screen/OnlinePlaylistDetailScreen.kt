@@ -2,8 +2,9 @@ package com.aman.auramusic.ui.screen
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
+import com.aman.auramusic.ui.theme.LocalIsDark
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,7 +51,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -62,6 +66,7 @@ import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.AuraLoadingState
 import com.aman.auramusic.ui.theme.AuraPrimary
+import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.GlassLevel
 import com.aman.auramusic.ui.theme.liquidGlass
 
@@ -76,20 +81,21 @@ fun OnlinePlaylistDetailScreen(
     onToggleSaveToLibrary: (() -> Unit)? = null,
     onAddOnlineSongToPlaylist: ((OnlineSong) -> Unit)? = null,
     showMenuButton: Boolean = true,
+    showAddButton: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     BackHandler(onBack = onBack)
 
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDark.current
+    val dynamicPrimary = MaterialTheme.colorScheme.primary
+    val onPrimary = MaterialTheme.colorScheme.onPrimary
     val totalSecs = songs.sumOf { it.durationSeconds }
     val totalMinutes = if (totalSecs > 0) (totalSecs / 60) else (songs.size * 3L)
 
     var showTopMenu by remember { mutableStateOf(false) }
-    var showPlusMenu by remember { mutableStateOf(false) }
 
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = if (isDark) Color(0xFF050505) else Color(0xFFF7F7F9)
+    AuraScreenBackground(
+        modifier = modifier.fillMaxSize()
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -227,7 +233,13 @@ fun OnlinePlaylistDetailScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Liquid Glass Action Controls (Shuffle circle, Pill Play, Add circle)
+                    // Liquid Glass Action Controls (Shuffle, Play, and optional Add button)
+                    val isAlbum = playlist.id.startsWith("ytmusic:MPRE") ||
+                        playlist.id.startsWith("ytmusic_album_MPRE") ||
+                        playlist.id.startsWith("album_") ||
+                        playlist.subtitle.startsWith("Album", ignoreCase = true)
+                    val shouldShowPlus = showAddButton && !isAlbum
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -235,68 +247,7 @@ fun OnlinePlaylistDetailScreen(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .liquidGlass(
-                                    shape = CircleShape,
-                                    level = GlassLevel.UltraThin,
-                                    isDark = isDark,
-                                    elevation = 6.dp,
-                                    borderWidth = 1.1.dp
-                                )
-                                .clickable {
-                                    if (songs.isNotEmpty()) {
-                                        val shuffled = songs.shuffled()
-                                        onSongSelected(shuffled.first(), shuffled)
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Shuffle,
-                                contentDescription = "Shuffle",
-                                tint = if (isDark) Color.White else Color.Black,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .height(48.dp)
-                                .weight(1f)
-                                .liquidGlass(
-                                    shape = RoundedCornerShape(24.dp),
-                                    level = GlassLevel.Regular,
-                                    isDark = isDark,
-                                    tint = AuraPrimary,
-                                    elevation = 10.dp,
-                                    borderWidth = 1.3.dp
-                                )
-                                .clickable {
-                                    if (songs.isNotEmpty()) {
-                                        onSongSelected(songs.first(), songs)
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Play", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        Box {
+                        if (shouldShowPlus) {
                             Box(
                                 modifier = Modifier
                                     .size(48.dp)
@@ -308,38 +259,179 @@ fun OnlinePlaylistDetailScreen(
                                         borderWidth = 1.1.dp
                                     )
                                     .clickable {
-                                        if (onToggleSaveToLibrary != null) {
-                                            showPlusMenu = true
+                                        if (songs.isNotEmpty()) {
+                                            val shuffled = songs.shuffled()
+                                            onSongSelected(shuffled.first(), shuffled)
                                         }
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
+                                    imageVector = Icons.Default.Shuffle,
+                                    contentDescription = "Shuffle",
+                                    tint = if (isDark) Color.White else Color.Black,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .weight(1f)
+                                    .shadow(
+                                        elevation = 8.dp,
+                                        shape = RoundedCornerShape(24.dp),
+                                        spotColor = dynamicPrimary.copy(alpha = 0.5f),
+                                        ambientColor = dynamicPrimary.copy(alpha = 0.2f)
+                                    )
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(
+                                        brush = Brush.horizontalGradient(
+                                            colors = listOf(
+                                                dynamicPrimary,
+                                                dynamicPrimary.copy(alpha = 0.88f)
+                                            )
+                                        )
+                                    )
+                                    .border(
+                                        width = 1.2.dp,
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.White.copy(alpha = 0.40f),
+                                                Color.White.copy(alpha = 0.08f)
+                                            )
+                                        ),
+                                        shape = RoundedCornerShape(24.dp)
+                                    )
+                                    .clickable {
+                                        if (songs.isNotEmpty()) {
+                                            onSongSelected(songs.first(), songs)
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        tint = onPrimary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Play", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = onPrimary)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .liquidGlass(
+                                        shape = CircleShape,
+                                        level = GlassLevel.UltraThin,
+                                        isDark = isDark,
+                                        elevation = 6.dp,
+                                        borderWidth = 1.1.dp
+                                    )
+                                    .clickable {
+                                        onToggleSaveToLibrary?.invoke()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
                                     imageVector = if (isSavedInLibrary) Icons.Default.BookmarkAdded else Icons.Default.Add,
-                                    contentDescription = "Add options",
+                                    contentDescription = if (isSavedInLibrary) "Saved to Library" else "Save to Library",
                                     tint = if (isSavedInLibrary) AuraPrimary else if (isDark) Color.White else Color.Black,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
-
-                            DropdownMenu(
-                                expanded = showPlusMenu,
-                                onDismissRequest = { showPlusMenu = false }
-                            ) {
-                                if (onToggleSaveToLibrary != null) {
-                                    DropdownMenuItem(
-                                        text = { Text(if (isSavedInLibrary) "Remove from Library" else "Save to Library", fontWeight = FontWeight.SemiBold) },
-                                        leadingIcon = {
-                                            Icon(
-                                                if (isSavedInLibrary) Icons.Default.BookmarkAdded else Icons.Default.BookmarkAdd,
-                                                contentDescription = null,
-                                                tint = if (isSavedInLibrary) AuraPrimary else (if (isDark) Color.White else Color.Black)
+                        } else {
+                            // Symmetrical Apple Music dual-action pills for albums
+                            Box(
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .weight(1f)
+                                    .shadow(
+                                        elevation = 8.dp,
+                                        shape = RoundedCornerShape(24.dp),
+                                        spotColor = dynamicPrimary.copy(alpha = 0.5f),
+                                        ambientColor = dynamicPrimary.copy(alpha = 0.2f)
+                                    )
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(
+                                        brush = Brush.horizontalGradient(
+                                            colors = listOf(
+                                                dynamicPrimary,
+                                                dynamicPrimary.copy(alpha = 0.88f)
                                             )
-                                        },
-                                        onClick = {
-                                            showPlusMenu = false
-                                            onToggleSaveToLibrary()
+                                        )
+                                    )
+                                    .border(
+                                        width = 1.2.dp,
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.White.copy(alpha = 0.40f),
+                                                Color.White.copy(alpha = 0.08f)
+                                            )
+                                        ),
+                                        shape = RoundedCornerShape(24.dp)
+                                    )
+                                    .clickable {
+                                        if (songs.isNotEmpty()) {
+                                            onSongSelected(songs.first(), songs)
                                         }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        tint = onPrimary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Play", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = onPrimary)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .weight(1f)
+                                    .liquidGlass(
+                                        shape = RoundedCornerShape(24.dp),
+                                        level = GlassLevel.UltraThin,
+                                        isDark = isDark,
+                                        elevation = 6.dp,
+                                        borderWidth = 1.1.dp
+                                    )
+                                    .clickable {
+                                        if (songs.isNotEmpty()) {
+                                            val shuffled = songs.shuffled()
+                                            onSongSelected(shuffled.first(), shuffled)
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Shuffle,
+                                        contentDescription = "Shuffle",
+                                        tint = if (isDark) Color.White else Color.Black,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        "Shuffle",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isDark) Color.White else Color.Black
                                     )
                                 }
                             }

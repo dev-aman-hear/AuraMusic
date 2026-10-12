@@ -1,93 +1,160 @@
-# 🎵 Aura Music V3.2.0 (Glass Edition)
+# 🎵 Aura Music
 
-A premium, modern Android music player built with Kotlin and Jetpack Compose. Featuring a futuristic Frosted Glass design language, Apple Music-inspired aesthetics, ultra-high-definition online media artwork, powerful local & online audio playback (VLC + Media3 ExoPlayer), advanced playlist controls, and a unique "Dynamic Pill" system overlay for global music control.
+<p align="center">
+  <img src="app/src/main/res/drawable/aura_logo.png" alt="Aura Music Logo" width="120" />
+</p>
 
----
+<p align="center">
+  <b>A next-generation, high-fidelity music streaming and local audio player for Android.</b><br />
+  Built from the ground up with <b>Kotlin</b> and <b>Jetpack Compose</b>, featuring an Apple Music-inspired <b>Liquid Glass</b> design system, dual audio engines, real-time synced lyrics, and studio-grade artwork.
+</p>
 
-## 🚀 What's New in V3.2.0
-
-* **🖼️ Ultra-HD Online Artwork Engine**:
-  * **YouTube Music Master Resolution**: Automatically intercepts and upgrades compressed mobile thumbnails (`=w60`, `=w120`, `=w544`) to studio-grade `1080x1080` (`=w1080-h1080-l90-rj`) uncompressed master covers directly from Google content servers.
-  * **YouTube Video Thumbnail Clarity**: Strips low-res mobile compression query parameters (`?sqp=...`) and upgrades low-res previews to clean, full-fidelity `hqdefault` artwork.
-  * **JioSaavn Studio Covers**: Delivers `500x500` uncompressed Akamai CDN album covers with strict HTTPS protocol enforcement across search results, curated playlists, detail views, and full-screen player backgrounds.
-  * **Coil High-Fidelity Caching**: Centralized `ArtworkQualityOptimizer` with automated disk/memory cache policies, hardware bitmap acceleration, and smooth 250ms crossfades.
-* **✨ Universal Frosted Glass Design System**:
-  * System-wide frosted glass surface treatment with specular highlight borders and subtle blur overlays across the bottom navigation bar, mini player, category cards, library sheets, song rows, dialogs, and player controls.
-* **🔍 Dribbble-Inspired Dynamic Search & Discovery**:
-  * Fluid atmospheric glowing mesh category cards, full Light and Dark mode adaptability, instantaneous keyboard dismissal on selection, and quick-access YouTube artist discovery chips.
-* **☁️ Artist Cloud & Discography Discovery**:
-  * Dedicated YouTube Music & JioSaavn artist discovery sheets with high-resolution profile imagery and one-tap discography browsing.
-* **🏠 Unified Home Experience**:
-  * Refined proportional greeting headers, daily featured recommendations, and smooth frosted glass navigation.
+<p align="center">
+  <img src="https://img.shields.io/badge/Version-v1.0.0-FA2D48?style=for-the-badge&logo=android" alt="Version 1.0.0" />
+  <img src="https://img.shields.io/badge/Android-8.0%2B%20(API%2026%2B)-3DDC84?style=for-the-badge&logo=android" alt="Android API 26+" />
+  <img src="https://img.shields.io/badge/Kotlin-2.0%2B-7F52FF?style=for-the-badge&logo=kotlin" alt="Kotlin 2.0" />
+  <img src="https://img.shields.io/badge/UI-Jetpack%20Compose%20%2F%20Material%203-4285F4?style=for-the-badge&logo=jetpackcompose" alt="Jetpack Compose" />
+  <img src="https://img.shields.io/badge/Audio-LibVLC%20%2B%20Media3%20ExoPlayer-FF6F00?style=for-the-badge&logo=vlcmediaplayer" alt="Audio Engines" />
+</p>
 
 ---
 
-## ✨ Key Features
+## 🌟 Highlights & Features
 
-### 🖼️ Online Streaming & High-Fidelity Audio
-* **Dual Audio Engines**: LibVLC for pristine local audio reproduction and AndroidX Media3 ExoPlayer for instant 320kbps JioSaavn & YouTube streams.
-* **Studio-Quality Artwork**: Never look at blurry album covers again. Every online track displays crystal-clear uncompressed artwork.
-* **Real-Time Synced Lyrics**: Powered by LRCLIB with line-by-line real-time tracking, karaoke glow, and ColorOS status bar live lyrics.
-
-### 🎧 Local Music Management
-* **Format Versatility**: MP3, FLAC, WAV, M4A, ALAC, OGG, and OPUS.
-* **"Open With" Support**: Open and play audio files directly from any Android file manager.
-* **External URI Support**: Automatically resolves metadata and starts playback for downloaded or shared tracks.
-* **Smart Organization**: Browse by Songs, Albums, Artists, and Playlists.
-* **Playlist Portability**: Export and import playlists seamlessly as JSON.
-
-### 🎨 Modern UI / UX Design
-* **Apple Music Aesthetic**: Clean typography, fluid gestures, and subtle micro-animations.
-* **Dynamic Palette**: UI accents that automatically sample dominant colors from current album artwork.
-* **AMOLED Dark & Crisp Light Themes**: Full dark and light theme support with specular glass reflections and optimal contrast.
-* **Sleep Timer**: Built-in sleep timer with gentle audio fade-out.
+### 🎨 Liquid Glass & Apple Music-Inspired Aesthetics
+* **Translucent Glass Surfaces**: Multi-tiered frosted glass shaders (`liquidGlass`) with custom refraction, specular borders, and subtle depth elevation across controls, navigation bars, bottom sheets, and dialogs.
+* **Dynamic Palette & Contrast**: Intelligent ambient mesh glows dynamically sampled from current album artwork.
+* **Flawless Light & Dark Themes**: True obsidian dark mode and crisp light mode engineered for optimal text contrast and readability.
+* **Micro-Animations & Gestures**: Fluid swipe-down sheets, interactive carousels, and responsive touch feedback throughout the interface.
 
 ---
 
-## 🛠️ Tech Stack & Architecture
-
-* **Language**: Kotlin 2.0+
-* **UI**: Jetpack Compose, Material 3, Custom Glassmorphic Shader & Blur Modifiers
-* **Architecture**: Clean Architecture + MVVM + MVI
-* **Dependency Injection**: Dagger Hilt
-* **Audio**: VLC Android SDK (Offline) + AndroidX Media3 ExoPlayer (Online Streams)
-* **Networking**: OkHttp 4, Retrofit, Gson
-* **Image Loading & Optimization**: Coil 2.6 with custom `ArtworkQualityOptimizer`
-* **Concurrency**: Kotlin Coroutines & StateFlow
-* **Storage**: AndroidX DataStore (Preferences) + MediaStore API (Audio Scanning)
-* **Palette**: AndroidX Palette API
+### 🔊 Dual High-Fidelity Audio Architecture
+* **Offline Engine (LibVLC)**: Bit-perfect local playback supporting all major lossy and lossless formats:
+  * **FLAC**, **ALAC**, **WAV**, **MP3**, **AAC**, **M4A**, **OGG**, and **OPUS**.
+* **Online Streaming Engine (AndroidX Media3 ExoPlayer)**:
+  * High-bitrate playback with intelligent multi-segment caching for instant, zero-buffer playback.
+  * Robust network recovery and seamless background audio session handling.
+* **External File Association**: Open and stream audio files directly from any Android file manager via `"Open with Aura Music"`.
 
 ---
 
-## 📦 Installation & Setup
+### 🌐 Universal Online Streaming Hub
+* **Multi-Service Catalog**: Direct, ad-free streaming search and exploration powered by YouTube Music and JioSaavn backends.
+* **Curated Discovery**: Explore trending charts, new releases, mood mixes, and curated regional playlists.
+* **Artist Discographies**: Rich artist profiles, top tracks, singles, and full album discographies.
+* **Personal Library Synchronization**:
+  * Save online albums and playlists directly to your library with automatic offline metadata caching.
+  * Clean collection separation: Saved online collections remain distinct from your custom user playlists to eliminate clutter and duplication.
 
-1. Clone the repository:
+---
+
+### 🖼️ Studio-Grade Artwork Optimizer
+* **Master Resolution Interceptor**: Automatically boosts standard compressed mobile thumbnails (`=w60`, `=w120`, `=w544`) to uncompressed **1080x1080** master studio artwork.
+* **Lossless CDN Protocol**: Enforces high-definition 500x500 Akamai CDN album covers for JioSaavn tracks and strips mobile compression query parameters from video thumbnails.
+* **Smart Coil Cache**: Disk and memory caching with hardware bitmap rendering and smooth 250ms crossfades.
+
+---
+
+### 🎤 Synchronized Real-Time Lyrics
+* **Live Karaoke Scrolling**: Powered by LRCLIB with line-by-line synchronized tracking, active line highlight glows, and manual offset fine-tuning.
+* **Intelligent Query Matching**: Fuzzy search fallback engine to retrieve lyrics even with slight title or metadata variations.
+* **ColorOS Status Bar Lyrics Bridge**: Support for floating and status-bar lyrics on compatible Android devices.
+
+---
+
+### 🎛️ Dynamic Floating Pill & Advanced Controls
+* **System Overlay Dynamic Pill**: Optional floating music pill accessible from any app with live waveform visualization, track scrubbing, and quick playback toggles.
+* **Sleep Timer**: Customizable sleep countdown with a gentle audio fade-out curve.
+* **Playlist Portability**: Export and import your custom playlists seamlessly in JSON format.
+* **Queue Management**: Dynamic queue reordering, shuffle modes, and one-tap clearing.
+
+---
+
+## 🏗️ Architecture & Technology Stack
+
+Aura Music follows modern Android architectural patterns: **Clean Architecture** with unidirectional data flow (**MVI/MVVM**).
+
+```text
+┌────────────────────────────────────────────────────────┐
+│                   Presentation Layer                   │
+│   Jetpack Compose · Material 3 · Liquid Glass System   │
+└───────────────────────────┬────────────────────────────┘
+                            │
+┌───────────────────────────▼────────────────────────────┐
+│                      Domain / VM                       │
+│    PlayerViewModel · MusicViewModel · StateFlows       │
+└───────────────────────────┬────────────────────────────┘
+                            │
+┌───────────────────────────▼────────────────────────────┐
+│                    Repository Layer                    │
+│   AudioRepository · OnlineRepository · UserPreferences │
+└─────────────────┬──────────────────┬───────────────────┘
+                  │                  │
+┌─────────────────▼────────┐       ┌─▼───────────────────┐
+│       Data Sources       │       │    Audio Engines    │
+│  MediaStore · DataStore  │       │  LibVLC (Offline)   │
+│  OkHttp · Retrofit · API │       │  Media3 (Streaming) │
+└──────────────────────────┘       └─────────────────────┘
+```
+
+| Component | Library / Framework | Purpose |
+|---|---|---|
+| **Language** | Kotlin 2.0+ | Modern expressive syntax and coroutines |
+| **UI Toolkit** | Jetpack Compose | Declarative UI, animated layouts, custom modifiers |
+| **Design System** | Material 3 + Custom Liquid Glass | Frosted glass surfaces, ambient gradients, dynamic color |
+| **Offline Audio** | LibVLC Android SDK | Lossless decoding (FLAC, WAV, ALAC, etc.) |
+| **Streaming Audio**| AndroidX Media3 ExoPlayer | 320kbps streams, DataSource caching |
+| **DI** | Dagger Hilt | Dependency injection across ViewModels & Services |
+| **Networking** | OkHttp 4 + Gson + Retrofit | High-performance HTTP client, API interceptors |
+| **Image Loading**| Coil 2.6 | Asynchronous image loading with studio-art transforms |
+| **Lyrics** | LRCLIB API | Real-time synchronized LRC lyrics provider |
+| **Local Storage**| AndroidX DataStore Preferences | Lightweight, reactive preference & library storage |
+
+---
+
+## 📱 Getting Started & Building
+
+### Prerequisites
+* **Android Studio**: Ladybug (2024.2+) or newer.
+* **JDK**: Version 17 or higher.
+* **Target Android OS**: Android 8.0 (API 26) through Android 15 (API 35+).
+
+### Build & Run
+1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/AuraMusic.git
+   git clone https://github.com/dev-aman-hear/AuraMusic.git
+   cd AuraMusic
    ```
-2. Open in Android Studio (Ladybug / Koala or newer).
-3. Ensure JDK 17 or higher is configured.
-4. Build and install to your Android device (API 26+):
+
+2. **Build Debug APK**:
    ```bash
    ./gradlew assembleDebug
+   ```
+
+3. **Install to connected device via ADB**:
+   ```bash
    adb install -r app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
    ```
-5. Grant "Overlay Permission" and "Usage Access" for Dynamic Pill features.
+
+4. **Run Unit Tests**:
+   ```bash
+   ./gradlew testDebugUnitTest
+   ```
 
 ---
 
-## 🚀 Roadmap
+## 📋 Release Notes — v1.0.0
 
-- [x] High-Resolution Online Artwork Engine (YouTube & JioSaavn)
-- [x] Universal Frosted Glass Design System
-- [x] ColorOS Status Bar Live Lyrics Bridge
-- [x] Dynamic Pill customization & wave visualizer
-- [x] Synced lyrics (LRCLIB)
-- [x] Sleep timer
-- [ ] Parametric Equalizer
-- [ ] Folder browsing
-- [ ] Android Auto integration
+* **Fresh 1.0.0 Release**: Standardized versioning across application manifests, build scripts, settings, and network clients.
+* **Independent Online Library Collections**: Saving online playlists or albums now cleanly routes to Saved Online collections without generating duplicate custom playlists in "Your Playlists".
+* **Synchronized Dark & Light Theme Contrast**: Resolved color-provider synchronization so text, badges, and controls maintain high-contrast visibility regardless of OS-level light/dark modes.
+* **Studio-Quality Online Art Engine**: Fully integrated master-resolution thumbnail scalers for YouTube Music and JioSaavn tracks.
+* **Full Song Caching on Save**: Ensured online playlists and albums preserve pre-fetched tracklists upon being saved to library to eliminate 0-song view issues.
 
 ---
 
-Made with ❤️ by Aman
+## 📄 License & Credits
+
+Developed with ❤️ by **Aman**.  
+This project is open-source for personal, educational, and non-commercial exploration.
