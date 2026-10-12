@@ -991,6 +991,25 @@ fun ArtistDetailSheet(
                                             )
                                         ),
                                         CircleShape
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(
+                                                Color.White.copy(alpha = 0.22f),
+                                                Color.White.copy(alpha = 0.08f),
+                                                Color.Black.copy(alpha = 0.24f)
+                                            )
+                                        ),
+                                        CircleShape
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        brush = Brush.verticalGradient(
+                                            listOf(
+                                                Color.White.copy(alpha = 0.68f),
+                                                Color.White.copy(alpha = 0.22f)
+                                            )
+                                        ),
+                                        shape = CircleShape
                                     )
                                     .border(
                                         width = 1.dp,
@@ -1119,6 +1138,31 @@ fun ArtistDetailSheet(
                                         color = secondaryColor,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Medium
+                                // Do not show a misleading local-track count here.
+                                // Online profiles may display provider-supplied audience metadata.
+                                if (artist.isOnline && artist.songCountText.isNotBlank() &&
+                                    !artist.songCountText.equals("YouTube Music", ignoreCase = true)
+                                ) {
+                                    Text(
+                                        text = artist.songCountText,
+                                        color = Color.White.copy(alpha = 0.78f),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                            Surface(
+                                onClick = onPlayAll,
+                                shape = CircleShape,
+                                color = AuraPrimary,
+                                shadowElevation = 8.dp,
+                                modifier = Modifier.size(58.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = "Play all artist tracks",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(34.dp)
                                     )
                                 }
                             }
