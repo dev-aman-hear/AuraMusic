@@ -109,6 +109,16 @@ fun CollectionDetailScreen(
                             }
                         }
 
+                        Box {
+                            IconButton(onClick = { showTopMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "Share",
+                                    tint = if (isDark) Color.White else Color.Black
+                                )
+                            }
+                        }
+
                         val hasMenuItems = onAddCollectionToQueue != null ||
                                 onAddCollectionToPlaylist != null ||
                                 onFavoriteCollection != null ||
