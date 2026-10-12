@@ -295,7 +295,7 @@ class PipedService(
 
                     val fallbackArt = collection.artworkUrl.ifBlank { headerArtwork }
 
-                    parseInnertubeSearch(json).distinctBy { it.id }.map {
+                    parseMusicCollectionTracks(json).distinctBy { it.id }.map {
                         val trackArt = it.artworkUrl.ifBlank { fallbackArt }
                             .ifBlank { "https://i.ytimg.com/vi/${it.id}/hqdefault.jpg" }
                         it.copy(
@@ -309,6 +309,81 @@ class PipedService(
                 emptyList()
             }
         }
+
+    /**
+     * Playlist browse responses can contain standard playlistVideoRenderer rows,
+     * while search responses usually contain musicResponsiveListItemRenderer rows.
+     * Try the existing music parser first, then parse standard playlist rows so a
+     * valid collection is not shown as empty just because YouTube changed its renderer.
+     */
+    private fun parseMusicCollectionTracks(jsonString: String): List<OnlineSong> {
+        val musicTracks = parseInnertubeSearch(jsonString)
+        if (musicTracks.isNotEmpty()) return musicTracks
+
+        val tracks = linkedMapOf<String, OnlineSong>()
+        try {
+            val root = JsonParser.parseString(jsonString)
+
+            fun textOf(element: com.google.gson.JsonElement?): String {
+                if (element == null || !element.isJsonObject) return ""
+                val obj = element.asJsonObject
+                val simple = obj.get("simpleText")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+                if (simple.isNotBlank()) return simple.replace('\u00A0', ' ').trim()
+                val runs = obj.getAsJsonArray("runs") ?: return ""
+                return runs.mapNotNull { run ->
+                    run.takeIf { it.isJsonObject }?.asJsonObject
+                        ?.get("text")?.takeIf { !it.isJsonNull }?.asString
+                }.joinToString("").replace('\u00A0', ' ').trim()
+            }
+
+            fun walk(element: com.google.gson.JsonElement) {
+                if (element.isJsonObject) {
+                    val obj = element.asJsonObject
+                    val renderer = obj.getAsJsonObject("playlistVideoRenderer")
+                    if (renderer != null) {
+                        val videoId = renderer.get("videoId")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+                            .ifBlank {
+                                renderer.getAsJsonObject("navigationEndpoint")
+                                    ?.getAsJsonObject("watchEndpoint")
+                                    ?.get("videoId")?.asString.orEmpty()
+                            }
+                        if (videoId.isNotBlank()) {
+                            val title = textOf(renderer.getAsJsonObject("title")).ifBlank { "Unknown Title" }
+                            val artist = textOf(renderer.getAsJsonObject("shortBylineText"))
+                                .ifBlank { textOf(renderer.getAsJsonObject("longBylineText")) }
+                                .ifBlank { "YouTube Artist" }
+                            val thumbnails = renderer.getAsJsonObject("thumbnail")?.getAsJsonArray("thumbnails")
+                            val artwork = try {
+                                thumbnails?.lastOrNull()?.asJsonObject?.get("url")?.asString.orEmpty()
+                            } catch (_: Exception) { "" }
+                            val duration = com.aman.auramusic.online.filter.TrendingSongFilter
+                                .parseDurationToSeconds(textOf(renderer.getAsJsonObject("lengthText")))
+                            tracks.putIfAbsent(videoId, OnlineSong(
+                                id = videoId,
+                                title = title,
+                                artist = artist,
+                                album = "YouTube Music",
+                                artworkUrl = ArtworkQualityOptimizer.optimizeUrl(artwork)
+                                    .ifBlank { "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" },
+                                durationSeconds = duration,
+                                source = AudioSource.YOUTUBE,
+                                bitrate = "Adaptive",
+                                format = "M4A/Opus"
+                            ))
+                        }
+                    }
+                    for ((_, child) in obj.entrySet()) walk(child)
+                } else if (element.isJsonArray) {
+                    for (child in element.asJsonArray) walk(child)
+                }
+            }
+
+            walk(root)
+        } catch (e: Exception) {
+            android.util.Log.w("PipedService", "Unable to parse YouTube Music playlist browse response", e)
+        }
+        return tracks.values.toList()
+    }
 
     private fun searchInnertube(query: String): List<OnlineSong> {
         return try {
