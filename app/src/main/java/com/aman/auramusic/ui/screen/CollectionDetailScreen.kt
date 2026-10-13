@@ -93,7 +93,7 @@ fun CollectionDetailScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = if (isDark) Color.White else Color.Black
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -111,7 +111,7 @@ fun CollectionDetailScreen(
                                 Icon(
                                     imageVector = Icons.Default.Share,
                                     contentDescription = "Share",
-                                    tint = if (isDark) Color.White else Color.Black
+                                    tint = MaterialTheme.colorScheme.onBackground
                                 )
                             }
                         }
@@ -128,7 +128,7 @@ fun CollectionDetailScreen(
                                     Icon(
                                         imageVector = Icons.Default.MoreVert,
                                         contentDescription = "Playlist Options",
-                                        tint = if (isDark) Color.White else Color.Black
+                                        tint = MaterialTheme.colorScheme.onBackground
                                     )
                                 }
                                 DropdownMenu(
@@ -158,7 +158,7 @@ fun CollectionDetailScreen(
                                     if (onFavoriteCollection != null) {
                                         DropdownMenuItem(
                                             text = { Text("Add All to Favorites", fontWeight = FontWeight.SemiBold) },
-                                            leadingIcon = { Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFFFA2D48)) },
+                                            leadingIcon = { Icon(Icons.Default.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                                             onClick = {
                                                 showTopMenu = false
                                                 onFavoriteCollection()
@@ -209,7 +209,7 @@ fun CollectionDetailScreen(
                     text = title,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (isDark) Color.White else Color.Black,
+                    color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
@@ -221,7 +221,7 @@ fun CollectionDetailScreen(
                     text = subtitle,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
-                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.75f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -235,7 +235,7 @@ fun CollectionDetailScreen(
                     text = "Aura Music • Lossless Audio",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Normal,
-                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
 
@@ -266,7 +266,7 @@ fun CollectionDetailScreen(
                             Icon(
                                 imageVector = Icons.Default.Shuffle,
                                 contentDescription = "Shuffle",
-                                tint = if (isDark) Color.White else Color.Black,
+                                tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -277,29 +277,11 @@ fun CollectionDetailScreen(
                             modifier = Modifier
                                 .height(48.dp)
                                 .weight(1f)
-                                .shadow(
-                                    elevation = 8.dp,
-                                    shape = RoundedCornerShape(24.dp),
-                                    spotColor = dynamicPrimary.copy(alpha = 0.5f),
-                                    ambientColor = dynamicPrimary.copy(alpha = 0.2f)
-                                )
                                 .clip(RoundedCornerShape(24.dp))
-                                .background(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(
-                                            dynamicPrimary,
-                                            dynamicPrimary.copy(alpha = 0.88f)
-                                        )
-                                    )
-                                )
+                                .background(dynamicPrimary)
                                 .border(
-                                    width = 1.2.dp,
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = 0.40f),
-                                            Color.White.copy(alpha = 0.08f)
-                                        )
-                                    ),
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline,
                                     shape = RoundedCornerShape(24.dp)
                                 )
                                 .clickable { songs.firstOrNull()?.let { onSongSelected(it) } },
@@ -336,7 +318,7 @@ fun CollectionDetailScreen(
                                 Icon(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = "Add options",
-                                    tint = if (isDark) Color.White else Color.Black,
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
@@ -368,7 +350,7 @@ fun CollectionDetailScreen(
                                 if (onFavoriteCollection != null) {
                                     DropdownMenuItem(
                                         text = { Text("Favorite All Tracks", fontWeight = FontWeight.SemiBold) },
-                                        leadingIcon = { Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFFFA2D48)) },
+                                        leadingIcon = { Icon(Icons.Default.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                                         onClick = {
                                             showPlusMenu = false
                                             onFavoriteCollection()
@@ -388,34 +370,16 @@ fun CollectionDetailScreen(
                             }
                         }
                     } else {
-                        // Symmetrical Apple Music dual-action pills for albums
+                        // Symmetrical dual-action pills for albums
                         Box(
                             modifier = Modifier
                                 .height(48.dp)
                                 .weight(1f)
-                                .shadow(
-                                    elevation = 8.dp,
-                                    shape = RoundedCornerShape(24.dp),
-                                    spotColor = dynamicPrimary.copy(alpha = 0.5f),
-                                    ambientColor = dynamicPrimary.copy(alpha = 0.2f)
-                                )
                                 .clip(RoundedCornerShape(24.dp))
-                                .background(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(
-                                            dynamicPrimary,
-                                            dynamicPrimary.copy(alpha = 0.88f)
-                                        )
-                                    )
-                                )
+                                .background(dynamicPrimary)
                                 .border(
-                                    width = 1.2.dp,
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = 0.40f),
-                                            Color.White.copy(alpha = 0.08f)
-                                        )
-                                    ),
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline,
                                     shape = RoundedCornerShape(24.dp)
                                 )
                                 .clickable { songs.firstOrNull()?.let { onSongSelected(it) } },
@@ -453,7 +417,7 @@ fun CollectionDetailScreen(
                                 Icon(
                                     imageVector = Icons.Default.Shuffle,
                                     contentDescription = "Shuffle",
-                                    tint = if (isDark) Color.White else Color.Black,
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -461,7 +425,7 @@ fun CollectionDetailScreen(
                                     "Shuffle",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isDark) Color.White else Color.Black
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -470,7 +434,7 @@ fun CollectionDetailScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
                 HorizontalDivider(
-                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.1f),
+                    color = MaterialTheme.colorScheme.outline,
                     thickness = 0.8.dp,
                     modifier = Modifier.padding(horizontal = 8.dp)
                 )
@@ -515,7 +479,7 @@ fun CollectionDetailScreen(
                         text = "${index + 1}",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
-                        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.width(32.dp)
                     )
                     Column(modifier = Modifier.weight(1f)) {
@@ -523,7 +487,7 @@ fun CollectionDetailScreen(
                             text = song.title,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (song.id == currentSongId) Color(0xFFFA2D48) else if (isDark) Color.White else Color.Black,
+                            color = if (song.id == currentSongId) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -531,7 +495,7 @@ fun CollectionDetailScreen(
                         Text(
                             text = song.artist,
                             fontSize = 12.sp,
-                            color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -541,13 +505,13 @@ fun CollectionDetailScreen(
                         IconButton(
                             onClick = { itemMenuExpanded = true },
                             modifier = Modifier
-                                .background((if (isDark) Color.White else Color.Black).copy(alpha = 0.08f), CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
                                 .size(34.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.MoreHoriz,
                                 contentDescription = "Options",
-                                tint = if (isDark) Color.White else Color.Black,
+                                tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -567,7 +531,7 @@ fun CollectionDetailScreen(
                             val isFav = song.id in favoriteIds
                             DropdownMenuItem(
                                 text = { Text(if (isFav) "Remove from Favorites" else "Add to Favorites", fontWeight = FontWeight.SemiBold) },
-                                leadingIcon = { Icon(if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder, contentDescription = null, tint = if (isFav) Color(0xFFFA2D48) else MaterialTheme.colorScheme.onSurfaceVariant) },
+                                leadingIcon = { Icon(if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder, contentDescription = null, tint = if (isFav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) },
                                 onClick = {
                                     itemMenuExpanded = false
                                     onToggleFavorite(song)
@@ -605,7 +569,7 @@ fun CollectionDetailScreen(
                     }
                 }
                 HorizontalDivider(
-                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.06f),
+                    color = MaterialTheme.colorScheme.outline,
                     thickness = 0.5.dp,
                     modifier = Modifier.padding(start = 52.dp, end = 20.dp)
                 )
@@ -622,17 +586,17 @@ fun CollectionDetailScreen(
                 Text(
                     text = "July 21, 2026",
                     fontSize = 13.sp,
-                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "${songs.size} songs, ${totalMinutes} minutes",
                     fontSize = 13.sp,
-                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "℗ 2026 AuraMusic LLC Under Exclusive License",
                     fontSize = 12.sp,
-                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.4f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -641,12 +605,12 @@ fun CollectionDetailScreen(
                         text = "RECORD LABEL AuraMusic",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.8f)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = null,
-                        tint = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -667,12 +631,12 @@ fun CollectionDetailScreen(
                             text = "More by ${firstSong?.artist ?: "Artist"}",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color.White else Color.Black
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Icon(
                             imageVector = Icons.Default.ChevronRight,
                             contentDescription = null,
-                            tint = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -700,14 +664,14 @@ fun CollectionDetailScreen(
                                     text = s.album,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (isDark) Color.White else Color.Black,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     text = s.artist,
                                     fontSize = 11.sp,
-                                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )

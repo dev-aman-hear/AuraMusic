@@ -31,22 +31,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.online.model.PlaybackState
 import com.aman.auramusic.online.model.StreamingEngine
-import com.aman.auramusic.online.ui.AccentCyan
-import com.aman.auramusic.online.ui.AccentGreen
-import com.aman.auramusic.online.ui.AccentPurple
-import com.aman.auramusic.online.ui.GlassBorder
-import com.aman.auramusic.online.ui.SurfaceCard
-import com.aman.auramusic.online.ui.SurfaceDark
-import com.aman.auramusic.online.ui.TextMuted
-import com.aman.auramusic.online.ui.TextPrimary
-import com.aman.auramusic.online.ui.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,7 +52,7 @@ fun StreamDiagnosticsSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = SurfaceDark
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
@@ -79,19 +69,23 @@ fun StreamDiagnosticsSheet(
                     Icon(
                         imageVector = Icons.Default.Speed,
                         contentDescription = null,
-                        tint = AccentCyan,
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Stream Diagnostics",
                         style = MaterialTheme.typography.titleLarge,
-                        color = TextPrimary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
                 IconButton(onClick = onDismiss) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = TextPrimary)
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
 
@@ -101,15 +95,15 @@ fun StreamDiagnosticsSheet(
             Text(
                 text = "YouTube Streaming Engine",
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = TextPrimary
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(SurfaceCard)
-                    .border(1.dp, GlassBorder, RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
                     .padding(12.dp)
             ) {
                 Column {
@@ -121,19 +115,19 @@ fun StreamDiagnosticsSheet(
                             text = "RiPlay Engine",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = AccentGreen
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "fast4x/RiPlay",
                             fontSize = 11.sp,
-                            color = TextMuted
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Dedicated Headless YouTube IFrame Player (Zero-Block, Native YouTube Music Audio)",
                         fontSize = 11.sp,
-                        color = TextSecondary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -144,7 +138,7 @@ fun StreamDiagnosticsSheet(
                 Text(
                     text = "No track currently playing.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextMuted
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 DiagnosticItem(title = "Title", value = song.title)
@@ -174,7 +168,7 @@ fun StreamDiagnosticsSheet(
                 Text(
                     text = "Bitrate Quality Switcher (JioSaavn)",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = TextPrimary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Row(
@@ -188,8 +182,8 @@ fun StreamDiagnosticsSheet(
                         Button(
                             onClick = { onChangeBitrate(bitrate) },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isSelected) AccentCyan else SurfaceCard,
-                                contentColor = if (isSelected) Color.Black else TextPrimary
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                             ),
                             shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.weight(1f)
@@ -203,7 +197,7 @@ fun StreamDiagnosticsSheet(
 
                 Text(
                     text = "Resolved Stream / Engine URI",
-                    style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondary)
+                    style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                 )
 
                 Box(
@@ -211,15 +205,15 @@ fun StreamDiagnosticsSheet(
                         .fillMaxWidth()
                         .padding(top = 6.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(SurfaceCard)
-                        .border(1.dp, GlassBorder, RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
                         .padding(12.dp)
                 ) {
                     Text(
                         text = song.streamUrl.ifBlank { "Resolving link..." },
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = if (song.streamUrl.isNotBlank()) AccentGreen else TextMuted
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -241,12 +235,12 @@ private fun DiagnosticItem(title: String, value: String) {
         Text(
             text = title,
             style = MaterialTheme.typography.bodyMedium,
-            color = TextSecondary
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-            color = TextPrimary
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -130,9 +131,6 @@ import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.aman.auramusic.playback.RepeatMode
 import com.aman.auramusic.ui.component.SongArtwork
-import com.aman.auramusic.ui.theme.GlassLevel
-import com.aman.auramusic.ui.theme.liquidGlass
-import com.aman.auramusic.ui.theme.iosLiquidGlass
 import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.ui.theme.frostedGlass
 import com.aman.auramusic.util.audioQuality
@@ -330,56 +328,7 @@ private fun PlayerBackground(
         } else null
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        AsyncImage(
-            model = imageRequest ?: artworkModel,
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .blur(blurIntensity.dp)
-                .scale(2.5f),
-            contentScale = ContentScale.Crop,
-            alpha = 0.45f,
-            onSuccess = { state ->
-                try {
-                    val drawable = state.result.drawable
-                    if (drawable is android.graphics.drawable.BitmapDrawable) {
-                        val bmp = drawable.bitmap
-                        val safeBmp = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && bmp.config == android.graphics.Bitmap.Config.HARDWARE) {
-                            bmp.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
-                        } else {
-                            bmp
-                        }
-                        if (safeBmp != null) {
-                            androidx.palette.graphics.Palette.from(safeBmp).generate { palette ->
-                                palette?.let {
-                                    val vibrant = it.getVibrantColor(it.getDominantColor(0xFF1E1E1E.toInt()))
-                                    val muted = it.getMutedColor(it.getDarkVibrantColor(0xFF2A2A2A.toInt()))
-                                    onPaletteExtracted?.invoke(vibrant, muted)
-                                }
-                            }
-                        }
-                    }
-                } catch (_: Throwable) {
-                    // Safe fallback
-                }
-            }
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            dominantColor.copy(alpha = 0.4f),
-                            accentColor.copy(alpha = 0.2f),
-                            Color.Black.copy(alpha = 0.18f),
-                            Color.Black.copy(alpha = 0.78f),
-                            Color.Black
-                        )
-                    )
-                )
-        )
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
     }
 }
 
@@ -407,63 +356,96 @@ private fun PlayerHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (isLyricsPage) {
-            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 SongArtwork(song, size = 48, shape = RoundedCornerShape(8.dp), elevation = 0.dp)
-                Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                    Text(song.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(song.artist, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                
-                // Play/Pause button in mini mode
-                IconButton(
-                    onClick = onPlayPause,
+                Column(
                     modifier = Modifier
-                        .size(36.dp)
-                        .iosLiquidGlass(shape = CircleShape, borderWidth = 0.8.dp, elevation = 2.dp)
+                        .weight(1f)
+                        .padding(horizontal = 12.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Play/Pause",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                    Text(
+                        song.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        song.artist,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-                
-                Spacer(modifier = Modifier.width(8.dp))
 
-                IconButton(
-                    onClick = onFavoriteToggle,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .iosLiquidGlass(
-                            shape = CircleShape,
-                            tint = if (isFavorite) Color(0xFFFF2D55) else null,
-                            borderWidth = 0.8.dp,
-                            elevation = 2.dp
-                        )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Favorite",
-                        tint = if (isFavorite) Color(0xFFFF375F) else Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Box {
-                    IconButton(
-                        onClick = { showMenu = true },
+                    // Play/Pause button in mini mode
+                    Box(
                         modifier = Modifier
-                            .size(36.dp)
-                            .iosLiquidGlass(shape = CircleShape, borderWidth = 0.8.dp, elevation = 2.dp)
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                            .clickable(onClick = onPlayPause),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.MoreHoriz,
-                            contentDescription = "Menu",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .then(if (!isPlaying) Modifier.offset(x = 1.dp) else Modifier)
                         )
                     }
+
+                    // Favorite (Like) button
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                CircleShape
+                            )
+                            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                            .clickable(onClick = onFavoriteToggle),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            tint = if (isFavorite) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    // 3-dot (More options) button
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                .clickable { showMenu = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreHoriz,
+                                contentDescription = "Menu",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
@@ -474,7 +456,7 @@ private fun PlayerHeader(
                                 Icon(
                                     imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                     contentDescription = null,
-                                    tint = if (isFavorite) Color(0xFFFA2D48) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp)
                                 )
                             },
@@ -533,7 +515,8 @@ private fun PlayerHeader(
                     }
                 }
             }
-        } else {
+        }
+    } else {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -545,7 +528,7 @@ private fun PlayerHeader(
                     modifier = Modifier
                         .size(width = 38.dp, height = 5.dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(Color.White.copy(alpha = 0.40f))
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.40f))
                 )
             }
         }
@@ -585,27 +568,25 @@ private fun NowPlayingPage(
         Spacer(modifier = Modifier.height(34.dp))
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-                Text(song.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.basicMarquee())
+                Text(song.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.basicMarquee())
                 Spacer(modifier = Modifier.height(5.dp))
-                Text(song.artist, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.72f), maxLines = 1, modifier = Modifier.basicMarquee())
+                Text(song.artist, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, modifier = Modifier.basicMarquee())
             }
             Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .iosLiquidGlass(
-                        shape = CircleShape,
-                        tint = if (isFavorite) Color(0xFFFF2D55) else null,
-                        elevation = 6.dp,
-                        borderWidth = if (isFavorite) 1.4.dp else 1.dp,
-                        sheenAlpha = if (isFavorite) 0.30f else 0.22f
+                    .clip(CircleShape)
+                    .background(
+                        if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                     )
+                    .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), CircleShape)
                     .clickable(onClick = onFavoriteToggle),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = "Favorite",
-                    tint = if (isFavorite) Color(0xFFFF4D6D) else Color.White,
+                    tint = if (isFavorite) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -614,19 +595,16 @@ private fun NowPlayingPage(
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .iosLiquidGlass(
-                            shape = CircleShape,
-                            elevation = 6.dp,
-                            borderWidth = 1.dp,
-                            sheenAlpha = 0.22f
-                        )
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), CircleShape)
                         .clickable { showMenu = true },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreHoriz,
                         contentDescription = "Menu",
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -640,7 +618,7 @@ private fun NowPlayingPage(
                             Icon(
                                 imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                 contentDescription = null,
-                                tint = if (isFavorite) Color(0xFFFA2D48) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
                         },
@@ -726,13 +704,13 @@ private fun LyricsPage(lyrics: List<LyricLine>, position: Long, onSeek: (Long) -
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (lyrics.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No synced lyrics found", color = Color.White.copy(alpha = 0.5f)) }
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No synced lyrics found", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else {
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
                 item { Spacer(modifier = Modifier.height(100.dp)) }
                 itemsIndexed(lyrics) { index, line ->
                     val opacity by animateFloatAsState(if (index == activeIndex) 1f else if (karaokeMode) 0.08f else 0.25f, label = "lyricOpacity")
-                    Text(line.text, style = MaterialTheme.typography.headlineLarge.copy(fontSize = MaterialTheme.typography.headlineLarge.fontSize * fontScale), fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = opacity), modifier = Modifier.fillMaxWidth().pointerInput(line.timeMs) { detectTapGestures(onTap = { onSeek(line.timeMs) }) })
+                    Text(line.text, style = MaterialTheme.typography.headlineLarge.copy(fontSize = MaterialTheme.typography.headlineLarge.fontSize * fontScale), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground.copy(alpha = opacity), modifier = Modifier.fillMaxWidth().pointerInput(line.timeMs) { detectTapGestures(onTap = { onSeek(line.timeMs) }) })
                 }
                 item { Spacer(modifier = Modifier.height(240.dp)) }
             }
@@ -775,17 +753,17 @@ private fun QueuePage(
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Queue", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(vertical = 12.dp))
+            Text("Queue", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(vertical = 12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onShuffleToggle, modifier = Modifier.padding(end = 4.dp).size(32.dp).background(if (isShuffled) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent, CircleShape)) { Icon(Icons.Default.Shuffle, "Shuffle", tint = if (isShuffled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f), modifier = Modifier.size(18.dp)) }
-                IconButton(onClick = onRepeatToggle, modifier = Modifier.padding(end = 8.dp).size(32.dp).background(if (repeatMode != RepeatMode.NONE) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent, CircleShape)) { Icon(imageVector = when (repeatMode) { RepeatMode.ONE -> Icons.Default.RepeatOne; else -> Icons.Default.Repeat }, contentDescription = "Repeat", tint = if (repeatMode != RepeatMode.NONE) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f), modifier = Modifier.size(18.dp)) }
+                IconButton(onClick = onShuffleToggle, modifier = Modifier.padding(end = 4.dp).size(32.dp).background(if (isShuffled) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent, CircleShape)) { Icon(Icons.Default.Shuffle, "Shuffle", tint = if (isShuffled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp)) }
+                IconButton(onClick = onRepeatToggle, modifier = Modifier.padding(end = 8.dp).size(32.dp).background(if (repeatMode != RepeatMode.NONE) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent, CircleShape)) { Icon(imageVector = when (repeatMode) { RepeatMode.ONE -> Icons.Default.RepeatOne; else -> Icons.Default.Repeat }, contentDescription = "Repeat", tint = if (repeatMode != RepeatMode.NONE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp)) }
             }
         }
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (history.isNotEmpty()) {
                 item {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("History", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 8.dp))
+                        Text("History", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
                         Text("Clear", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { onHistoryClear() }.padding(8.dp))
                     }
                 }
@@ -827,8 +805,8 @@ private fun HistoryItem(song: Song, onClick: () -> Unit, modifier: Modifier = Mo
         SongArtwork(song, size = 40, shape = RoundedCornerShape(8.dp))
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(song.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.8f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(song.artist, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(song.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(song.artist, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -845,18 +823,18 @@ private fun QueueItem(
     onDragStart: () -> Unit = {},
     onDragEnd: () -> Unit = {},
 ) {
-    Surface(color = if (active) Color.White.copy(alpha = 0.12f) else if (isDragging) Color.White.copy(alpha = 0.22f) else Color.Transparent, shape = RoundedCornerShape(16.dp), tonalElevation = elevation, modifier = modifier.fillMaxWidth().height(72.dp).clickable { onSongSelected() }) {
+    Surface(color = if (active) MaterialTheme.colorScheme.surfaceVariant else if (isDragging) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f) else Color.Transparent, shape = RoundedCornerShape(16.dp), tonalElevation = elevation, modifier = modifier.fillMaxWidth().height(72.dp).clickable { onSongSelected() }) {
         Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             SongArtwork(song, size = 52, shape = RoundedCornerShape(10.dp))
             Spacer(modifier = Modifier.size(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (active) Icon(Icons.Default.PlayArrow, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp).padding(end = 4.dp))
-                    Text(song.title, style = MaterialTheme.typography.titleSmall, fontWeight = if (active) FontWeight.Bold else FontWeight.SemiBold, color = if (active) MaterialTheme.colorScheme.primary else Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(song.title, style = MaterialTheme.typography.titleSmall, fontWeight = if (active) FontWeight.Bold else FontWeight.SemiBold, color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Text(song.artist, style = MaterialTheme.typography.labelMedium, color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.6f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(song.artist, style = MaterialTheme.typography.labelMedium, color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Box(modifier = Modifier.size(48.dp).pointerInput(Unit) { detectDragGesturesAfterLongPress(onDragStart = { onDragStart() }, onDragEnd = { onDragEnd() }, onDragCancel = { onDragEnd() }, onDrag = { change, dragAmount -> onMove(change, dragAmount) }) }, contentAlignment = Alignment.Center) { Icon(Icons.Default.DragIndicator, "Drag", tint = if (isDragging) Color.White else Color.White.copy(alpha = 0.3f), modifier = Modifier.size(24.dp)) }
+            Box(modifier = Modifier.size(48.dp).pointerInput(Unit) { detectDragGesturesAfterLongPress(onDragStart = { onDragStart() }, onDragEnd = { onDragEnd() }, onDragCancel = { onDragEnd() }, onDrag = { change, dragAmount -> onMove(change, dragAmount) }) }, contentAlignment = Alignment.Center) { Icon(Icons.Default.DragIndicator, "Drag", tint = if (isDragging) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), modifier = Modifier.size(24.dp)) }
         }
     }
 }
@@ -995,18 +973,15 @@ private fun PlayerControls(
                 text = formatDuration(position),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.65f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Audio Quality Glass Capsule
+            // Audio Quality Capsule
             Box(
                 modifier = Modifier
-                    .iosLiquidGlass(
-                        shape = RoundedCornerShape(999.dp),
-                        elevation = 4.dp,
-                        borderWidth = 0.9.dp,
-                        sheenAlpha = 0.20f
-                    )
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(999.dp))
+                    .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(999.dp))
                     .clickable { showQ = true }
                     .padding(horizontal = 14.dp, vertical = 6.dp)
             ) {
@@ -1015,7 +990,7 @@ private fun PlayerControls(
                         Icon(
                             imageVector = Icons.Default.Waves,
                             contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.92f),
+                            tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(Modifier.width(5.dp))
@@ -1024,7 +999,7 @@ private fun PlayerControls(
                         text = q.badge,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.92f)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -1033,77 +1008,68 @@ private fun PlayerControls(
                 text = "-${formatDuration((rd - position).coerceAtLeast(0L))}",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.65f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
         Spacer(Modifier.height(26.dp))
 
-        // Liquid Glass Playback Controls (Previous, Play/Pause, Next)
+        // Monochrome Playback Controls (Previous, Play/Pause, Next)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Previous button in glass circle
+            // Previous button in controlBackground circle
             Box(
                 modifier = Modifier
                     .size(56.dp)
-                    .iosLiquidGlass(
-                        shape = CircleShape,
-                        elevation = 6.dp,
-                        borderWidth = 1.dp,
-                        sheenAlpha = 0.20f
-                    )
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                    .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), CircleShape)
                     .clickable(onClick = onPrevious),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipPrevious,
                     contentDescription = "Previous",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(34.dp)
                 )
             }
 
-            // Central Play/Pause Orb
+            // Central Play/Pause in controlSelected (Black in Light, White in Dark)
             Box(
                 modifier = Modifier
                     .size(82.dp)
-                    .iosLiquidGlass(
-                        shape = CircleShape,
-                        elevation = 12.dp,
-                        borderWidth = 1.3.dp,
-                        sheenAlpha = 0.32f
-                    )
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), CircleShape)
                     .clickable(onClick = onPlayPause),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = "Play/Pause",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(46.dp)
                 )
             }
 
-            // Next button in glass circle
+            // Next button in controlBackground circle
             Box(
                 modifier = Modifier
                     .size(56.dp)
-                    .iosLiquidGlass(
-                        shape = CircleShape,
-                        elevation = 6.dp,
-                        borderWidth = 1.dp,
-                        sheenAlpha = 0.20f
-                    )
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                    .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), CircleShape)
                     .clickable(onClick = onNext),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
                     contentDescription = "Next",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(34.dp)
                 )
             }
@@ -1111,15 +1077,12 @@ private fun PlayerControls(
 
         Spacer(Modifier.height(24.dp))
 
-        // Secondary Actions in Floating Glass Capsule (Lyrics, Queue)
+        // Secondary Actions (Lyrics, Queue)
         Box(
             modifier = Modifier
-                .iosLiquidGlass(
-                    shape = RoundedCornerShape(999.dp),
-                    elevation = 6.dp,
-                    borderWidth = 1.dp,
-                    sheenAlpha = 0.22f
-                )
+                .clip(RoundedCornerShape(999.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(999.dp))
+                .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(999.dp))
                 .padding(horizontal = 22.dp, vertical = 6.dp)
         ) {
             Row(
@@ -1133,7 +1096,7 @@ private fun PlayerControls(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Article,
                         contentDescription = "Lyrics",
-                        tint = if (currentPage == 0) Color.White else Color.White.copy(alpha = 0.50f),
+                        tint = if (currentPage == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -1145,7 +1108,7 @@ private fun PlayerControls(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                         contentDescription = "Queue",
-                        tint = if (currentPage == 2) Color.White else Color.White.copy(alpha = 0.50f),
+                        tint = if (currentPage == 2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(25.dp)
                     )
                 }
@@ -1180,20 +1143,13 @@ private fun AppleMusicScrubber(
                 .fillMaxWidth()
                 .height(6.dp)
                 .clip(RoundedCornerShape(999.dp))
-                .background(Color.White.copy(alpha = 0.22f))
+                .background(MaterialTheme.colorScheme.outline)
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .weight(progress.coerceIn(0.001f, 1f))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.70f),
-                                Color.White
-                            )
-                        )
-                    )
+                    .background(MaterialTheme.colorScheme.primary)
             )
             Box(
                 modifier = Modifier
@@ -1211,14 +1167,9 @@ private fun QualityDetailsDialog(quality: com.aman.auramusic.util.AudioQuality, 
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .liquidGlass(
-                    shape = RoundedCornerShape(28.dp),
-                    level = GlassLevel.Thick,
-                    isDark = true,
-                    elevation = 20.dp,
-                    borderWidth = 1.3.dp,
-                    sheenAlpha = 0.30f
-                )
+                .clip(RoundedCornerShape(28.dp))
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(28.dp))
+                .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(28.dp))
                 .padding(26.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -1226,7 +1177,7 @@ private fun QualityDetailsDialog(quality: com.aman.auramusic.util.AudioQuality, 
                 Icon(
                     imageVector = Icons.Default.Waves,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(46.dp)
                 )
                 Spacer(Modifier.height(16.dp))
@@ -1234,18 +1185,18 @@ private fun QualityDetailsDialog(quality: com.aman.auramusic.util.AudioQuality, 
                     text = quality.badge,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = "${quality.bitDepth}/${quality.sampleRate} • ${quality.format}",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.70f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(20.dp))
                 TextButton(onClick = onDismiss) {
-                    Text(text = "Close", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text(text = "Close", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

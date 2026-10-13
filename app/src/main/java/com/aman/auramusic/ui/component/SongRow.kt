@@ -79,12 +79,11 @@ fun SongRow(
     val titleColor by animateColorAsState(
         targetValue = when {
             isActive -> activeColor
-            isDark -> Color.White
             else -> MaterialTheme.colorScheme.onSurface
         },
         label = "titleColor"
     )
-    val subtitleColor = if (isDark) Color.White.copy(alpha = 0.58f) else Color.Black.copy(alpha = 0.55f)
+    val subtitleColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     val rowShape = RoundedCornerShape(14.dp)
     val rowModifier = if (isActive) {
@@ -205,7 +204,7 @@ fun SongRow(
                     Icon(
                         imageVector = Icons.Default.MoreHoriz,
                         contentDescription = "Options",
-                        tint = if (isDark) Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.6f),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -293,12 +292,12 @@ fun SongRow(
 
                     if (onRemove != null) {
                         DropdownMenuItem(
-                            text = { Text("Remove", color = Color(0xFFFF5252), fontWeight = FontWeight.SemiBold) },
+                            text = { Text("Remove", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = null,
-                                    tint = Color(0xFFFF5252),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp)
                                 )
                             },

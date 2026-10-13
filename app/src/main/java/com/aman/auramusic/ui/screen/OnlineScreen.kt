@@ -8,10 +8,12 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -76,9 +78,7 @@ import com.aman.auramusic.ui.component.AuraLoadingState
 import com.aman.auramusic.ui.component.SectionHeader
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.AuraShapes
-import com.aman.auramusic.ui.theme.GlassLevel
 import com.aman.auramusic.ui.theme.LocalIsDark
-import com.aman.auramusic.ui.theme.liquidGlass
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -87,8 +87,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-
-private val AuraCoral = Color(0xFFFF5C7A)
 
 private data class MoodCollection(
     val title: String,
@@ -750,11 +748,7 @@ fun OnlineScreen(
 
             // Dynamic Status Bar Scrim (Adaptive white in light mode, dark in dark mode)
             if (scrimAlpha > 0f) {
-                val scrimColor = if (isDark) {
-                    if (MaterialTheme.colorScheme.background == Color.Black) Color.Black else Color(0xFF131018)
-                } else {
-                    Color.White
-                }
+                val scrimColor = MaterialTheme.colorScheme.background
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
@@ -823,18 +817,14 @@ private fun FeaturedExploreCard(
             .height(280.dp)
             .clickable(onClick = onClick),
         shape = AuraShapes.Surface,
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF171217)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(AuraShapes.Surface)
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(Color(0xFF682637), Color(0xFF24171C), Color(0xFF101010))
-                    )
-                )
+                .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             if (!song.artworkUrl.isNullOrBlank()) {
                 val imageRequest = remember(song.artworkUrl, context) {
@@ -887,7 +877,7 @@ private fun FeaturedExploreCard(
             ) {
                 Text(
                     text = if (song.album.isNotBlank()) "MOVIE MUSIC SPOTLIGHT" else "FEATURED MUSIC",
-                    color = Color(0xFFFFB4C0),
+                    color = Color.White.copy(alpha = 0.85f),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.1.sp,
@@ -917,16 +907,23 @@ private fun FeaturedExploreCard(
                     .align(Alignment.BottomEnd)
                     .padding(16.dp)
                     .size(48.dp)
-                    .liquidGlass(level = GlassLevel.Tinted, shape = CircleShape, tint = AuraCoral)
                     .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.outline,
+                        CircleShape
+                    )
                     .clickable(onClick = onClick),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Play featured music",
-                    tint = Color.White,
-                    modifier = Modifier.size(26.dp)
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier
+                        .size(26.dp)
+                        .offset(x = 1.dp)
                 )
             }
         }
@@ -965,7 +962,7 @@ private fun MoodArtworkCard(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(28.dp),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.primary,
                         strokeWidth = 2.5.dp
                     )
                 }

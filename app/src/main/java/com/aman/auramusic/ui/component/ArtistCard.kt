@@ -46,9 +46,9 @@ fun ArtistCard(
     size: Dp = 108.dp
 ) {
     val isDark = LocalIsDark.current
-    val titleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
-    val subtitleColor = (if (isDark) Color.White else Color.Black).copy(alpha = 0.58f)
-    val ringColor = MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.35f else 0.20f)
+    val titleColor = MaterialTheme.colorScheme.onSurface
+    val subtitleColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val ringColor = MaterialTheme.colorScheme.outline
 
     Column(
         modifier = modifier
@@ -64,17 +64,9 @@ fun ArtistCard(
         Box(
             modifier = Modifier
                 .size(size)
-                .border(2.dp, ringColor, CircleShape)
+                .border(1.5.dp, ringColor, CircleShape)
                 .clip(CircleShape)
-                .background(
-                    Brush.linearGradient(
-                        if (isDark) {
-                            listOf(Color(0xFF34304A), Color(0xFF171923), Color(0xFF4A243A))
-                        } else {
-                            listOf(Color(0xFFFFD9E2), Color(0xFFE6E8FF), Color(0xFFFFE7C2))
-                        }
-                    )
-                ),
+                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             if (showImage) {
@@ -90,7 +82,7 @@ fun ArtistCard(
                 if (!initial.isNullOrBlank()) {
                     Text(
                         text = initial,
-                        color = if (isDark) Color.White else Color(0xFF493044),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = (size.value * 0.42f).sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -98,7 +90,7 @@ fun ArtistCard(
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = null,
-                        tint = if (isDark) Color.White.copy(alpha = 0.75f) else Color(0xFF493044),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(size * 0.42f)
                     )
                 }

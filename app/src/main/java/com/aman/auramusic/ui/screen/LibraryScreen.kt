@@ -497,9 +497,9 @@ fun LibraryScreen(
         }
     }
 
-    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
-    val cardBg = if (isDark) AuraDarkSurfaceElevated else Color(0xFFF1F5F9)
-    val cardBorder = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)
+    val textColor = MaterialTheme.colorScheme.onBackground
+    val cardBg = MaterialTheme.colorScheme.surfaceVariant
+    val cardBorder = MaterialTheme.colorScheme.outline
 
     AuraScreenBackground(modifier = modifier) {
     Column(
@@ -530,7 +530,7 @@ fun LibraryScreen(
                     Text(
                         text = "${libraryVisibleSongs.size} tracks collected",
                         style = MaterialTheme.typography.labelMedium,
-                        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.55f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -553,18 +553,20 @@ fun LibraryScreen(
             ) {
                 LibraryTab.values().forEach { tab ->
                     val isSelected = selectedTab == tab
-                    val chipText = if (isSelected) Color.White else textColor.copy(alpha = 0.85f)
+                    val chipText = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
 
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .frostedGlass(
-                                shape = AuraShapes.Control,
-                                isDark = isDark,
-                                tint = if (isSelected) MaterialTheme.colorScheme.primary else null,
-                                elevation = if (isSelected) 4.dp else 1.dp,
-                                borderWidth = 1.dp,
-                                sheenAlpha = if (isSelected) 0.35f else 0.12f
+                            .clip(AuraShapes.Control)
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                AuraShapes.Control
+                            )
+                            .border(
+                                1.dp,
+                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                AuraShapes.Control
                             )
                             .clickable { onTabSelected(tab) }
                             .padding(vertical = 10.dp),

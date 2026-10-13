@@ -1,7 +1,7 @@
 package com.aman.auramusic.data.model
 
 data class AppSettings(
-    val dynamicColors: Boolean = true,
+    val dynamicColors: Boolean = false,
     val amoledMode: Boolean = true,
     val blurIntensity: Int = 42,
     val karaokeMode: Boolean = true,

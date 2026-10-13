@@ -257,12 +257,12 @@ fun HomeScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = AuraPrimary, modifier = Modifier.size(42.dp))
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(42.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Curating your music...",
                         fontSize = 14.sp,
-                        color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -436,11 +436,7 @@ fun HomeScreen(
                 }
 
                 if (scrimAlpha > 0f) {
-                    val scrimColor = if (isDark) {
-                        if (MaterialTheme.colorScheme.background == Color.Black) Color.Black else Color(0xFF0F0E13)
-                    } else {
-                        Color.White
-                    }
+                    val scrimColor = MaterialTheme.colorScheme.background
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopCenter)

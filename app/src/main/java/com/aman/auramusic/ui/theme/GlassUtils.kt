@@ -64,55 +64,22 @@ object AuraLiquidGlass {
         isDark: Boolean,
         tint: Color? = null
     ): Brush {
-        val effectiveTint = tint ?: (if (isDark) Color(0xFF1E1A26) else Color(0xFFFFFFFF))
-        return when (level) {
-            GlassLevel.UltraThin -> {
-                if (isDark) {
-                    val c1 = effectiveTint.copy(alpha = 0.28f)
-                    val c2 = Color(0xFF100E15).copy(alpha = 0.55f)
-                    Brush.verticalGradient(listOf(c1, c2))
-                } else {
-                    val c1 = Color.White.copy(alpha = 0.82f)
-                    val c2 = Color(0xFFF3F4F9).copy(alpha = 0.70f)
-                    Brush.verticalGradient(listOf(c1, c2))
-                }
+        val bg = if (isDark) {
+            when (level) {
+                GlassLevel.UltraThin -> DarkMonochromeColors.controlBackground
+                GlassLevel.Regular -> DarkMonochromeColors.surface
+                GlassLevel.Thick -> DarkMonochromeColors.surfaceSecondary
+                GlassLevel.Tinted -> tint ?: DarkMonochromeColors.controlSelected
             }
-            GlassLevel.Regular -> {
-                if (isDark) {
-                    val c1 = effectiveTint.copy(alpha = 0.40f)
-                    val c2 = Color(0xFF121018).copy(alpha = 0.78f)
-                    Brush.verticalGradient(listOf(c1, c2))
-                } else {
-                    val c1 = Color.White.copy(alpha = 0.90f)
-                    val c2 = Color(0xFFEDEFF6).copy(alpha = 0.82f)
-                    Brush.verticalGradient(listOf(c1, c2))
-                }
-            }
-            GlassLevel.Thick -> {
-                if (isDark) {
-                    val c1 = effectiveTint.copy(alpha = 0.50f)
-                    val c2 = Color(0xFF0F0D14).copy(alpha = 0.90f)
-                    Brush.verticalGradient(listOf(c1, c2))
-                } else {
-                    val c1 = Color.White.copy(alpha = 0.96f)
-                    val c2 = Color(0xFFE8EBF3).copy(alpha = 0.90f)
-                    Brush.verticalGradient(listOf(c1, c2))
-                }
-            }
-            GlassLevel.Tinted -> {
-                val accent = tint ?: AuraPrimary
-                if (isDark) {
-                    val c1 = accent.copy(alpha = 0.38f)
-                    val c2 = accent.copy(alpha = 0.16f)
-                    val c3 = Color(0xFF14101A).copy(alpha = 0.80f)
-                    Brush.verticalGradient(listOf(c1, c2, c3))
-                } else {
-                    val c1 = accent.copy(alpha = 0.25f)
-                    val c2 = Color.White.copy(alpha = 0.88f)
-                    Brush.verticalGradient(listOf(c1, c2))
-                }
+        } else {
+            when (level) {
+                GlassLevel.UltraThin -> LightMonochromeColors.controlBackground
+                GlassLevel.Regular -> LightMonochromeColors.surface
+                GlassLevel.Thick -> LightMonochromeColors.surfaceSecondary
+                GlassLevel.Tinted -> tint ?: LightMonochromeColors.controlSelected
             }
         }
+        return Brush.verticalGradient(listOf(bg, bg))
     }
 
     fun borderBrush(
@@ -120,91 +87,18 @@ object AuraLiquidGlass {
         isDark: Boolean,
         tint: Color? = null
     ): Brush {
-        val accent = tint ?: (if (isDark) Color.White else Color.Black)
-        return when (level) {
-            GlassLevel.UltraThin -> {
-                if (isDark) {
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.45f), // Top crisp rim
-                            Color.White.copy(alpha = 0.15f),
-                            Color.White.copy(alpha = 0.05f),
-                            Color.Black.copy(alpha = 0.25f)
-                        )
-                    )
-                } else {
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.95f),
-                            Color.White.copy(alpha = 0.60f),
-                            Color(0xFFCBD5E1).copy(alpha = 0.40f),
-                            Color(0xFF94A3B8).copy(alpha = 0.20f)
-                        )
-                    )
-                }
+        val border = if (isDark) {
+            when (level) {
+                GlassLevel.Thick, GlassLevel.Tinted -> DarkMonochromeColors.borderStrong
+                else -> DarkMonochromeColors.border
             }
-            GlassLevel.Regular -> {
-                if (isDark) {
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.50f),
-                            Color.White.copy(alpha = 0.18f),
-                            Color.White.copy(alpha = 0.06f),
-                            Color.Black.copy(alpha = 0.35f)
-                        )
-                    )
-                } else {
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.98f),
-                            Color.White.copy(alpha = 0.65f),
-                            Color(0xFFCBD5E1).copy(alpha = 0.45f),
-                            Color(0xFF94A3B8).copy(alpha = 0.25f)
-                        )
-                    )
-                }
-            }
-            GlassLevel.Thick -> {
-                if (isDark) {
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.55f),
-                            Color.White.copy(alpha = 0.22f),
-                            Color.White.copy(alpha = 0.08f),
-                            Color.Black.copy(alpha = 0.45f)
-                        )
-                    )
-                } else {
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.White,
-                            Color.White.copy(alpha = 0.70f),
-                            Color(0xFF94A3B8).copy(alpha = 0.35f)
-                        )
-                    )
-                }
-            }
-            GlassLevel.Tinted -> {
-                if (isDark) {
-                    Brush.verticalGradient(
-                        listOf(
-                            accent.copy(alpha = 0.75f),
-                            accent.copy(alpha = 0.35f),
-                            Color.White.copy(alpha = 0.12f),
-                            Color.Black.copy(alpha = 0.40f)
-                        )
-                    )
-                } else {
-                    Brush.verticalGradient(
-                        listOf(
-                            accent.copy(alpha = 0.60f),
-                            Color.White.copy(alpha = 0.85f),
-                            accent.copy(alpha = 0.30f)
-                        )
-                    )
-                }
+        } else {
+            when (level) {
+                GlassLevel.Thick, GlassLevel.Tinted -> LightMonochromeColors.borderStrong
+                else -> LightMonochromeColors.border
             }
         }
+        return Brush.verticalGradient(listOf(border, border))
     }
 
     fun borderStroke(
@@ -248,145 +142,43 @@ fun Modifier.liquidGlass(
     level: GlassLevel = GlassLevel.Regular,
     isDark: Boolean = LocalIsDark.current,
     tint: Color? = null,
-    borderWidth: Dp = 1.1.dp,
+    borderWidth: Dp = 1.dp,
     elevation: Dp? = null,
     sheenAlpha: Float? = null,
     blurRadius: Dp? = null
 ): Modifier {
-    val tokens = LocalLiquidGlassTokens.current
-    val effectiveShape = shape ?: tokens.surfaceShape
-    val effectiveElevation = elevation ?: tokens.elevation(level)
-    val effectiveSheen = sheenAlpha ?: tokens.sheenAlpha(level, isDark = isDark)
-    val effectiveBlur = blurRadius ?: tokens.blurRadius
-    val containerBrush = tokens.containerBrush(level, tint, isDark = isDark)
-    val borderStroke = tokens.borderStroke(level, tint, borderWidth, isDark = isDark)
+    val effectiveShape = shape ?: RoundedCornerShape(18.dp)
+    val surfaceColor = if (isDark) DarkMonochromeColors.surface else LightMonochromeColors.surface
+    val borderColor = if (isDark) DarkMonochromeColors.border else LightMonochromeColors.border
 
-    var mod: Modifier = this
-
-    // 1. Soft ambient drop shadow for authentic floating elevation
-    if (effectiveElevation > 0.dp) {
-        mod = mod.shadow(
-            elevation = effectiveElevation,
-            shape = effectiveShape,
-            spotColor = if (isDark) Color.Black.copy(alpha = 0.65f) else Color(0x33000000),
-            ambientColor = if (isDark) Color.Black.copy(alpha = 0.45f) else Color(0x22000000)
-        )
-    }
-
-    // 2. Clip to surface geometry
-    mod = mod.clip(effectiveShape)
-
-    // 3. Refraction background fill
-    mod = mod.background(containerBrush)
-
-    // 5. Specular top glare sheen (light passing through upper curvature of glass)
-    if (effectiveSheen > 0f) {
-        mod = mod.drawBehind {
-            val h = size.height
-            drawRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = effectiveSheen),
-                        Color.White.copy(alpha = effectiveSheen * 0.25f),
-                        Color.Transparent
-                    ),
-                    startY = 0f,
-                    endY = h * 0.45f
-                )
-            )
-        }
-    }
-
-    // 6. Signature multi-stop illuminated top rim glass border
-    mod = mod.border(borderStroke, effectiveShape)
-
-    return mod
+    return this
+        .clip(effectiveShape)
+        .background(surfaceColor, effectiveShape)
+        .border(BorderStroke(borderWidth, borderColor), effectiveShape)
 }
 
 /**
  * iOS-style crystal-clear liquid glass modifier for buttons, badges, and player controls.
- * Delivers authentic Apple-inspired glassy clarity with specular rim lighting and zero opaque white fill.
+ * Updated to render as clean monochrome control surface without decorative shadows.
  */
 @Composable
 fun Modifier.iosLiquidGlass(
     shape: Shape = CircleShape,
     tint: Color? = null,
     borderWidth: Dp = 1.dp,
-    elevation: Dp = 6.dp,
-    sheenAlpha: Float = 0.22f
+    elevation: Dp = 0.dp,
+    sheenAlpha: Float = 0f
 ): Modifier {
-    var mod: Modifier = this
+    val isDark = LocalIsDark.current
+    val surfaceColor = if (isDark) DarkMonochromeColors.controlBackground else LightMonochromeColors.controlBackground
+    val borderColor = if (isDark) DarkMonochromeColors.border else LightMonochromeColors.border
 
-    if (elevation > 0.dp) {
-        mod = mod.shadow(
-            elevation = elevation,
-            shape = shape,
-            spotColor = Color.Black.copy(alpha = 0.45f),
-            ambientColor = Color.Black.copy(alpha = 0.25f)
-        )
-    }
-
-    mod = mod.clip(shape)
-
-    val backgroundBrush = if (tint != null) {
-        Brush.verticalGradient(
-            listOf(
-                tint.copy(alpha = 0.32f),
-                tint.copy(alpha = 0.14f),
-                Color.Black.copy(alpha = 0.22f)
-            )
-        )
-    } else {
-        Brush.verticalGradient(
-            listOf(
-                Color.White.copy(alpha = 0.15f),
-                Color.White.copy(alpha = 0.04f),
-                Color.Black.copy(alpha = 0.14f)
-            )
-        )
-    }
-    mod = mod.background(backgroundBrush)
-
-    if (sheenAlpha > 0f) {
-        mod = mod.drawBehind {
-            val h = size.height
-            drawRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = sheenAlpha),
-                        Color.White.copy(alpha = sheenAlpha * 0.25f),
-                        Color.Transparent
-                    ),
-                    startY = 0f,
-                    endY = h * 0.48f
-                )
-            )
-        }
-    }
-
-    val rimBrush = if (tint != null) {
-        Brush.verticalGradient(
-            listOf(
-                tint.copy(alpha = 0.70f),
-                Color.White.copy(alpha = 0.35f),
-                Color.White.copy(alpha = 0.08f),
-                Color.Black.copy(alpha = 0.25f)
-            )
-        )
-    } else {
-        Brush.verticalGradient(
-            listOf(
-                Color.White.copy(alpha = 0.42f),
-                Color.White.copy(alpha = 0.16f),
-                Color.White.copy(alpha = 0.05f),
-                Color.Black.copy(alpha = 0.22f)
-            )
-        )
-    }
-    mod = mod.border(BorderStroke(borderWidth, rimBrush), shape)
-
-    return mod
+    return this
+        .clip(shape)
+        .background(surfaceColor, shape)
+        .border(BorderStroke(borderWidth, borderColor), shape)
 }
+
 
 /**
  * Compatibility brushes
@@ -654,9 +446,9 @@ fun LiquidGlassChip(
             style = MaterialTheme.typography.labelMedium,
             fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Medium,
             color = if (selected) {
-                if (isDark) Color.White else activeColor
+                MaterialTheme.colorScheme.onPrimary
             } else {
-                if (isDark) Color.White.copy(alpha = 0.70f) else Color.Black.copy(alpha = 0.65f)
+                MaterialTheme.colorScheme.onSurfaceVariant
             }
         )
     }

@@ -32,8 +32,7 @@ fun SectionHeader(
     actionText: String? = null,
     onActionClick: (() -> Unit)? = null
 ) {
-    val isDark = LocalIsDark.current
-    val titleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
+    val titleColor = MaterialTheme.colorScheme.onSurface
     val eyebrowColor = MaterialTheme.colorScheme.primary
 
     Column(
@@ -83,7 +82,7 @@ fun SectionHeader(
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = "Action",
-                        tint = (if (isDark) Color.White else Color.Black).copy(alpha = 0.5f),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
                 }

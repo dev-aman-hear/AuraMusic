@@ -56,8 +56,6 @@ import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.component.SongArtwork
-import com.aman.auramusic.ui.theme.AppleMusicAccent
-import com.aman.auramusic.ui.theme.AuraPrimary
 import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.ui.theme.AuraGlass
 import com.aman.auramusic.ui.theme.frostedGlass
@@ -78,7 +76,7 @@ fun HomeHeader(
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDark.current
-    val titleColor = if (isDark) Color.White else Color(0xFF111111)
+    val titleColor = MaterialTheme.colorScheme.onBackground
 
     Column(
         modifier = modifier
@@ -96,7 +94,7 @@ fun HomeHeader(
                     text = dateText.uppercase(),
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF8E8E93),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     letterSpacing = 1.0.sp
                 )
                 Spacer(modifier = Modifier.height(2.dp))
@@ -117,7 +115,7 @@ fun HomeHeader(
                         fontSize = 28.sp,
                         lineHeight = 32.sp,
                         fontWeight = FontWeight.Bold,
-                        color = AppleMusicAccent,
+                        color = MaterialTheme.colorScheme.primary,
                         letterSpacing = (-0.5).sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -132,8 +130,8 @@ fun HomeHeader(
                 if (isOffline) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF2C2415),
-                        border = BorderStroke(1.dp, Color(0xFFE6A23C).copy(alpha = 0.4f)),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier.height(32.dp)
                     ) {
                         Row(
@@ -144,20 +142,20 @@ fun HomeHeader(
                             Icon(
                                 imageVector = Icons.Default.WifiOff,
                                 contentDescription = "Offline",
-                                tint = Color(0xFFE6A23C),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(14.dp)
                             )
                             Text(
                                 text = "Offline",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFE6A23C)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
 
-                // Clear Crystal Glass Sphere Profile Avatar Badge
+                // Profile Avatar Badge
                 ClearGlassAvatarBadge(
                     initial = userInitial,
                     onClick = onOpenSettings,
@@ -169,7 +167,7 @@ fun HomeHeader(
 }
 
 /**
- * Clear Crystal Glass Sphere Profile Avatar Badge.
+ * Profile Avatar Badge.
  */
 @Composable
 fun ClearGlassAvatarBadge(
@@ -178,88 +176,27 @@ fun ClearGlassAvatarBadge(
     modifier: Modifier = Modifier,
     size: Dp = 42.dp
 ) {
-    val isDark = LocalIsDark.current
     val displayInitial = initial.ifBlank { "A" }
 
     Box(
         modifier = modifier
             .size(size)
-            .shadow(
-                elevation = if (isDark) 12.dp else 8.dp,
-                shape = CircleShape,
-                ambientColor = if (isDark) Color(0xFFFF5277).copy(alpha = 0.35f) else Color(0xFFFF9EB5).copy(alpha = 0.40f),
-                spotColor = if (isDark) Color(0xFFFF2A55).copy(alpha = 0.45f) else Color(0xFFFF6B8B).copy(alpha = 0.35f)
-            )
             .clip(CircleShape)
-            .background(
-                Brush.radialGradient(
-                    colors = if (isDark) {
-                        listOf(
-                            Color.White.copy(alpha = 0.36f),
-                            Color(0xFFE4E9FF).copy(alpha = 0.15f),
-                            Color(0xFFFF7A95).copy(alpha = 0.22f),
-                            Color(0xFF1F121E).copy(alpha = 0.38f)
-                        )
-                    } else {
-                        listOf(
-                            Color.White.copy(alpha = 0.75f),
-                            Color(0xFFF2F6FF).copy(alpha = 0.38f),
-                            Color(0xFFFFB4C4).copy(alpha = 0.30f),
-                            Color.White.copy(alpha = 0.55f)
-                        )
-                    }
-                )
-            )
+            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
             .border(
-                width = 1.3.dp,
-                brush = Brush.sweepGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.95f),
-                        Color(0xFF8AD4FF).copy(alpha = 0.40f),
-                        Color.White.copy(alpha = 0.30f),
-                        Color(0xFFFF4D6D).copy(alpha = 0.75f),
-                        Color(0xFFFF9E79).copy(alpha = 0.50f),
-                        Color.White.copy(alpha = 0.92f)
-                    )
-                ),
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline,
                 shape = CircleShape
             )
-            .clickable(onClick = onClick)
-            .padding(1.5.dp),
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize(0.86f)
-                .border(
-                    width = 0.8.dp,
-                    brush = Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = if (isDark) 0.60f else 0.75f),
-                            Color.Transparent,
-                            Color(0xFFFF6B8B).copy(alpha = if (isDark) 0.35f else 0.40f)
-                        )
-                    ),
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = displayInitial,
-                    color = if (isDark) Color(0xFFFF5277).copy(alpha = 0.45f) else Color(0xFFFF3366).copy(alpha = 0.30f),
-                    fontSize = (size.value * 0.46f).sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.offset(x = 0.6.dp, y = 0.6.dp)
-                )
-                Text(
-                    text = displayInitial,
-                    color = if (isDark) Color.White.copy(alpha = 0.96f) else Color(0xFF1F1F24).copy(alpha = 0.90f),
-                    fontSize = (size.value * 0.46f).sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-        }
+        Text(
+            text = displayInitial,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = (size.value * 0.46f).sp,
+            fontWeight = FontWeight.ExtraBold
+        )
     }
 }
 
@@ -296,8 +233,7 @@ fun HomeSectionHeader(
     actionText: String? = "See All",
     onActionClick: (() -> Unit)? = null
 ) {
-    val isDark = LocalIsDark.current
-    val titleColor = if (isDark) Color.White else Color(0xFF111111)
+    val titleColor = MaterialTheme.colorScheme.onBackground
 
     Column(
         modifier = modifier
@@ -309,7 +245,7 @@ fun HomeSectionHeader(
                 text = eyebrow.uppercase(),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF8E8E93),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 letterSpacing = 1.0.sp
             )
             Spacer(modifier = Modifier.height(2.dp))
@@ -338,13 +274,13 @@ fun HomeSectionHeader(
                         text = actionText,
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = AppleMusicAccent
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = "See more",
-                        tint = AppleMusicAccent,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -354,7 +290,7 @@ fun HomeSectionHeader(
 }
 
 /**
- * Minimal Circular Frosted Glass Play Button
+ * Minimal Circular Monochrome Play Button
  */
 @Composable
 fun ClearGlassPlayButton(
@@ -363,42 +299,14 @@ fun ClearGlassPlayButton(
     size: Dp = 36.dp,
     iconSize: Dp = (size.value * 0.52f).dp
 ) {
-    val isDark = LocalIsDark.current
-
     Box(
         modifier = modifier
             .size(size)
-            .shadow(
-                elevation = if (isDark) 6.dp else 3.dp,
-                shape = CircleShape,
-                spotColor = if (isDark) Color.Black.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.15f)
-            )
             .clip(CircleShape)
-            .background(
-                Brush.verticalGradient(
-                    if (isDark) listOf(
-                        Color.White.copy(alpha = 0.25f),
-                        Color.White.copy(alpha = 0.08f),
-                        Color.White.copy(alpha = 0.03f)
-                    ) else listOf(
-                        Color.White.copy(alpha = 0.95f),
-                        Color.White.copy(alpha = 0.85f),
-                        Color.White.copy(alpha = 0.75f)
-                    )
-                ),
-                CircleShape
-            )
+            .background(MaterialTheme.colorScheme.primary, CircleShape)
             .border(
                 width = 1.dp,
-                brush = Brush.verticalGradient(
-                    if (isDark) listOf(
-                        Color.White.copy(alpha = 0.70f),
-                        Color.White.copy(alpha = 0.20f)
-                    ) else listOf(
-                        Color.Black.copy(alpha = 0.12f),
-                        Color.Black.copy(alpha = 0.04f)
-                    )
-                ),
+                color = MaterialTheme.colorScheme.outline,
                 shape = CircleShape
             )
             .clickable(onClick = onClick),
@@ -407,7 +315,7 @@ fun ClearGlassPlayButton(
         Icon(
             imageVector = Icons.Default.PlayArrow,
             contentDescription = "Play",
-            tint = if (isDark) Color.White else Color(0xFF1A1A1A),
+            tint = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier
                 .size(iconSize)
                 .offset(x = 1.dp)
@@ -424,60 +332,15 @@ fun DailyFeaturedCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = LocalIsDark.current
     val cardShape = RoundedCornerShape(32.dp)
-
-    val cardBackground = if (isDark) {
-        Brush.linearGradient(
-            listOf(
-                Color(0xFF252131).copy(alpha = 0.65f),
-                Color(0xFF171520).copy(alpha = 0.55f),
-                Color(0xFF291F2D).copy(alpha = 0.50f)
-            )
-        )
-    } else {
-        Brush.linearGradient(
-            listOf(
-                Color.White.copy(alpha = 0.88f),
-                Color.White.copy(alpha = 0.62f),
-                Color(0xFFFFF0F5).copy(alpha = 0.55f),
-                Color.White.copy(alpha = 0.78f)
-            )
-        )
-    }
-
-    val cardBorder = if (isDark) {
-        Brush.linearGradient(
-            listOf(
-                Color.White.copy(alpha = 0.45f),
-                Color.White.copy(alpha = 0.12f),
-                Color(0xFFFF5277).copy(alpha = 0.25f),
-                Color.White.copy(alpha = 0.25f)
-            )
-        )
-    } else {
-        Brush.linearGradient(
-            listOf(
-                Color.White.copy(alpha = 0.95f),
-                Color.White.copy(alpha = 0.40f),
-                Color(0xFFFFB6C1).copy(alpha = 0.40f),
-                Color.White.copy(alpha = 0.85f)
-            )
-        )
-    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
-            .shadow(
-                elevation = if (isDark) 12.dp else 8.dp,
-                shape = cardShape,
-                spotColor = if (isDark) Color.Black.copy(alpha = 0.5f) else Color(0xFFFFB6C1).copy(alpha = 0.35f)
-            )
             .clip(cardShape)
-            .background(cardBackground)
-            .border(1.2.dp, cardBorder, cardShape)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline, cardShape)
             .clickable(onClick = onClick)
             .padding(14.dp)
     ) {
@@ -489,21 +352,10 @@ fun DailyFeaturedCard(
             Box(
                 modifier = Modifier
                     .size(118.dp)
-                    .shadow(
-                        elevation = 10.dp,
-                        shape = RoundedCornerShape(22.dp),
-                        spotColor = Color(0xFFFF2A55).copy(alpha = 0.25f)
-                    )
                     .clip(RoundedCornerShape(22.dp))
                     .border(
-                        width = 1.2.dp,
-                        brush = Brush.linearGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.90f),
-                                Color(0xFFFF5277).copy(alpha = 0.40f),
-                                Color.White.copy(alpha = 0.30f)
-                            )
-                        ),
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant,
                         shape = RoundedCornerShape(22.dp)
                     )
             ) {
@@ -522,14 +374,14 @@ fun DailyFeaturedCard(
             ) {
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = if (isDark) AppleMusicAccent.copy(alpha = 0.20f) else Color(0xFFFFE8EE),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.height(22.dp)
                 ) {
                     Text(
                         text = item.badgeLabel.uppercase().ifBlank { "DAILY FEATURED PLAYLIST" },
                         fontSize = 9.5.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = AppleMusicAccent,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         letterSpacing = 0.6.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -542,7 +394,7 @@ fun DailyFeaturedCard(
                         text = item.title,
                         fontSize = 16.5.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = if (isDark) Color.White else Color(0xFF141416),
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         lineHeight = 20.sp,
@@ -555,7 +407,7 @@ fun DailyFeaturedCard(
                             text = item.subtitle,
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.Medium,
-                            color = if (isDark) Color(0xFF9E9EA7) else Color(0xFF6E6E73),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -572,7 +424,7 @@ fun DailyFeaturedCard(
                             text = item.songCountText,
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = AppleMusicAccent
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
                         Spacer(modifier = Modifier.width(1.dp))
@@ -665,9 +517,8 @@ fun TrendingTrackCard(
     modifier: Modifier = Modifier,
     cardWidth: Dp = 142.dp
 ) {
-    val isDark = LocalIsDark.current
-    val titleColor = if (isDark) Color.White else Color(0xFF111111)
-    val subtitleColor = if (isDark) Color(0xFF8E8E93) else Color(0xFF6E6E73)
+    val titleColor = MaterialTheme.colorScheme.onSurface
+    val subtitleColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     Column(
         modifier = modifier
@@ -749,8 +600,7 @@ fun ArtistSquareCard(
     modifier: Modifier = Modifier,
     size: Dp = 94.dp
 ) {
-    val isDark = LocalIsDark.current
-    val titleColor = if (isDark) Color.White else Color(0xFF111111)
+    val titleColor = MaterialTheme.colorScheme.onBackground
     var imageFailed by remember(artist.name, artist.artworkModel) { mutableStateOf(false) }
     val showImage = artist.artworkModel != null && !imageFailed
 
@@ -767,18 +617,10 @@ fun ArtistSquareCard(
                 .clip(CircleShape)
                 .border(
                     width = 1.dp,
-                    color = if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f),
+                    color = MaterialTheme.colorScheme.outlineVariant,
                     shape = CircleShape
                 )
-                .background(
-                    Brush.linearGradient(
-                        if (isDark) {
-                            listOf(Color(0xFF34304A), Color(0xFF171923), Color(0xFF4A243A))
-                        } else {
-                            listOf(Color(0xFFFFD9E2), Color(0xFFE6E8FF), Color(0xFFFFE7C2))
-                        }
-                    )
-                ),
+                .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             if (showImage) {
@@ -794,7 +636,7 @@ fun ArtistSquareCard(
                 if (!initial.isNullOrBlank()) {
                     Text(
                         text = initial,
-                        color = if (isDark) Color.White else Color(0xFF493044),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = (size.value * 0.42f).sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -802,7 +644,7 @@ fun ArtistSquareCard(
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = null,
-                        tint = if (isDark) Color.White.copy(alpha = 0.75f) else Color(0xFF493044),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(size * 0.42f)
                     )
                 }
@@ -844,10 +686,9 @@ fun ArtistDetailSheet(
     onToggleSaveToLibrary: (() -> Unit)? = null,
     audienceText: String? = null
 ) {
-    val isDark = LocalIsDark.current
-    val pageBackground = if (isDark) Color(0xFF050505) else Color(0xFFF7F7F9)
-    val titleColor = if (isDark) Color.White else Color(0xFF111111)
-    val secondaryColor = if (isDark) Color.White.copy(alpha = 0.62f) else Color.Black.copy(alpha = 0.58f)
+    val pageBackground = MaterialTheme.colorScheme.background
+    val titleColor = MaterialTheme.colorScheme.onBackground
+    val secondaryColor = MaterialTheme.colorScheme.onSurfaceVariant
     val realAlbums = remember(localSongs) {
         localSongs.filter { it.album.isNotBlank() && !it.album.equals("unknown", true) }
             .groupBy { it.album.trim() }
@@ -878,23 +719,13 @@ fun ArtistDetailSheet(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(
-                                if (isDark) {
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFF383344), Color(0xFF1D1B24), Color(0xFF0D0C10))
-                                    )
-                                } else {
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFFE4E1EC), Color(0xFFD4D0E0), Color(0xFFC7BFD6))
-                                    )
-                                }
-                            ),
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
                         if (initial.isNotBlank()) {
                             Text(
                                 text = initial,
-                                color = if (isDark) Color.White.copy(alpha = 0.85f) else Color(0xFF4A4458),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 76.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -914,21 +745,12 @@ fun ArtistDetailSheet(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
-                                if (isDark) {
-                                    Brush.verticalGradient(
-                                        0f to Color.Transparent,
-                                        0.50f to Color.Transparent,
-                                        0.78f to pageBackground.copy(alpha = 0.70f),
-                                        1f to pageBackground
-                                    )
-                                } else {
-                                    Brush.verticalGradient(
-                                        0f to Color.Transparent,
-                                        0.50f to Color.Transparent,
-                                        0.78f to pageBackground.copy(alpha = 0.75f),
-                                        1f to pageBackground
-                                    )
-                                }
+                                Brush.verticalGradient(
+                                    0f to Color.Transparent,
+                                    0.50f to Color.Transparent,
+                                    0.78f to pageBackground.copy(alpha = 0.70f),
+                                    1f to pageBackground
+                                )
                             )
                     )
 
@@ -945,31 +767,10 @@ fun ArtistDetailSheet(
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(CircleShape)
-                                .background(
-                                    Brush.verticalGradient(
-                                        if (isDark) listOf(
-                                            Color.White.copy(alpha = 0.25f),
-                                            Color.White.copy(alpha = 0.08f),
-                                            Color.White.copy(alpha = 0.03f)
-                                        ) else listOf(
-                                            Color.White.copy(alpha = 0.85f),
-                                            Color.White.copy(alpha = 0.65f),
-                                            Color.White.copy(alpha = 0.50f)
-                                        )
-                                    ),
-                                    CircleShape
-                                )
+                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
                                 .border(
                                     width = 1.dp,
-                                    brush = Brush.verticalGradient(
-                                        if (isDark) listOf(
-                                            Color.White.copy(alpha = 0.70f),
-                                            Color.White.copy(alpha = 0.20f)
-                                        ) else listOf(
-                                            Color.White.copy(alpha = 0.95f),
-                                            Color.White.copy(alpha = 0.60f)
-                                        )
-                                    ),
+                                    color = MaterialTheme.colorScheme.outline,
                                     shape = CircleShape
                                 ),
                             contentAlignment = Alignment.Center
@@ -978,7 +779,7 @@ fun ArtistDetailSheet(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "Back",
-                                    tint = if (isDark) Color.White else Color(0xFF1A1A1A),
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(23.dp)
                                 )
                             }
@@ -987,42 +788,21 @@ fun ArtistDetailSheet(
                         Box {
                             Box(
                                 modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        Brush.verticalGradient(
-                                            if (isDark) listOf(
-                                                Color.White.copy(alpha = 0.25f),
-                                                Color.White.copy(alpha = 0.08f),
-                                                Color.White.copy(alpha = 0.03f)
-                                            ) else listOf(
-                                                Color.White.copy(alpha = 0.85f),
-                                                Color.White.copy(alpha = 0.65f),
-                                                Color.White.copy(alpha = 0.50f)
-                                            )
-                                        ),
-                                        CircleShape
-                                    )
-                                    .border(
-                                        width = 1.dp,
-                                        brush = Brush.verticalGradient(
-                                            if (isDark) listOf(
-                                                Color.White.copy(alpha = 0.70f),
-                                                Color.White.copy(alpha = 0.20f)
-                                            ) else listOf(
-                                                Color.White.copy(alpha = 0.95f),
-                                                Color.White.copy(alpha = 0.60f)
-                                            )
-                                        ),
-                                        shape = CircleShape
-                                    ),
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    shape = CircleShape
+                                ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 IconButton(onClick = { showArtistMenu = true }) {
                                     Icon(
                                         imageVector = Icons.Default.MoreHoriz,
                                         contentDescription = "Artist options",
-                                        tint = if (isDark) Color.White else Color(0xFF1A1A1A),
+                                        tint = MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
@@ -1104,7 +884,7 @@ fun ArtistDetailSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(color = AuraPrimary)
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.height(12.dp))
                             Text("Loading artist catalogue from YouTube Music…", color = secondaryColor, fontSize = 13.sp)
                         }
@@ -1390,42 +1170,21 @@ fun QuickHitTrackItem(
 ) {
     val isDark = LocalIsDark.current
     val itemBg by animateColorAsState(
-        targetValue = when {
-            isActive -> AuraPrimary.copy(alpha = if (isDark) 0.18f else 0.12f)
-            isDark -> Color(0xFF1B181E).copy(alpha = 0.85f)
-            else -> Color(0xFFF3F3F7)
-        },
+        targetValue = if (isActive) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
         animationSpec = tween(200),
         label = "quickHitBg"
     )
 
-    val badgeColor = remember(track.sourceBadge) {
-        when {
-            track.sourceBadge.contains("Local", ignoreCase = true) -> Color(0xFF10B981)
-            track.sourceBadge.contains("Recent", ignoreCase = true) -> Color(0xFF10B981)
-            track.sourceBadge.contains("Pop", ignoreCase = true) -> Color(0xFF00E5FF)
-            track.sourceBadge.contains("Rock", ignoreCase = true) -> Color(0xFF38BDF8)
-            track.sourceBadge.contains("Bollywood", ignoreCase = true) -> Color(0xFFFF70A6)
-            track.sourceBadge.contains("Chart", ignoreCase = true) -> Color(0xFFFFB703)
-            track.sourceBadge.contains("Billboard", ignoreCase = true) -> Color(0xFFFFB703)
-            track.sourceBadge.contains("Electronic", ignoreCase = true) -> Color(0xFFD500F9)
-            else -> AuraPrimary
-        }
-    }
+    val badgeColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     val itemShape = RoundedCornerShape(14.dp)
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(60.dp)
-            .frostedGlass(
-                shape = itemShape,
-                isDark = isDark,
-                tint = if (isActive) AuraPrimary else null,
-                elevation = if (isActive) 6.dp else 2.dp,
-                borderWidth = if (isActive) 1.4.dp else 0.8.dp,
-                sheenAlpha = if (isDark) 0.14f else 0.28f
-            )
+            .clip(itemShape)
+            .background(if (isActive) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface)
+            .border(1.dp, if (isActive) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant, itemShape)
             .clickable(onClick = onClick)
     ) {
         Row(
@@ -1439,7 +1198,7 @@ fun QuickHitTrackItem(
                 size = 46,
                 modifier = Modifier.size(46.dp),
                 shape = RoundedCornerShape(9.dp),
-                elevation = 2.dp
+                elevation = 0.dp
             )
 
             Spacer(modifier = Modifier.width(10.dp))
@@ -1449,7 +1208,7 @@ fun QuickHitTrackItem(
                     text = track.title,
                     fontSize = 14.sp,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
-                    color = if (isActive) AuraPrimary else if (isDark) Color.White else Color(0xFF1C1C1E),
+                    color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1458,7 +1217,7 @@ fun QuickHitTrackItem(
                     Text(
                         text = track.artist,
                         fontSize = 12.sp,
-                        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.60f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
@@ -1479,7 +1238,7 @@ fun QuickHitTrackItem(
                 Icon(
                     imageVector = Icons.Default.Equalizer,
                     contentDescription = "Playing",
-                    tint = AuraPrimary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
@@ -1550,17 +1309,10 @@ fun DiscoverCategoryCard(
         modifier = modifier
             .then(sizeModifier)
             .clip(cardShape)
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        category.gradientColors.first().copy(alpha = if (isDark) 0.85f else 0.90f),
-                        category.gradientColors.last().copy(alpha = if (isDark) 0.60f else 0.75f)
-                    )
-                )
-            )
+            .background(MaterialTheme.colorScheme.surfaceVariant, cardShape)
             .border(
                 1.dp,
-                Color.White.copy(alpha = if (isDark) 0.18f else 0.35f),
+                MaterialTheme.colorScheme.outline,
                 cardShape
             )
             .clickable(onClick = onClick)
@@ -1572,7 +1324,7 @@ fun DiscoverCategoryCard(
                 text = category.title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 letterSpacing = (-0.2).sp
             )
             Spacer(modifier = Modifier.height(2.dp))
@@ -1580,7 +1332,7 @@ fun DiscoverCategoryCard(
                 text = category.subtitle,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.75f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1629,26 +1381,26 @@ fun CategoryDetailSheet(
                         text = category.title,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = category.subtitle,
                         fontSize = 13.sp,
-                        color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = onShuffleAll,
-                        colors = ButtonDefaults.buttonColors(containerColor = AuraPrimary),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
                         shape = RoundedCornerShape(20.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Shuffle,
                             contentDescription = "Shuffle",
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -1666,7 +1418,7 @@ fun CategoryDetailSheet(
                         .height(180.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = AuraPrimary, modifier = Modifier.size(36.dp))
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
                 }
             } else if (onlineSongs.isEmpty() && localSongs.isEmpty()) {
                 Box(
@@ -1678,7 +1430,7 @@ fun CategoryDetailSheet(
                     Text(
                         text = "No songs found for this category.",
                         fontSize = 14.sp,
-                        color = if (isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {
@@ -1752,7 +1504,7 @@ fun AllArtistsSheet(
                 text = "All Artists",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
@@ -1810,7 +1562,7 @@ fun AllQuickHitsSheet(
                 text = "Quick Hits",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
@@ -1873,7 +1625,7 @@ fun AllCategoriesSheet(
                 text = "Discover by Category",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 

@@ -44,11 +44,6 @@ fun AuraEmptyState(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null
 ) {
-    val isDark = LocalIsDark.current
-    val titleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
-    val messageColor = (if (isDark) Color.White else Color.Black).copy(alpha = 0.55f)
-    val circleBg = MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.12f else 0.08f)
-
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -60,7 +55,7 @@ fun AuraEmptyState(
             modifier = Modifier
                 .size(80.dp)
                 .clip(CircleShape)
-                .background(circleBg),
+                .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -77,7 +72,7 @@ fun AuraEmptyState(
             text = title,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = titleColor,
+            color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
         )
 
@@ -86,7 +81,7 @@ fun AuraEmptyState(
         Text(
             text = message,
             fontSize = 13.5.sp,
-            color = messageColor,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             lineHeight = 19.sp
         )
@@ -97,7 +92,8 @@ fun AuraEmptyState(
                 onClick = onAction,
                 shape = RoundedCornerShape(22.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Text(actionLabel, fontWeight = FontWeight.SemiBold)
@@ -111,9 +107,6 @@ fun AuraLoadingState(
     message: String = "Loading...",
     modifier: Modifier = Modifier
 ) {
-    val isDark = LocalIsDark.current
-    val textColor = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f)
-
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -130,7 +123,7 @@ fun AuraLoadingState(
         Text(
             text = message,
             fontSize = 13.sp,
-            color = textColor,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium
         )
     }
@@ -142,10 +135,6 @@ fun AuraErrorState(
     modifier: Modifier = Modifier,
     onRetry: (() -> Unit)? = null
 ) {
-    val isDark = LocalIsDark.current
-    val titleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
-    val messageColor = (if (isDark) Color.White else Color.Black).copy(alpha = 0.55f)
-
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -155,7 +144,7 @@ fun AuraErrorState(
         Icon(
             imageVector = Icons.Default.Warning,
             contentDescription = null,
-            tint = Color(0xFFFF5252),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(44.dp)
         )
         Spacer(modifier = Modifier.height(14.dp))
@@ -163,20 +152,24 @@ fun AuraErrorState(
             text = "Something went wrong",
             fontSize = 17.sp,
             fontWeight = FontWeight.Bold,
-            color = titleColor
+            color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = message,
             fontSize = 13.sp,
-            color = messageColor,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
         if (onRetry != null) {
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = onRetry,
-                shape = RoundedCornerShape(18.dp)
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))

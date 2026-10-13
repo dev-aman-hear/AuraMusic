@@ -34,9 +34,8 @@ fun PlaylistCard(
     size: Dp = 148.dp,
     elevation: Dp = 6.dp
 ) {
-    val isDark = LocalIsDark.current
-    val titleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
-    val subtitleColor = (if (isDark) Color.White else Color.Black).copy(alpha = 0.58f)
+    val titleColor = MaterialTheme.colorScheme.onSurface
+    val subtitleColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     Column(
         modifier = modifier

@@ -10,9 +10,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -33,98 +30,51 @@ object AuraShapes {
 }
 
 /**
- * Atmospheric background with subtle glowing colored nebulae/ambient blooms
- * that make frosted glass overlays translucent and luminous.
+ * Pure Monochrome solid background brush (no colored ambient blooms or gradients).
  */
 @Composable
 fun auraScreenGradient(): Brush {
     val isDark = LocalIsDark.current
-    return if (isDark) {
-        Brush.verticalGradient(
-            listOf(
-                Color(0xFF131018),
-                Color(0xFF0C0A10),
-                Color(0xFF08070B)
-            )
-        )
-    } else {
-        Brush.verticalGradient(
-            listOf(
-                Color(0xFFFFF8FA),
-                Color(0xFFF6F7FB),
-                Color(0xFFEEF0F6)
-            )
-        )
-    }
+    val bg = if (isDark) DarkMonochromeColors.background else LightMonochromeColors.background
+    return Brush.verticalGradient(listOf(bg, bg))
 }
 
 /**
- * High-end Frosted Glass colors and border brushes
+ * Opaque monochrome surface and border definitions.
  */
 object AuraGlass {
     /**
-     * Frosted Glass base container color (translucent smoked obsidian in dark, crystal frosted milk in light)
+     * Opaque base container color for surfaces.
      */
-    fun containerColor(isDark: Boolean, opacity: Float = if (isDark) 0.72f else 0.85f): Color {
-        return if (isDark) {
-            Color(0xFF14121A).copy(alpha = opacity)
-        } else {
-            Color(0xFFFFFFFF).copy(alpha = opacity)
-        }
+    fun containerColor(isDark: Boolean, opacity: Float = 1.0f): Color {
+        return if (isDark) DarkMonochromeColors.surface else LightMonochromeColors.surface
     }
 
     /**
-     * Subtle gradient for glass refraction and depth
+     * Solid opaque brush.
      */
     fun glassBrush(isDark: Boolean, tint: Color? = null): Brush {
-        return if (isDark) {
-            val base1 = tint?.copy(alpha = 0.22f) ?: Color(0xFF221E2C).copy(alpha = 0.75f)
-            val base2 = Color(0xFF121017).copy(alpha = 0.85f)
-            Brush.verticalGradient(listOf(base1, base2))
-        } else {
-            val base1 = tint?.copy(alpha = 0.12f) ?: Color(0xFFFFFFFF).copy(alpha = 0.92f)
-            val base2 = Color(0xFFF3F4F9).copy(alpha = 0.85f)
-            Brush.verticalGradient(listOf(base1, base2))
-        }
+        val color = if (isDark) DarkMonochromeColors.surface else LightMonochromeColors.surface
+        return Brush.verticalGradient(listOf(color, color))
     }
 
     /**
-     * 4-stop Beveled Glass Border brush reflecting top specular light
+     * Subtle monochrome border brush.
      */
     fun borderBrush(isDark: Boolean): Brush {
-        return if (isDark) {
-            Brush.verticalGradient(
-                listOf(
-                    Color.White.copy(alpha = 0.42f), // Bright specular rim
-                    Color.White.copy(alpha = 0.14f), // Glass edge diffusion
-                    Color.White.copy(alpha = 0.05f), // Sub-surface edge
-                    Color.Black.copy(alpha = 0.35f)  // Ground contact shadow
-                )
-            )
-        } else {
-            Brush.verticalGradient(
-                listOf(
-                    Color.White.copy(alpha = 0.90f), // Crisp bright top rim
-                    Color.White.copy(alpha = 0.50f),
-                    Color(0xFFCBD5E1).copy(alpha = 0.45f),
-                    Color(0xFF94A3B8).copy(alpha = 0.25f)
-                )
-            )
-        }
+        val borderColor = if (isDark) DarkMonochromeColors.border else LightMonochromeColors.border
+        return Brush.verticalGradient(listOf(borderColor, borderColor))
     }
 
     fun borderStroke(isDark: Boolean, width: Dp = 1.dp): BorderStroke {
-        return BorderStroke(width, borderBrush(isDark))
+        val borderColor = if (isDark) DarkMonochromeColors.border else LightMonochromeColors.border
+        return BorderStroke(width, borderColor)
     }
 }
 
 /**
- * Universal frosted glass modifier that applies:
- * 1. Ambient drop shadow
- * 2. Translucent glass refraction background
- * 3. Top specular glare sheen
- * 4. Specular beveled glass border
- * 5. Shape clipping
+ * Replaced active frosted glass helper with normal opaque surface,
+ * subtle border, and no decorative shadows or sheen glare.
  */
 @Composable
 fun Modifier.frostedGlass(
@@ -132,61 +82,32 @@ fun Modifier.frostedGlass(
     isDark: Boolean = LocalIsDark.current,
     tint: Color? = null,
     borderWidth: Dp = 1.dp,
-    elevation: Dp = 8.dp,
-    sheenAlpha: Float = if (isDark) 0.16f else 0.35f
-): Modifier = this.liquidGlass(
-    shape = shape,
-    level = if (tint != null) GlassLevel.Tinted else GlassLevel.Regular,
-    isDark = isDark,
-    tint = tint,
-    borderWidth = borderWidth,
-    elevation = elevation,
-    sheenAlpha = sheenAlpha
-)
+    elevation: Dp = 0.dp,
+    sheenAlpha: Float = 0f
+): Modifier {
+    val surfaceColor = if (isDark) DarkMonochromeColors.surface else LightMonochromeColors.surface
+    val borderColor = if (isDark) DarkMonochromeColors.border else LightMonochromeColors.border
+    return this
+        .clip(shape)
+        .background(surfaceColor, shape)
+        .border(BorderStroke(borderWidth, borderColor), shape)
+}
 
+/**
+ * Solid monochrome screen background with zero ambient blooms or gradients.
+ */
 @Composable
 fun AuraScreenBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
     val isDark = LocalIsDark.current
-    val primary = MaterialTheme.colorScheme.primary
-    val tertiary = MaterialTheme.colorScheme.tertiary
+    val bgColor = if (isDark) DarkMonochromeColors.background else LightMonochromeColors.background
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(auraScreenGradient())
-            .drawBehind {
-                val w = size.width
-                val h = size.height
-
-                // Ambient colored nebula bloom at top right (dynamically follows primary theme color)
-                val orb1Color = if (isDark) primary.copy(alpha = 0.12f) else primary.copy(alpha = 0.18f)
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(orb1Color, Color.Transparent),
-                        center = Offset(w * 0.9f, h * 0.12f),
-                        radius = w * 0.75f
-                    ),
-                    center = Offset(w * 0.9f, h * 0.12f),
-                    radius = w * 0.75f
-                )
-
-                // Ambient bloom at middle left (dynamically follows tertiary theme color)
-                val orb2Color = if (isDark) tertiary.copy(alpha = 0.08f) else tertiary.copy(alpha = 0.16f)
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(orb2Color, Color.Transparent),
-                        center = Offset(w * 0.1f, h * 0.48f),
-                        radius = w * 0.65f
-                    ),
-                    center = Offset(w * 0.1f, h * 0.48f),
-                    radius = w * 0.65f
-                )
-            }
+            .background(bgColor)
     ) {
         content()
     }
 }
-
-

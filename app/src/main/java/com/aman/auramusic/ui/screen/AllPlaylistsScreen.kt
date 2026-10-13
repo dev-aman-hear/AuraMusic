@@ -65,7 +65,7 @@ fun AllPlaylistsScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = if (isDark) Color.White else Color.Black
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
@@ -73,7 +73,7 @@ fun AllPlaylistsScreen(
                     text = "My Playlists",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (isDark) Color.White else Color.Black
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -105,14 +105,14 @@ fun AllPlaylistsScreen(
                         imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
-                        tint = (if (isDark) Color.White else Color.Black).copy(alpha = 0.3f)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "No custom playlists created yet",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
-                        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
@@ -154,26 +154,26 @@ fun AllPlaylistsScreen(
                                     text = playlist.name,
                                     fontSize = 17.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isDark) Color.White else Color.Black,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
-                                )
-                                Spacer(modifier = Modifier.height(3.dp))
-                                Text(
-                                    text = "${playlist.songIds.size + playlist.onlineSongs.size} songs",
-                                    fontSize = 13.sp,
-                                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f)
-                                )
+                                 )
+                                 Spacer(modifier = Modifier.height(3.dp))
+                                 Text(
+                                     text = "${playlist.songIds.size + playlist.onlineSongs.size} songs",
+                                     fontSize = 13.sp,
+                                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                                 )
                             }
                             Icon(
                                 imageVector = Icons.Default.ChevronRight,
                                 contentDescription = null,
-                                tint = (if (isDark) Color.White else Color.Black).copy(alpha = 0.4f),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
                         HorizontalDivider(
-                            color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.08f),
+                            color = MaterialTheme.colorScheme.outline,
                             thickness = 0.5.dp,
                             modifier = Modifier.padding(start = 76.dp)
                         )
@@ -231,14 +231,14 @@ fun AllPlaylistsScreen(
                                         text = playlist.name,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isDark) Color.White else Color.Black,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
                                         text = "${playlist.songIds.size + playlist.onlineSongs.size} songs",
                                         fontSize = 13.sp,
-                                        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.6f),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )

@@ -1,19 +1,20 @@
 package com.aman.auramusic.online.ui
 
 import androidx.compose.ui.graphics.Color
+import com.aman.auramusic.ui.theme.DarkMonochromeColors
 
-val BgDark = Color(0xFF090A0F)
-val SurfaceDark = Color(0xFF13151F)
-val SurfaceCard = Color(0xFF1C1F2E)
-val SurfaceGlass = Color(0x33282C3F)
-val GlassBorder = Color(0x22FFFFFF)
+val BgDark: Color = DarkMonochromeColors.background
+val SurfaceDark: Color = DarkMonochromeColors.surface
+val SurfaceCard: Color = DarkMonochromeColors.surfaceSecondary
+val SurfaceGlass: Color = DarkMonochromeColors.surfaceSecondary
+val GlassBorder: Color = DarkMonochromeColors.border
 
-val AccentCyan = Color(0xFF00E5FF)
-val AccentPurple = Color(0xFFB388FF)
-val AccentBlue = Color(0xFF2979FF)
-val AccentGreen = Color(0xFF00E676)
-val AccentRed = Color(0xFFFF5252)
+val AccentCyan: Color = DarkMonochromeColors.controlSelected
+val AccentPurple: Color = DarkMonochromeColors.controlSelected
+val AccentBlue: Color = DarkMonochromeColors.controlSelected
+val AccentGreen: Color = DarkMonochromeColors.controlSelected
+val AccentRed: Color = DarkMonochromeColors.controlSelected
 
-val TextPrimary = Color(0xFFFFFFFF)
-val TextSecondary = Color(0xFF9EA3BA)
-val TextMuted = Color(0xFF5E6278)
+val TextPrimary: Color = DarkMonochromeColors.textPrimary
+val TextSecondary: Color = DarkMonochromeColors.textSecondary
+val TextMuted: Color = DarkMonochromeColors.textTertiary

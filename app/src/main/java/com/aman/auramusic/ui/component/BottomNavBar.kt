@@ -3,6 +3,7 @@ package com.aman.auramusic.ui.component
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,10 +68,8 @@ fun BottomNavBar(
     selectedTab: AppTab,
     onTabSelected: (AppTab) -> Unit
 ) {
-    val isDark = LocalIsDark.current
-    val shadowElevation = if (isDark) 16.dp else 10.dp
-    val primaryColor = com.aman.auramusic.ui.theme.AppleMusicAccent
     val allTabs = remember { listOf(AppTab.Home, AppTab.Online, AppTab.Library, AppTab.Search) }
+    val navShape = RoundedCornerShape(32.dp)
 
     Box(
         modifier = Modifier
@@ -78,14 +77,9 @@ fun BottomNavBar(
             .navigationBarsPadding()
             .padding(start = 16.dp, end = 16.dp, bottom = 8.dp, top = 2.dp)
             .height(64.dp)
-            .liquidGlass(
-                shape = RoundedCornerShape(32.dp),
-                level = GlassLevel.UltraThin,
-                isDark = isDark,
-                elevation = shadowElevation,
-                borderWidth = 1.2.dp,
-                sheenAlpha = if (isDark) 0.22f else 0.44f
-            )
+            .clip(navShape)
+            .background(MaterialTheme.colorScheme.surface, navShape)
+            .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), navShape)
     ) {
         Row(
             modifier = Modifier
@@ -98,16 +92,16 @@ fun BottomNavBar(
                 val selected = selectedTab == tab
                 val tabTint by animateColorAsState(
                     targetValue = if (selected) {
-                        if (isDark) Color.White else primaryColor
+                        MaterialTheme.colorScheme.onPrimary
                     } else {
-                        if (isDark) Color.White.copy(alpha = 0.55f) else Color(0xFF8E8E93)
+                        MaterialTheme.colorScheme.onSurfaceVariant
                     },
                     animationSpec = tween(220),
                     label = "tabTint_${tab.name}"
                 )
                 val activePillBg by animateColorAsState(
                     targetValue = if (selected) {
-                        if (isDark) primaryColor.copy(alpha = 0.85f) else primaryColor.copy(alpha = 0.14f)
+                        MaterialTheme.colorScheme.primary
                     } else {
                         Color.Transparent
                     },

@@ -42,205 +42,54 @@ data class LiquidGlassTokens(
      * Parse surface tint color from config or fallback.
      */
     val effectiveTint: Color
-        get() {
-            if (config.tintHex.isNotBlank()) {
-                val hex = config.tintHex.removePrefix("#")
-                if (hex.length == 6 || hex.length == 8) {
-                    val parsed = runCatching {
-                        val colorLong = java.lang.Long.parseLong(hex, 16)
-                        if (hex.length == 6) Color(colorLong or 0xFF000000L) else Color(colorLong)
-                    }.getOrNull()
-                    if (parsed != null) return parsed
-                }
-            }
-            if (config.accentTintEnabled) {
-                return accentColor
-            }
-            return if (isDark) {
-                if (isAmoled) Color(0xFF0F0D14) else Color(0xFF1E1A26)
-            } else {
-                Color(0xFFFFFFFF)
-            }
-        }
+        get() = if (isDark) DarkMonochromeColors.surface else LightMonochromeColors.surface
 
     /**
-     * Compute translucent refraction background brush for a glass surface level.
+     * Compute background brush for a surface level conforming to monochrome palette.
      */
     fun containerBrush(
         level: GlassLevel,
         customTint: Color? = null,
         isDark: Boolean = this.isDark
     ): Brush {
-        val tint = customTint ?: (if (isDark) {
-            if (config.tintHex.isNotBlank() || config.accentTintEnabled) effectiveTint
-            else if (isAmoled) Color(0xFF0F0D14) else Color(0xFF1E1A26)
+        val bg = if (isDark) {
+            when (level) {
+                GlassLevel.UltraThin -> DarkMonochromeColors.controlBackground
+                GlassLevel.Regular -> DarkMonochromeColors.surface
+                GlassLevel.Thick -> DarkMonochromeColors.surfaceSecondary
+                GlassLevel.Tinted -> customTint ?: DarkMonochromeColors.controlSelected
+            }
         } else {
-            if (config.tintHex.isNotBlank() || config.accentTintEnabled) effectiveTint
-            else Color.White
-        })
-
-        if (reduceTransparency) {
-            // Accessible solid opaque fallback
-            return if (isDark) {
-                val solidBg = if (isAmoled) Color(0xFF0A090E) else Color(0xFF181520)
-                Brush.verticalGradient(listOf(solidBg, solidBg))
-            } else {
-                Brush.verticalGradient(listOf(Color(0xFFF8F9FD), Color(0xFFEFF1F7)))
+            when (level) {
+                GlassLevel.UltraThin -> LightMonochromeColors.controlBackground
+                GlassLevel.Regular -> LightMonochromeColors.surface
+                GlassLevel.Thick -> LightMonochromeColors.surfaceSecondary
+                GlassLevel.Tinted -> customTint ?: LightMonochromeColors.controlSelected
             }
         }
-
-        val intensity = config.intensity
-
-        return when (level) {
-            GlassLevel.UltraThin -> {
-                if (isDark) {
-                    val topAlpha = (intensity * 0.22f + 0.08f).coerceIn(0.08f, 0.35f)
-                    val bottomAlpha = (intensity * 0.30f + 0.15f).coerceIn(0.15f, 0.50f)
-                    Brush.verticalGradient(
-                        listOf(
-                            tint.copy(alpha = topAlpha),
-                            (if (isAmoled) Color.Black else Color(0xFF100E16)).copy(alpha = bottomAlpha)
-                        )
-                    )
-                } else {
-                    val topAlpha = (intensity * 0.22f + 0.12f).coerceIn(0.12f, 0.40f)
-                    val bottomAlpha = (intensity * 0.28f + 0.18f).coerceIn(0.18f, 0.50f)
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = topAlpha),
-                            Color(0xFFEFF1F8).copy(alpha = bottomAlpha)
-                        )
-                    )
-                }
-            }
-            GlassLevel.Regular -> {
-                if (isDark) {
-                    val topAlpha = (intensity * 0.32f + 0.12f).coerceIn(0.15f, 0.55f)
-                    val bottomAlpha = (intensity * 0.45f + 0.22f).coerceIn(0.25f, 0.70f)
-                    Brush.verticalGradient(
-                        listOf(
-                            tint.copy(alpha = topAlpha),
-                            (if (isAmoled) Color.Black else Color(0xFF13101A)).copy(alpha = bottomAlpha)
-                        )
-                    )
-                } else {
-                    val topAlpha = (intensity * 0.28f + 0.25f).coerceIn(0.25f, 0.60f)
-                    val bottomAlpha = (intensity * 0.32f + 0.30f).coerceIn(0.30f, 0.70f)
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = topAlpha),
-                            Color(0xFFEAEDF6).copy(alpha = bottomAlpha)
-                        )
-                    )
-                }
-            }
-            GlassLevel.Thick -> {
-                if (isDark) {
-                    val topAlpha = (intensity * 0.48f).coerceIn(0.18f, 0.75f)
-                    val bottomAlpha = (intensity * 0.75f).coerceIn(0.35f, 0.88f)
-                    Brush.verticalGradient(
-                        listOf(
-                            tint.copy(alpha = topAlpha),
-                            (if (isAmoled) Color.Black else Color(0xFF0D0B12)).copy(alpha = bottomAlpha)
-                        )
-                    )
-                } else {
-                    val topAlpha = (intensity * 0.65f).coerceIn(0.40f, 0.85f)
-                    val bottomAlpha = (intensity * 0.75f).coerceIn(0.45f, 0.88f)
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = topAlpha),
-                            Color(0xFFE8EBF5).copy(alpha = bottomAlpha)
-                        )
-                    )
-                }
-            }
-            GlassLevel.Tinted -> {
-                val activeAccent = customTint ?: (if (config.accentTintEnabled) effectiveTint else accentColor)
-                if (isDark) {
-                    val topAlpha = (intensity * 0.40f + 0.12f).coerceIn(0.20f, 0.70f)
-                    val midAlpha = (intensity * 0.20f + 0.06f).coerceIn(0.08f, 0.45f)
-                    val bottomAlpha = (intensity * 0.65f).coerceIn(0.30f, 0.80f)
-                    Brush.verticalGradient(
-                        listOf(
-                            activeAccent.copy(alpha = topAlpha),
-                            activeAccent.copy(alpha = midAlpha),
-                            Color(0xFF14101A).copy(alpha = bottomAlpha)
-                        )
-                    )
-                } else {
-                    val topAlpha = (intensity * 0.30f + 0.10f).coerceIn(0.15f, 0.55f)
-                    val bottomAlpha = (intensity * 0.60f).coerceIn(0.35f, 0.75f)
-                    Brush.verticalGradient(
-                        listOf(
-                            activeAccent.copy(alpha = topAlpha),
-                            Color.White.copy(alpha = bottomAlpha)
-                        )
-                    )
-                }
-            }
-        }
+        return Brush.verticalGradient(listOf(bg, bg))
     }
 
     /**
-     * Compute multi-stop specular illuminated rim border gradient.
-     * Matches the visual reference: crisp bright top-rim highlight fading smoothly into dark contact shadow.
+     * Compute clean border gradient conforming to monochrome palette.
      */
     fun borderBrush(
         level: GlassLevel,
         customTint: Color? = null,
         isDark: Boolean = this.isDark
     ): Brush {
-        val mult = config.highlightStrength
-        val activeAccent = customTint ?: (if (level == GlassLevel.Tinted) accentColor else null)
-
-        if (level == GlassLevel.Tinted && activeAccent != null) {
-            return if (isDark) {
-                Brush.verticalGradient(
-                    listOf(
-                        activeAccent.copy(alpha = (0.85f * mult).coerceIn(0.2f, 1f)),
-                        activeAccent.copy(alpha = (0.40f * mult).coerceIn(0.1f, 0.8f)),
-                        Color.White.copy(alpha = (0.15f * mult).coerceIn(0.02f, 0.4f)),
-                        Color.Black.copy(alpha = 0.40f)
-                    )
-                )
-            } else {
-                Brush.verticalGradient(
-                    listOf(
-                        activeAccent.copy(alpha = (0.75f * mult).coerceIn(0.2f, 1f)),
-                        Color.White.copy(alpha = 0.85f),
-                        activeAccent.copy(alpha = (0.35f * mult).coerceIn(0.1f, 0.6f))
-                    )
-                )
+        val border = if (isDark) {
+            when (level) {
+                GlassLevel.Thick, GlassLevel.Tinted -> DarkMonochromeColors.borderStrong
+                else -> DarkMonochromeColors.border
+            }
+        } else {
+            when (level) {
+                GlassLevel.Thick, GlassLevel.Tinted -> LightMonochromeColors.borderStrong
+                else -> LightMonochromeColors.border
             }
         }
-
-        return if (isDark) {
-            val topRim = (0.70f * mult).coerceIn(0.15f, 1.0f)
-            val topMid = (0.28f * mult).coerceIn(0.05f, 0.70f)
-            val lowerMid = (0.08f * mult).coerceIn(0.01f, 0.30f)
-            val bottomShadow = if (isAmoled) 0.50f else 0.35f
-            Brush.verticalGradient(
-                listOf(
-                    Color.White.copy(alpha = topRim),
-                    Color.White.copy(alpha = topMid),
-                    Color.White.copy(alpha = lowerMid),
-                    Color.Black.copy(alpha = bottomShadow)
-                )
-            )
-        } else {
-            val topRim = (0.90f * mult).coerceIn(0.25f, 1.0f)
-            val topMid = (0.50f * mult).coerceIn(0.15f, 0.80f)
-            val lowerMid = (0.25f * mult).coerceIn(0.08f, 0.50f)
-            Brush.verticalGradient(
-                listOf(
-                    Color.White.copy(alpha = topRim),
-                    Color.White.copy(alpha = topMid),
-                    Color(0xFFCBD5E1).copy(alpha = lowerMid),
-                    Color(0xFF94A3B8).copy(alpha = 0.20f)
-                )
-            )
-        }
+        return Brush.verticalGradient(listOf(border, border))
     }
 
     /**
@@ -275,16 +124,7 @@ data class LiquidGlassTokens(
     fun sheenAlpha(
         level: GlassLevel,
         isDark: Boolean = this.isDark
-    ): Float {
-        if (reduceMotion || reduceTransparency) return 0f
-        val mult = config.highlightStrength
-        return when (level) {
-            GlassLevel.UltraThin -> if (isDark) 0.20f * mult else 0.40f * mult
-            GlassLevel.Regular -> if (isDark) 0.25f * mult else 0.48f * mult
-            GlassLevel.Thick -> if (isDark) 0.30f * mult else 0.55f * mult
-            GlassLevel.Tinted -> if (isDark) 0.28f * mult else 0.50f * mult
-        }.coerceIn(0f, 0.95f)
-    }
+    ): Float = 0f
 }
 
 /**

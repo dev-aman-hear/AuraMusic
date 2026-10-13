@@ -529,9 +529,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
         }
     }
 
-    val isDark = LocalIsDark.current
-    val topBgColor = if (isDark) Color.Black.copy(alpha = 0.65f) else MaterialTheme.colorScheme.background
-
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -539,17 +536,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            topBgColor,
-                            animatedDominantColor.copy(alpha = if (isDark) 0.35f else 0.15f),
-                            animatedDominantColor.copy(alpha = if (isDark) 0.12f else 0.05f),
-                            animatedDominantColor.copy(alpha = 0.02f),
-                            MaterialTheme.colorScheme.background
-                        )
-                    )
-                )
+                .background(MaterialTheme.colorScheme.background)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -918,60 +905,82 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                     }
                 }
 
-                // Floating Liquid Glass Navigation & Playback Pod
+                // Floating Liquid Glass Navigation & Playback Pod with Frosted Scrim Backdrop
                 if (!showPlayer) {
-                    Column(
+                    Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .fillMaxWidth()
                     ) {
-                        val currentOnlineMiniSong = onlinePlaybackState.currentSong ?: activeOnlineSong
-                        if (isOnlinePlaybackActive && currentOnlineMiniSong != null) {
-                            val onlineAsSong = remember(currentOnlineMiniSong, onlinePlaybackState.durationMs) {
-                                val base = currentOnlineMiniSong.toSong()
-                                if (onlinePlaybackState.durationMs > 0) base.copy(duration = onlinePlaybackState.durationMs) else base
-                            }
-                            MiniPlayer(
-                                song = onlineAsSong,
-                                isPlaying = onlinePlaybackState.isPlaying,
-                                position = onlinePlaybackState.currentPositionMs,
-                                duration = onlinePlaybackState.durationMs,
-                                dominantColor = animatedDominantColor,
-                                onPlayPause = { onlinePlaybackManager.togglePlayPause() },
-                                onNext = { onlinePlaybackManager.playNext() },
-                                onPrevious = { onlinePlaybackManager.playPrevious() },
-                                onOpen = { showPlayer = true }
-                            )
-                        } else {
-                            playerViewModel.currentSong?.let { song ->
+                        // Monochrome scrim backdrop to prevent underlying content from bleeding through
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
+                                            MaterialTheme.colorScheme.background,
+                                            MaterialTheme.colorScheme.background
+                                        )
+                                    )
+                                )
+                        )
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            val currentOnlineMiniSong = onlinePlaybackState.currentSong ?: activeOnlineSong
+                            if (isOnlinePlaybackActive && currentOnlineMiniSong != null) {
+                                val onlineAsSong = remember(currentOnlineMiniSong, onlinePlaybackState.durationMs) {
+                                    val base = currentOnlineMiniSong.toSong()
+                                    if (onlinePlaybackState.durationMs > 0) base.copy(duration = onlinePlaybackState.durationMs) else base
+                                }
                                 MiniPlayer(
-                                    song = song,
-                                    isPlaying = playerViewModel.isPlaying,
-                                    position = playerViewModel.currentPosition,
-                                    duration = playerViewModel.duration,
+                                    song = onlineAsSong,
+                                    isPlaying = onlinePlaybackState.isPlaying,
+                                    position = onlinePlaybackState.currentPositionMs,
+                                    duration = onlinePlaybackState.durationMs,
                                     dominantColor = animatedDominantColor,
-                                    onPlayPause = { playerViewModel.togglePlayPause() },
-                                    onNext = { playerViewModel.playNext() },
-                                    onPrevious = { playerViewModel.playPrevious() },
+                                    onPlayPause = { onlinePlaybackManager.togglePlayPause() },
+                                    onNext = { onlinePlaybackManager.playNext() },
+                                    onPrevious = { onlinePlaybackManager.playPrevious() },
                                     onOpen = { showPlayer = true }
                                 )
-                            }
-                        }
-
-                        BottomNavBar(
-                            selectedTab = selectedTab,
-                            onTabSelected = { 
-                                if (it == AppTab.Home && selectedTab == AppTab.Home) {
-                                    homeReselectKey++
+                            } else {
+                                playerViewModel.currentSong?.let { song ->
+                                    MiniPlayer(
+                                        song = song,
+                                        isPlaying = playerViewModel.isPlaying,
+                                        position = playerViewModel.currentPosition,
+                                        duration = playerViewModel.duration,
+                                        dominantColor = animatedDominantColor,
+                                        onPlayPause = { playerViewModel.togglePlayPause() },
+                                        onNext = { playerViewModel.playNext() },
+                                        onPrevious = { playerViewModel.playPrevious() },
+                                        onOpen = { showPlayer = true }
+                                    )
                                 }
-                                selectedTab = it
-                                showSettings = false
-                                selectedPlaylistId = null
-                                selectedAlbumName = null
-                                selectedArtistName = null
                             }
-                        )
+
+                            BottomNavBar(
+                                selectedTab = selectedTab,
+                                onTabSelected = { 
+                                    if (it == AppTab.Home && selectedTab == AppTab.Home) {
+                                        homeReselectKey++
+                                    }
+                                    selectedTab = it
+                                    showSettings = false
+                                    selectedPlaylistId = null
+                                    selectedAlbumName = null
+                                    selectedArtistName = null
+                                }
+                            )
+                        }
                     }
                 }
             }

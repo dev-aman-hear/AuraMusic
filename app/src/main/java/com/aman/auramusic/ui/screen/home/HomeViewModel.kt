@@ -84,8 +84,8 @@ data class CategoryDiscoverItem(
     val id: String,
     val title: String,
     val subtitle: String,
-    val gradientColors: List<Color>,
-    val searchQuery: String
+    val searchQuery: String,
+    val gradientColors: List<Color> = emptyList()
 )
 
 data class HomeUiState(
@@ -142,70 +142,60 @@ class HomeViewModel @Inject constructor(
             id = "pop",
             title = "Pop",
             subtitle = "Global Chart Toppers",
-            gradientColors = listOf(Color(0xFF00E676), Color(0xFF00B0FF), Color(0xFF0D1B2A)),
             searchQuery = "Pop Hits"
         ),
         CategoryDiscoverItem(
             id = "hiphop",
             title = "Hip Hop",
             subtitle = "Beats & Rhymes",
-            gradientColors = listOf(Color(0xFFFF3D00), Color(0xFFFF9100), Color(0xFF26120D)),
             searchQuery = "Hip Hop Rap Hits"
         ),
         CategoryDiscoverItem(
             id = "electronic",
             title = "Electronic",
             subtitle = "Dance, Synth & Bass",
-            gradientColors = listOf(Color(0xFFD500F9), Color(0xFF651FFF), Color(0xFF1B0B2E)),
             searchQuery = "Electronic EDM Dance"
         ),
         CategoryDiscoverItem(
             id = "rock",
             title = "Rock",
             subtitle = "Classics & Modern Alt",
-            gradientColors = listOf(Color(0xFF2979FF), Color(0xFF00E5FF), Color(0xFF0E1A2C)),
             searchQuery = "Rock Alternative Hits"
         ),
         CategoryDiscoverItem(
             id = "rnb",
             title = "R&B / Soul",
             subtitle = "Smooth & Melodic",
-            gradientColors = listOf(Color(0xFFE040FB), Color(0xFFFF5252), Color(0xFF2B0C1E)),
             searchQuery = "RnB Soul Melodic"
         ),
         CategoryDiscoverItem(
             id = "chill",
             title = "Chill",
             subtitle = "Lo-Fi & Relaxing Vibes",
-            gradientColors = listOf(Color(0xFF00B4D8), Color(0xFF0077B6), Color(0xFF031627)),
             searchQuery = "Lofi Chill Beats"
         ),
         CategoryDiscoverItem(
             id = "happy",
             title = "Happy",
             subtitle = "Feel-Good Anthems",
-            gradientColors = listOf(Color(0xFFFFB703), Color(0xFFFB8500), Color(0xFF2B1803)),
             searchQuery = "Happy Upbeat Summer"
         ),
         CategoryDiscoverItem(
             id = "sad",
             title = "Sad",
             subtitle = "Moody & Melancholic",
-            gradientColors = listOf(Color(0xFF7209B7), Color(0xFF3F37C9), Color(0xFF160B29)),
             searchQuery = "Sad Melancholic Acoustic"
         ),
         CategoryDiscoverItem(
             id = "desi",
             title = "Bollywood",
             subtitle = "Desi Hits & Melodies",
-            gradientColors = listOf(Color(0xFFFF70A6), Color(0xFFFF9770), Color(0xFF2D101E)),
             searchQuery = "Bollywood Top Hits"
         ),
         CategoryDiscoverItem(
             id = "indie",
             title = "Indie",
             subtitle = "Acoustic & Independent",
-            gradientColors = listOf(Color(0xFF80ED99), Color(0xFF38A3A5), Color(0xFF0B2124)),
             searchQuery = "Indie Folk Acoustic"
         )
     )

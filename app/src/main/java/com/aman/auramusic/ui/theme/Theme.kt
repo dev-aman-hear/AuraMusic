@@ -1,74 +1,77 @@
 package com.aman.auramusic.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import com.aman.auramusic.data.model.LiquidGlassConfig
 import com.aman.auramusic.data.model.ThemeMode
 
 val LocalIsDark = staticCompositionLocalOf { false }
 
 private val DarkColorScheme = darkColorScheme(
-    primary = AuraPrimary,
-    secondary = AuraSecondary,
-    tertiary = AuraTertiary,
-    background = AuraDarkBackground,
-    surface = AuraDarkSurface,
-    surfaceVariant = AuraDarkSurfaceVariant,
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = AuraTextPrimaryDark,
-    onSurface = AuraTextPrimaryDark,
-    onSurfaceVariant = AuraTextSecondaryDark,
-    outline = AuraDarkBorder
+    primary = DarkMonochromeColors.controlSelected,
+    onPrimary = DarkMonochromeColors.controlSelectedContent,
+    secondary = DarkMonochromeColors.textSecondary,
+    onSecondary = DarkMonochromeColors.controlSelectedContent,
+    tertiary = DarkMonochromeColors.textTertiary,
+    onTertiary = DarkMonochromeColors.controlSelectedContent,
+    background = DarkMonochromeColors.background,
+    onBackground = DarkMonochromeColors.textPrimary,
+    surface = DarkMonochromeColors.surface,
+    onSurface = DarkMonochromeColors.textPrimary,
+    surfaceVariant = DarkMonochromeColors.surfaceSecondary,
+    onSurfaceVariant = DarkMonochromeColors.textSecondary,
+    outline = DarkMonochromeColors.border,
+    outlineVariant = DarkMonochromeColors.borderStrong,
+    primaryContainer = DarkMonochromeColors.surfaceSecondary,
+    onPrimaryContainer = DarkMonochromeColors.textPrimary,
+    error = DarkMonochromeColors.textPrimary,
+    onError = DarkMonochromeColors.controlSelectedContent
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = AuraPrimary,
-    secondary = AuraSecondary,
-    tertiary = AuraTertiary,
-    background = AuraLightBackground,
-    surface = AuraLightSurface,
-    surfaceVariant = AuraLightSurfaceVariant,
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = AuraTextPrimaryLight,
-    onSurface = AuraTextPrimaryLight,
-    onSurfaceVariant = AuraTextSecondaryLight,
-    outline = AuraLightBorder,
-    primaryContainer = Color(0xFFFFE8EC),
-    onPrimaryContainer = Color(0xFFD81B43)
+    primary = LightMonochromeColors.controlSelected,
+    onPrimary = LightMonochromeColors.controlSelectedContent,
+    secondary = LightMonochromeColors.textSecondary,
+    onSecondary = LightMonochromeColors.controlSelectedContent,
+    tertiary = LightMonochromeColors.textTertiary,
+    onTertiary = LightMonochromeColors.controlSelectedContent,
+    background = LightMonochromeColors.background,
+    onBackground = LightMonochromeColors.textPrimary,
+    surface = LightMonochromeColors.surface,
+    onSurface = LightMonochromeColors.textPrimary,
+    surfaceVariant = LightMonochromeColors.surfaceSecondary,
+    onSurfaceVariant = LightMonochromeColors.textSecondary,
+    outline = LightMonochromeColors.border,
+    outlineVariant = LightMonochromeColors.borderStrong,
+    primaryContainer = LightMonochromeColors.surfaceSecondary,
+    onPrimaryContainer = LightMonochromeColors.textPrimary,
+    error = LightMonochromeColors.textPrimary,
+    onError = LightMonochromeColors.controlSelectedContent
 )
 
 /**
  * Liquid Glass Theme wrapper providing dynamic Liquid Glass tokens.
+ * Kept intact for future reuse and configuration model compatibility.
  */
 @Composable
 fun LiquidGlassTheme(
     config: LiquidGlassConfig = LiquidGlassConfig(),
     isDark: Boolean = LocalIsDark.current,
     isAmoled: Boolean = false,
-    accentColor: Color = MaterialTheme.colorScheme.primary,
     content: @Composable () -> Unit
 ) {
-    val tokens = remember(config, isDark, isAmoled, accentColor) {
+    val tokens = remember(config, isDark, isAmoled) {
         LiquidGlassTokens(
             config = config,
             isDark = isDark,
             isAmoled = isAmoled,
-            accentColor = accentColor
+            accentColor = if (isDark) DarkMonochromeColors.controlSelected else LightMonochromeColors.controlSelected
         )
     }
     CompositionLocalProvider(
@@ -77,10 +80,15 @@ fun LiquidGlassTheme(
     )
 }
 
+/**
+ * Pure Monochrome Root Theme for AuraMusic.
+ * Dynamic wallpaper colors are explicitly disabled in this monochrome-only phase.
+ * System, Light, and Dark modes are fully supported.
+ */
 @Composable
 fun AuraMusicTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false, // Effective default false; dynamic wallpaper disabled
     amoledMode: Boolean = false,
     liquidGlassConfig: LiquidGlassConfig = LiquidGlassConfig(),
     content: @Composable () -> Unit
@@ -92,32 +100,22 @@ fun AuraMusicTheme(
         ThemeMode.DARK -> true
     }
 
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            val base = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            if (darkTheme && amoledMode) {
-                base.copy(background = Color.Black, surface = Color.Black)
-            } else base
-        }
-        darkTheme -> {
-            if (amoledMode) DarkColorScheme.copy(background = Color.Black, surface = Color.Black)
-            else DarkColorScheme
-        }
-        else -> LightColorScheme
-    }
+    // Fixed monochrome color schemes (wallpaper/dynamic colors never override in this phase)
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val monochromeColors = if (darkTheme) DarkMonochromeColors else LightMonochromeColors
 
-    val tokens = remember(liquidGlassConfig, darkTheme, amoledMode, colorScheme.primary) {
+    val tokens = remember(liquidGlassConfig, darkTheme) {
         LiquidGlassTokens(
             config = liquidGlassConfig,
             isDark = darkTheme,
-            isAmoled = amoledMode && darkTheme,
-            accentColor = colorScheme.primary
+            isAmoled = false,
+            accentColor = monochromeColors.controlSelected
         )
     }
 
     CompositionLocalProvider(
         LocalIsDark provides darkTheme,
+        LocalMonochromeColors provides monochromeColors,
         LocalLiquidGlassTokens provides tokens
     ) {
         MaterialTheme(

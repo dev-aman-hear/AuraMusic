@@ -71,19 +71,6 @@ fun AuraArtwork(
     contentScale: ContentScale = ContentScale.Crop
 ) {
     val context = LocalContext.current
-    val isDark = LocalIsDark.current
-    val fallbackGradient = remember(isDark) {
-        if (isDark) {
-            Brush.linearGradient(
-                listOf(Color(0xFF222533), Color(0xFF141620))
-            )
-        } else {
-            Brush.linearGradient(
-                listOf(Color(0xFFEFF1F8), Color(0xFFDFE2EE))
-            )
-        }
-    }
-
     val imageRequest = remember(model, context) {
         if (model != null) {
             ArtworkQualityOptimizer.buildImageRequest(context, model)
@@ -95,16 +82,10 @@ fun AuraArtwork(
             .size(size.dp)
             .shadow(elevation, shape)
             .clip(shape)
-            .background(fallbackGradient)
+            .background(MaterialTheme.colorScheme.surfaceVariant, shape)
             .border(
                 width = 1.dp,
-                brush = Brush.verticalGradient(
-                    listOf(
-                        Color.White.copy(alpha = if (isDark) 0.25f else 0.50f),
-                        Color.White.copy(alpha = if (isDark) 0.05f else 0.15f),
-                        Color.Transparent
-                    )
-                ),
+                color = MaterialTheme.colorScheme.outline,
                 shape = shape
             ),
         contentAlignment = Alignment.Center
@@ -120,7 +101,7 @@ fun AuraArtwork(
             Icon(
                 imageVector = fallbackIcon,
                 contentDescription = null,
-                tint = if (isDark) Color.White.copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.30f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size((size * 0.45f).dp)
             )
         }

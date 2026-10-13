@@ -214,7 +214,7 @@ fun PlaylistPreviewCard(
                         if (onFavoritePlaylist != null) {
                             DropdownMenuItem(
                                 text = { Text("Favorite All Songs", fontWeight = FontWeight.SemiBold) },
-                                leadingIcon = { Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFFFA2D48)) },
+                                leadingIcon = { Icon(Icons.Default.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                                 onClick = {
                                     showMenu = false
                                     onFavoritePlaylist()

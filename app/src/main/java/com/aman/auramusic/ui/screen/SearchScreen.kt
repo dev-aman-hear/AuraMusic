@@ -55,7 +55,6 @@ import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.SectionHeader
 import com.aman.auramusic.ui.component.SongRow
-import com.aman.auramusic.ui.theme.AuraCyan
 import com.aman.auramusic.ui.theme.AuraGlass
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.LocalIsDark
@@ -83,8 +82,7 @@ enum class MeshPattern {
 data class SearchCategory(
     val title: String,
     val keywords: List<String>,
-    val pattern: MeshPattern,
-    val glowColor: Color
+    val pattern: MeshPattern
 )
 
 enum class SearchFilter(val label: String) {
@@ -156,18 +154,18 @@ fun SearchScreen(
     val focusManager = LocalFocusManager.current
     val repository = remember { OnlineMusicRepository() }
 
-    // Adaptive Theme Tokens (Dynamic Light & Dark Mode)
-    val screenBg = if (isDark) Color(0xFF000000) else Color(0xFFF8F9FA)
-    val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
-    val textSecondary = if (isDark) Color(0xFF9E9EA7) else Color(0xFF64748B)
-    val textPlaceholder = if (isDark) Color(0xFF71717A) else Color(0xFF94A3B8)
-    val searchContainerBg = if (isDark) Color(0xFF141418) else Color.White
-    val searchBorderColor = if (isDark) Color(0xFF27272E) else Color(0xFFE2E8F0)
-    val chipBg = if (isDark) Color(0xFF181820) else Color.White
-    val chipBorder = if (isDark) Color(0xFF2C2C36) else Color(0xFFE2E8F0)
-    val avatarBg = if (isDark) Color(0xFF18181C) else Color(0xFFF1F5F9)
-    val avatarBorder = if (isDark) Color.White.copy(alpha = 0.15f) else Color(0xFFCBD5E1)
-    val avatarIconTint = if (isDark) Color.White.copy(alpha = 0.85f) else Color(0xFF334155)
+    // Adaptive Monochrome Tokens
+    val screenBg = MaterialTheme.colorScheme.background
+    val textPrimary = MaterialTheme.colorScheme.onBackground
+    val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
+    val textPlaceholder = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    val searchContainerBg = MaterialTheme.colorScheme.surfaceVariant
+    val searchBorderColor = MaterialTheme.colorScheme.outline
+    val chipBg = MaterialTheme.colorScheme.surfaceVariant
+    val chipBorder = MaterialTheme.colorScheme.outline
+    val avatarBg = MaterialTheme.colorScheme.surfaceVariant
+    val avatarBorder = MaterialTheme.colorScheme.outline
+    val avatarIconTint = MaterialTheme.colorScheme.onSurfaceVariant
 
     // Intercept back button when search query is active to smoothly return to category discovery
     BackHandler(enabled = query.isNotEmpty()) {
@@ -188,80 +186,68 @@ fun SearchScreen(
 
     val onlinePlaybackState = onlinePlaybackManager?.playbackState?.collectAsState()
 
-    // 12 Curated Atmospheric Glowing Mesh Categories matching the Dribbble Reference
+    // 12 Curated Categories
     val categories = remember {
         listOf(
             SearchCategory(
                 title = "Pop",
                 keywords = listOf("pop", "swift", "sheeran", "bieber", "lipa", "ariana", "weekend", "drake", "bruno", "gomez", "billie", "olivia", "perry", "styles", "puth"),
-                pattern = MeshPattern.POP,
-                glowColor = Color(0xFF22C55E)
+                pattern = MeshPattern.POP
             ),
             SearchCategory(
                 title = "Hip Hop",
                 keywords = listOf("hip-hop", "hip hop", "rap", "rapper", "divine", "emiway", "raftaar", "stan", "krsna", "drake", "eminem", "kanye", "travis"),
-                pattern = MeshPattern.HIP_HOP,
-                glowColor = Color(0xFFFF6D00)
+                pattern = MeshPattern.HIP_HOP
             ),
             SearchCategory(
                 title = "Electronic",
                 keywords = listOf("electronic", "dance", "edm", "party", "club", "dj", "remix", "house", "garrix", "guetta", "avicii", "marshmello"),
-                pattern = MeshPattern.ELECTRONIC,
-                glowColor = Color(0xFFFF2A85)
+                pattern = MeshPattern.ELECTRONIC
             ),
             SearchCategory(
                 title = "Alternative",
                 keywords = listOf("alternative", "indie", "alt", "arctic monkeys", "strokes", "radiohead", "cage the elephant", "tame impala", "twenty one pilots"),
-                pattern = MeshPattern.ALTERNATIVE,
-                glowColor = Color(0xFF06B6D4)
+                pattern = MeshPattern.ALTERNATIVE
             ),
             SearchCategory(
                 title = "Rock",
                 keywords = listOf("rock", "metal", "band", "guitar", "queen", "nirvana", "metallica", "coldplay", "dragons", "linkin park", "ac/dc"),
-                pattern = MeshPattern.ROCK,
-                glowColor = Color(0xFF2563EB)
+                pattern = MeshPattern.ROCK
             ),
             SearchCategory(
                 title = "R&B",
                 keywords = listOf("r&b", "rnb", "soul", "sza", "frank ocean", "brent faiyaz", "khalid", "daniel caesar", "summer walker", "usher"),
-                pattern = MeshPattern.RNB,
-                glowColor = Color(0xFF84CC16)
+                pattern = MeshPattern.RNB
             ),
             SearchCategory(
                 title = "Bollywood",
                 keywords = listOf("bollywood", "hindi", "arijit", "neha", "badshah", "jubin", "shreya", "pritam", "t-series", "filmi", "singh", "kapoor", "khan"),
-                pattern = MeshPattern.BOLLYWOOD,
-                glowColor = Color(0xFFF59E0B)
+                pattern = MeshPattern.BOLLYWOOD
             ),
             SearchCategory(
                 title = "Hindi Music",
                 keywords = listOf("hindi", "arijit", "sonu nigam", "shreya ghoshal", "kk", "atif", "mohit chauhan", "ar rahman", "pritam", "mithoon"),
-                pattern = MeshPattern.HINDI,
-                glowColor = Color(0xFFFB923C)
+                pattern = MeshPattern.HINDI
             ),
             SearchCategory(
                 title = "Punjabi",
                 keywords = listOf("punjabi", "sidhu", "diljit", "karan", "aujla", "ap dhillon", "bhangra", "desi", "jatt", "honey singh", "randhawa", "b praak"),
-                pattern = MeshPattern.PUNJABI,
-                glowColor = Color(0xFFFF5722)
+                pattern = MeshPattern.PUNJABI
             ),
             SearchCategory(
                 title = "Indie",
                 keywords = listOf("indie", "prateek kuhad", "anuv jain", "zaeden", "ritviz", "when chai met toast", "the local train", "jasleen royal"),
-                pattern = MeshPattern.INDIE,
-                glowColor = Color(0xFFA855F7)
+                pattern = MeshPattern.INDIE
             ),
             SearchCategory(
                 title = "Classical",
                 keywords = listOf("classical", "sufi", "ghazal", "qawwali", "raag", "classic", "retro", "90s", "80s", "kishore", "lata", "rafi", "jagjit"),
-                pattern = MeshPattern.CLASSICAL,
-                glowColor = Color(0xFF6366F1)
+                pattern = MeshPattern.CLASSICAL
             ),
             SearchCategory(
                 title = "Chill",
                 keywords = listOf("chill", "lofi", "soft", "acoustic", "relax", "peace", "sleep", "night", "rain", "calm", "study", "ambient"),
-                pattern = MeshPattern.CHILL,
-                glowColor = Color(0xFF2DD4BF)
+                pattern = MeshPattern.CHILL
             )
         )
     }
@@ -456,7 +442,7 @@ fun SearchScreen(
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = null,
-                                tint = if (query.isNotEmpty()) AuraCyan else textPlaceholder,
+                                tint = if (query.isNotEmpty()) MaterialTheme.colorScheme.primary else textPlaceholder,
                                 modifier = Modifier.size(22.dp)
                             )
                         },
@@ -500,7 +486,7 @@ fun SearchScreen(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = textPrimary,
                             unfocusedTextColor = textPrimary,
-                            cursorColor = AuraCyan,
+                            cursorColor = MaterialTheme.colorScheme.primary,
                             focusedBorderColor = Color.Transparent,
                             unfocusedBorderColor = Color.Transparent,
                             focusedContainerColor = Color.Transparent,
@@ -526,7 +512,7 @@ fun SearchScreen(
                                 text = "Clear",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = AuraCyan,
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier
                                     .clickable {
                                         clearRecentSearches(context)
@@ -604,18 +590,20 @@ fun SearchScreen(
                         ) {
                             SearchFilter.values().forEach { filter ->
                                 val isSelected = activeFilter == filter
-                                val activeTextColor = if (isDark) Color.Black else Color.White
-                                val inactiveTextColor = if (isDark) Color.White.copy(0.85f) else Color(0xFF334155)
+                                val activeTextColor = MaterialTheme.colorScheme.onPrimary
+                                val inactiveTextColor = MaterialTheme.colorScheme.onSurfaceVariant
 
                                 Box(
                                     modifier = Modifier
-                                        .frostedGlass(
-                                            shape = RoundedCornerShape(20.dp),
-                                            isDark = isDark,
-                                            tint = if (isSelected) (if (isDark) Color.White else Color(0xFF0F172A)) else null,
-                                            elevation = if (isSelected) 4.dp else 1.dp,
-                                            borderWidth = 1.dp,
-                                            sheenAlpha = if (isSelected) 0.35f else 0.12f
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                            RoundedCornerShape(20.dp)
+                                        )
+                                        .border(
+                                            1.dp,
+                                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                            RoundedCornerShape(20.dp)
                                         )
                                         .clickable { activeFilter = filter }
                                         .padding(horizontal = 14.dp, vertical = 6.dp)
@@ -685,7 +673,7 @@ fun SearchScreen(
 
                         if (isOnlineLoading) {
                             CircularProgressIndicator(
-                                color = AuraCyan,
+                                color = MaterialTheme.colorScheme.primary,
                                 strokeWidth = 2.dp,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -947,412 +935,31 @@ fun AtmosphericGlassCategoryCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = LocalIsDark.current
-    val cardShape = RoundedCornerShape(28.dp)
-
-    val shadowElevation = if (isDark) 14.dp else 10.dp
-    val shadowSpot = if (isDark) category.glowColor.copy(alpha = 0.55f) else category.glowColor.copy(alpha = 0.38f)
-    val shadowAmbient = if (isDark) category.glowColor.copy(alpha = 0.30f) else Color.Black.copy(alpha = 0.12f)
-    val baseCardBg = if (isDark) Color(0xFF07070A) else Color(0xFF1E293B)
+    val cardShape = RoundedCornerShape(24.dp)
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(162.dp)
-            .shadow(
-                elevation = shadowElevation,
-                shape = cardShape,
-                ambientColor = shadowAmbient,
-                spotColor = shadowSpot
-            )
+            .height(130.dp)
             .clip(cardShape)
             .clickable(onClick = onClick),
         shape = cardShape,
-        colors = CardDefaults.cardColors(containerColor = baseCardBg)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            // LAYER 1: Dynamic Multi-Node Atmospheric Mesh Canvas
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val w = size.width
-                val h = size.height
-
-                when (category.pattern) {
-                    MeshPattern.POP -> {
-                        // Deep moss foundation
-                        drawRect(
-                            brush = Brush.verticalGradient(
-                                colors = if (isDark) {
-                                    listOf(Color(0xFF020E05), Color(0xFF082611), Color(0xFF031408))
-                                } else {
-                                    listOf(Color(0xFF063A17), Color(0xFF15803D), Color(0xFF0B461E))
-                                }
-                            )
-                        )
-                        // Radiant lush lime/emerald glow in center-lower
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFF86EFAC), Color(0xFF22C55E), Color(0xFF15803D), Color.Transparent),
-                                center = Offset(w * 0.5f, h * 0.58f),
-                                radius = w * 0.68f
-                            ),
-                            center = Offset(w * 0.5f, h * 0.58f),
-                            radius = w * 0.68f
-                        )
-                        // Top edge dark canopy shadow from reference
-                        drawOval(
-                            brush = Brush.radialGradient(
-                                colors = listOf(if (isDark) Color(0xDD020B04) else Color(0x99021206), Color.Transparent),
-                                center = Offset(w * 0.5f, -h * 0.05f),
-                                radius = w * 0.6f
-                            ),
-                            topLeft = Offset(0f, -h * 0.25f),
-                            size = androidx.compose.ui.geometry.Size(w, h * 0.55f)
-                        )
-                    }
-
-                    MeshPattern.HIP_HOP -> {
-                        // Deep mahogany foundation
-                        drawRect(
-                            brush = Brush.verticalGradient(
-                                colors = if (isDark) {
-                                    listOf(Color(0xFF1E0402), Color(0xFF2F0803), Color(0xFF160301))
-                                } else {
-                                    listOf(Color(0xFF450A0A), Color(0xFF991B1B), Color(0xFF7F1D1D))
-                                }
-                            )
-                        )
-                        // Blazing fiery neon orange & amber center-lower
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFFFFA000), Color(0xFFFF6D00), Color(0xFFDC2626), Color.Transparent),
-                                center = Offset(w * 0.5f, h * 0.60f),
-                                radius = w * 0.72f
-                            ),
-                            center = Offset(w * 0.5f, h * 0.60f),
-                            radius = w * 0.72f
-                        )
-                        // Top edge dark burgundy shadow from reference
-                        drawOval(
-                            brush = Brush.radialGradient(
-                                colors = listOf(if (isDark) Color(0xEA160301) else Color(0xAA1C0402), Color.Transparent),
-                                center = Offset(w * 0.5f, -h * 0.08f),
-                                radius = w * 0.62f
-                            ),
-                            topLeft = Offset(0f, -h * 0.28f),
-                            size = androidx.compose.ui.geometry.Size(w, h * 0.58f)
-                        )
-                    }
-
-                    MeshPattern.ELECTRONIC -> {
-                        // Deep obsidian cosmic base
-                        drawRect(color = if (isDark) Color(0xFF0B020E) else Color(0xFF1E0727))
-                        // Top rim neon candy coral-pink glow
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFFFF3399), Color(0xFFE11D48), Color.Transparent),
-                                center = Offset(w * 0.5f, 0f),
-                                radius = w * 0.62f
-                            ),
-                            center = Offset(w * 0.5f, 0f),
-                            radius = w * 0.62f
-                        )
-                        // Bottom rim neon magenta glow
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFFFF2A85), Color(0xFFC026D3), Color.Transparent),
-                                center = Offset(w * 0.5f, h),
-                                radius = w * 0.65f
-                            ),
-                            center = Offset(w * 0.5f, h),
-                            radius = w * 0.65f
-                        )
-                        // Dark contrasting hourglass center void right behind text
-                        drawOval(
-                            brush = Brush.radialGradient(
-                                colors = listOf(if (isDark) Color(0xF008140E) else Color(0xCC0D1B14), Color.Transparent),
-                                center = Offset(w * 0.5f, h * 0.5f),
-                                radius = w * 0.55f
-                            ),
-                            topLeft = Offset(w * 0.05f, h * 0.32f),
-                            size = androidx.compose.ui.geometry.Size(w * 0.9f, h * 0.36f)
-                        )
-                    }
-
-                    MeshPattern.ALTERNATIVE -> {
-                        // Deep petrol navy base
-                        drawRect(color = if (isDark) Color(0xFF031622) else Color(0xFF07273C))
-                        // Ethereal ice cyan top-left
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFF67E8F9), Color(0xFF06B6D4), Color.Transparent),
-                                center = Offset(w * 0.15f, h * 0.25f),
-                                radius = w * 0.68f
-                            ),
-                            center = Offset(w * 0.15f, h * 0.25f),
-                            radius = w * 0.68f
-                        )
-                        // Orchid lavender center-right glow
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFFE879F9), Color(0xFFA855F7), Color.Transparent),
-                                center = Offset(w * 0.85f, h * 0.65f),
-                                radius = w * 0.65f
-                            ),
-                            center = Offset(w * 0.85f, h * 0.65f),
-                            radius = w * 0.65f
-                        )
-                        // Diagonal dark petrol shadow ribbon
-                        drawOval(
-                            brush = Brush.radialGradient(
-                                colors = listOf(if (isDark) Color(0xDD021018) else Color(0x99031C28), Color.Transparent),
-                                center = Offset(w * 0.45f, h * 0.55f),
-                                radius = w * 0.5f
-                            ),
-                            topLeft = Offset(w * 0.1f, h * 0.35f),
-                            size = androidx.compose.ui.geometry.Size(w * 0.8f, h * 0.4f)
-                        )
-                    }
-
-                    MeshPattern.ROCK -> {
-                        // Deep abyss navy
-                        drawRect(color = if (isDark) Color(0xFF020718) else Color(0xFF07153D))
-                        // Center electric cyan-blue beam/oval
-                        drawOval(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFF67E8F9), Color(0xFF00D2FF), Color(0xFF2563EB), Color.Transparent),
-                                center = Offset(w * 0.5f, h * 0.52f),
-                                radius = w * 0.65f
-                            ),
-                            topLeft = Offset(w * 0.05f, h * 0.28f),
-                            size = androidx.compose.ui.geometry.Size(w * 0.9f, h * 0.48f)
-                        )
-                        // Top & bottom edge dark shadow
-                        drawRect(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    if (isDark) Color(0xCC020614) else Color(0x99040F2D),
-                                    Color.Transparent,
-                                    if (isDark) Color(0xCC020614) else Color(0x99040F2D)
-                                )
-                            )
-                        )
-                    }
-
-                    MeshPattern.RNB -> {
-                        // Deep twilight base
-                        drawRect(color = if (isDark) Color(0xFF0C0318) else Color(0xFF1E083B))
-                        // Vivid acid lime / chartreuse at top-left
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFFBEF264), Color(0xFF84CC16), Color.Transparent),
-                                center = Offset(w * 0.25f, h * 0.2f),
-                                radius = w * 0.72f
-                            ),
-                            center = Offset(w * 0.25f, h * 0.2f),
-                            radius = w * 0.72f
-                        )
-                        // Royal ultraviolet / violet at bottom-right
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFF9333EA), Color(0xFF6B21A8), Color.Transparent),
-                                center = Offset(w * 0.8f, h * 0.8f),
-                                radius = w * 0.75f
-                            ),
-                            center = Offset(w * 0.8f, h * 0.8f),
-                            radius = w * 0.75f
-                        )
-                    }
-
-                    MeshPattern.BOLLYWOOD -> {
-                        // Deep burgundy wine base
-                        drawRect(color = if (isDark) Color(0xFF1A020B) else Color(0xFF380517))
-                        // Saffron gold warm node (left)
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFFFBBF24), Color(0xFFF59E0B), Color.Transparent),
-                                center = Offset(w * 0.25f, h * 0.45f),
-                                radius = w * 0.65f
-                            ),
-                            center = Offset(w * 0.25f, h * 0.45f),
-                            radius = w * 0.65f
-                        )
-                        // Royal magenta ruby node (right)
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFFFB7185), Color(0xFFE11D48), Color.Transparent),
-                                center = Offset(w * 0.75f, h * 0.55f),
-                                radius = w * 0.65f
-                            ),
-                            center = Offset(w * 0.75f, h * 0.55f),
-                            radius = w * 0.65f
-                        )
-                    }
-
-                    MeshPattern.HINDI -> {
-                        drawRect(color = if (isDark) Color(0xFF16020E) else Color(0xFF360522))
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFFFDBA74), Color(0xFFFB923C), Color(0xFFDB2777), Color.Transparent),
-                                center = Offset(w * 0.5f, h * 0.52f),
-                                radius = w * 0.7f
-                            ),
-                            center = Offset(w * 0.5f, h * 0.52f),
-                            radius = w * 0.7f
-                        )
-                    }
-
-                    MeshPattern.PUNJABI -> {
-                        drawRect(color = if (isDark) Color(0xFF1A0401) else Color(0xFF3B0B03))
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFFFED7AA), Color(0xFFFB923C), Color(0xFFEA580C), Color.Transparent),
-                                center = Offset(w * 0.5f, h * 0.58f),
-                                radius = w * 0.72f
-                            ),
-                            center = Offset(w * 0.5f, h * 0.58f),
-                            radius = w * 0.72f
-                        )
-                    }
-
-                    MeshPattern.INDIE -> {
-                        drawRect(color = if (isDark) Color(0xFF120317) else Color(0xFF2E093B))
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFFE879F9), Color(0xFFA855F7), Color.Transparent),
-                                center = Offset(w * 0.75f, h * 0.3f),
-                                radius = w * 0.68f
-                            ),
-                            center = Offset(w * 0.75f, h * 0.3f),
-                            radius = w * 0.68f
-                        )
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFFF472B6), Color(0xFFDB2777), Color.Transparent),
-                                center = Offset(w * 0.25f, h * 0.75f),
-                                radius = w * 0.65f
-                            ),
-                            center = Offset(w * 0.25f, h * 0.75f),
-                            radius = w * 0.65f
-                        )
-                    }
-
-                    MeshPattern.CLASSICAL -> {
-                        drawRect(color = if (isDark) Color(0xFF040616) else Color(0xFF0E1338))
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFFA5B4FC), Color(0xFF6366F1), Color(0xFF3730A3), Color.Transparent),
-                                center = Offset(w * 0.5f, h * 0.5f),
-                                radius = w * 0.7f
-                            ),
-                            center = Offset(w * 0.5f, h * 0.5f),
-                            radius = w * 0.7f
-                        )
-                    }
-
-                    MeshPattern.CHILL -> {
-                        drawRect(color = if (isDark) Color(0xFF011414) else Color(0xFF042B2B))
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFF5EEAD4), Color(0xFF14B8A6), Color(0xFF0F766E), Color.Transparent),
-                                center = Offset(w * 0.5f, h * 0.52f),
-                                radius = w * 0.72f
-                            ),
-                            center = Offset(w * 0.5f, h * 0.52f),
-                            radius = w * 0.72f
-                        )
-                    }
-                }
-
-                // Cushion Vignette: Perimeter shadow giving recessed lens/pillowy depth
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color(0x22000000),
-                            if (isDark) Color(0x99000000) else Color(0x66000000)
-                        ),
-                        center = Offset(w * 0.5f, h * 0.5f),
-                        radius = w * 0.75f
-                    )
-                )
-            }
-
-            // LAYER 2: Frosted Glass Specular Sheen (Added Dynamic Glass Effect)
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val w = size.width
-                val h = size.height
-
-                // Top Specular Highlight Arc reflecting ambient light on curved glass lens
-                drawOval(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = if (isDark) 0.38f else 0.52f),
-                            Color.White.copy(alpha = if (isDark) 0.12f else 0.18f),
-                            Color.Transparent
-                        )
-                    ),
-                    topLeft = Offset(w * 0.08f, -h * 0.15f),
-                    size = androidx.compose.ui.geometry.Size(w * 0.84f, h * 0.52f)
-                )
-
-                // Diagonal Glass Sheen across the lens
-                drawRect(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = if (isDark) 0.14f else 0.22f),
-                            Color.White.copy(alpha = 0.04f),
-                            Color.Transparent,
-                            Color.Black.copy(alpha = if (isDark) 0.22f else 0.14f)
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(w, h)
-                    )
-                )
-            }
-
-            // LAYER 3: Refractive Specular Beveled Glass Rim Border
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .border(
-                        width = 1.4.dp,
-                        brush = Brush.verticalGradient(
-                            colors = if (isDark) {
-                                listOf(
-                                    Color.White.copy(alpha = 0.48f),
-                                    Color.White.copy(alpha = 0.16f),
-                                    Color.White.copy(alpha = 0.05f),
-                                    Color.Black.copy(alpha = 0.38f)
-                                )
-                            } else {
-                                listOf(
-                                    Color.White.copy(alpha = 0.85f),
-                                    Color.White.copy(alpha = 0.40f),
-                                    Color.White.copy(alpha = 0.15f),
-                                    Color.Black.copy(alpha = 0.20f)
-                                )
-                            }
-                        ),
-                        shape = cardShape
-                    )
-            )
-
-            // LAYER 4: Centered Bold Typography with Contrast Depth
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
                 text = category.title,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 17.5.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.2).sp,
-                textAlign = TextAlign.Center,
-                style = TextStyle(
-                    shadow = Shadow(
-                        color = Color.Black.copy(alpha = 0.85f),
-                        blurRadius = 14f,
-                        offset = Offset(0f, 2f)
-                    )
-                ),
-                modifier = Modifier.align(Alignment.Center)
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -1369,10 +976,8 @@ fun TopArtistResultCard(
     onClick: () -> Unit
 ) {
     val isDark = LocalIsDark.current
-    val cardBg = if (isDark) Color(0xFF141418) else Color.White
-    val cardBorder = if (isDark) Color(0xFF24242C) else Color(0xFFE2E8F0)
-    val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
-    val textSecondary = if (isDark) Color.White.copy(alpha = 0.6f) else Color(0xFF64748B)
+    val textPrimary = MaterialTheme.colorScheme.onSurface
+    val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
 
     val cardShape = RoundedCornerShape(20.dp)
 
@@ -1405,12 +1010,12 @@ fun TopArtistResultCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Surface(
-                    color = AuraCyan.copy(alpha = if (isDark) 0.15f else 0.20f),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(6.dp)
                 ) {
                     Text(
                         text = "TOP MATCH",
-                        color = if (isDark) AuraCyan else Color(0xFF0891B2),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp,
@@ -1454,9 +1059,8 @@ fun SearchMediaRow(
     isCircular: Boolean = false,
     onClick: () -> Unit
 ) {
-    val isDark = LocalIsDark.current
-    val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
-    val textSecondary = if (isDark) Color.White.copy(alpha = 0.55f) else Color(0xFF64748B)
+    val textPrimary = MaterialTheme.colorScheme.onSurface
+    val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
 
     Row(
         modifier = Modifier
@@ -1493,7 +1097,7 @@ fun SearchMediaRow(
         Icon(
             imageVector = Icons.Default.ChevronRight,
             contentDescription = null,
-            tint = textSecondary.copy(alpha = 0.6f),
+            tint = textSecondary,
             modifier = Modifier.size(18.dp)
         )
     }
