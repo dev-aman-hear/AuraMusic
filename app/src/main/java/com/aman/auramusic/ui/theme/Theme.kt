@@ -6,9 +6,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
-import com.aman.auramusic.data.model.LiquidGlassConfig
 import com.aman.auramusic.data.model.ThemeMode
 
 val LocalIsDark = staticCompositionLocalOf { false }
@@ -56,41 +54,15 @@ private val LightColorScheme = lightColorScheme(
 )
 
 /**
- * Liquid Glass Theme wrapper providing dynamic Liquid Glass tokens.
- * Kept intact for future reuse and configuration model compatibility.
- */
-@Composable
-fun LiquidGlassTheme(
-    config: LiquidGlassConfig = LiquidGlassConfig(),
-    isDark: Boolean = LocalIsDark.current,
-    isAmoled: Boolean = false,
-    content: @Composable () -> Unit
-) {
-    val tokens = remember(config, isDark, isAmoled) {
-        LiquidGlassTokens(
-            config = config,
-            isDark = isDark,
-            isAmoled = isAmoled,
-            accentColor = if (isDark) DarkMonochromeColors.controlSelected else LightMonochromeColors.controlSelected
-        )
-    }
-    CompositionLocalProvider(
-        LocalLiquidGlassTokens provides tokens,
-        content = content
-    )
-}
-
-/**
  * Pure Monochrome Root Theme for AuraMusic.
- * Dynamic wallpaper colors are explicitly disabled in this monochrome-only phase.
- * System, Light, and Dark modes are fully supported.
+ * Uses only the agreed Monochrome design system without colored accents or glass effects.
+ * Supports System, Light, and Dark/AMOLED modes.
  */
 @Composable
 fun AuraMusicTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    dynamicColor: Boolean = false, // Effective default false; dynamic wallpaper disabled
+    dynamicColor: Boolean = false,
     amoledMode: Boolean = false,
-    liquidGlassConfig: LiquidGlassConfig = LiquidGlassConfig(),
     content: @Composable () -> Unit
 ) {
     val isSystemDark = isSystemInDarkTheme()
@@ -100,23 +72,12 @@ fun AuraMusicTheme(
         ThemeMode.DARK -> true
     }
 
-    // Fixed monochrome color schemes (wallpaper/dynamic colors never override in this phase)
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     val monochromeColors = if (darkTheme) DarkMonochromeColors else LightMonochromeColors
 
-    val tokens = remember(liquidGlassConfig, darkTheme) {
-        LiquidGlassTokens(
-            config = liquidGlassConfig,
-            isDark = darkTheme,
-            isAmoled = false,
-            accentColor = monochromeColors.controlSelected
-        )
-    }
-
     CompositionLocalProvider(
         LocalIsDark provides darkTheme,
-        LocalMonochromeColors provides monochromeColors,
-        LocalLiquidGlassTokens provides tokens
+        LocalMonochromeColors provides monochromeColors
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

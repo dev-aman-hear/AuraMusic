@@ -39,59 +39,7 @@ fun auraScreenGradient(): Brush {
     return Brush.verticalGradient(listOf(bg, bg))
 }
 
-/**
- * Opaque monochrome surface and border definitions.
- */
-object AuraGlass {
-    /**
-     * Opaque base container color for surfaces.
-     */
-    fun containerColor(isDark: Boolean, opacity: Float = 1.0f): Color {
-        return if (isDark) DarkMonochromeColors.surface else LightMonochromeColors.surface
-    }
 
-    /**
-     * Solid opaque brush.
-     */
-    fun glassBrush(isDark: Boolean, tint: Color? = null): Brush {
-        val color = if (isDark) DarkMonochromeColors.surface else LightMonochromeColors.surface
-        return Brush.verticalGradient(listOf(color, color))
-    }
-
-    /**
-     * Subtle monochrome border brush.
-     */
-    fun borderBrush(isDark: Boolean): Brush {
-        val borderColor = if (isDark) DarkMonochromeColors.border else LightMonochromeColors.border
-        return Brush.verticalGradient(listOf(borderColor, borderColor))
-    }
-
-    fun borderStroke(isDark: Boolean, width: Dp = 1.dp): BorderStroke {
-        val borderColor = if (isDark) DarkMonochromeColors.border else LightMonochromeColors.border
-        return BorderStroke(width, borderColor)
-    }
-}
-
-/**
- * Replaced active frosted glass helper with normal opaque surface,
- * subtle border, and no decorative shadows or sheen glare.
- */
-@Composable
-fun Modifier.frostedGlass(
-    shape: Shape = AuraShapes.Surface,
-    isDark: Boolean = LocalIsDark.current,
-    tint: Color? = null,
-    borderWidth: Dp = 1.dp,
-    elevation: Dp = 0.dp,
-    sheenAlpha: Float = 0f
-): Modifier {
-    val surfaceColor = if (isDark) DarkMonochromeColors.surface else LightMonochromeColors.surface
-    val borderColor = if (isDark) DarkMonochromeColors.border else LightMonochromeColors.border
-    return this
-        .clip(shape)
-        .background(surfaceColor, shape)
-        .border(BorderStroke(borderWidth, borderColor), shape)
-}
 
 /**
  * Solid monochrome screen background with zero ambient blooms or gradients.

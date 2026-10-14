@@ -43,15 +43,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
-import com.aman.auramusic.ui.theme.GlassLevel
 import com.aman.auramusic.ui.theme.LocalIsDark
-import com.aman.auramusic.ui.theme.liquidGlass
 
 /**
- * Floating Liquid Glass Mini Player inspired by iOS & Apple Music.
- * Features a floating glass capsule with specular border highlight,
- * artwork thumbnail, crisp typography, responsive playback controls,
- * and edge-to-edge content transmittance behind it.
+ * Floating Minimalist Mini Player inspired by Apple Music.
+ * Features a floating capsule with subtle border,
+ * artwork thumbnail, crisp typography, and responsive playback controls.
  */
 @Composable
 fun MiniPlayer(
@@ -112,7 +109,7 @@ fun MiniPlayer(
                 .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Album Artwork thumbnail with subtle glass border
+            // Album Artwork thumbnail
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -216,29 +213,3 @@ fun MiniPlayer(
         }
     }
 }
-
-/**
- * Reusable Liquid Glass Mini Player component.
- */
-@Composable
-fun LiquidGlassMiniPlayer(
-    song: Song,
-    isPlaying: Boolean,
-    position: Long,
-    duration: Long,
-    dominantColor: Color = MaterialTheme.colorScheme.surfaceVariant,
-    onOpen: () -> Unit,
-    onPlayPause: () -> Unit,
-    onNext: () -> Unit,
-    onPrevious: () -> Unit = {}
-) = MiniPlayer(
-    song = song,
-    isPlaying = isPlaying,
-    position = position,
-    duration = duration,
-    dominantColor = dominantColor,
-    onOpen = onOpen,
-    onPlayPause = onPlayPause,
-    onNext = onNext,
-    onPrevious = onPrevious
-)

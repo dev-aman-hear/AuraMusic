@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,10 +59,8 @@ import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.SectionHeader
 import com.aman.auramusic.ui.component.SongRow
-import com.aman.auramusic.ui.theme.AuraGlass
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.LocalIsDark
-import com.aman.auramusic.ui.theme.frostedGlass
 import kotlinx.coroutines.delay
 
 /**
@@ -388,7 +387,7 @@ fun SearchScreen(
             contentPadding = PaddingValues(bottom = 140.dp)
         ) {
             // ==========================================
-            // HEADER & SEARCH FIELD (Adaptive Glassmorphism)
+            // HEADER & SEARCH FIELD
             // ==========================================
             item {
                 Column(
@@ -434,7 +433,7 @@ fun SearchScreen(
                             textAlign = TextAlign.Center
                         )
 
-                        // Top-right Profile Avatar Icon with Glass Touch
+                        // Top-right Profile Avatar Icon
                         Box(
                             modifier = Modifier
                                 .size(34.dp)
@@ -454,7 +453,7 @@ fun SearchScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Sleek Rounded Search Bar with Dynamic Glass Surface
+                    // Sleek Rounded Search Bar
                     OutlinedTextField(
                         value = query,
                         onValueChange = onQueryChange,
@@ -493,13 +492,9 @@ fun SearchScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
-                            .frostedGlass(
-                                shape = RoundedCornerShape(26.dp),
-                                isDark = isDark,
-                                elevation = if (isDark) 8.dp else 4.dp,
-                                borderWidth = 1.1.dp,
-                                sheenAlpha = if (isDark) 0.16f else 0.35f
-                            ),
+                            .clip(RoundedCornerShape(26.dp))
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(26.dp))
+                            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(26.dp)),
                         shape = RoundedCornerShape(26.dp),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -553,7 +548,7 @@ fun SearchScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Horizontal recent search pills with frosted glass styling
+                        // Horizontal recent search pills
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -563,12 +558,9 @@ fun SearchScreen(
                             recentSearches.forEach { hist ->
                                 Box(
                                     modifier = Modifier
-                                        .frostedGlass(
-                                            shape = RoundedCornerShape(16.dp),
-                                            isDark = isDark,
-                                            elevation = 2.dp,
-                                            borderWidth = 1.dp
-                                        )
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+                                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(16.dp))
                                         .clickable {
                                             onQueryChange(hist)
                                             updateFilter(SearchFilter.ALL)
@@ -609,7 +601,7 @@ fun SearchScreen(
                         }
                     }
 
-                    // Result Filter Chips when query is active with frosted glass styling
+                    // Result Filter Chips when query is active
                     if (query.isNotBlank()) {
                         Spacer(modifier = Modifier.height(14.dp))
                         Row(
@@ -652,7 +644,7 @@ fun SearchScreen(
             }
 
             // ==========================================
-            // DISCOVERY MODE: 2-COLUMN GLOWING MESH GLASS CARDS (Dribbble Reference)
+            // DISCOVERY MODE: 2-COLUMN CATEGORY CARDS
             // ==========================================
             if (query.isBlank()) {
                 val categoryRows = categories.chunked(2)
@@ -665,7 +657,7 @@ fun SearchScreen(
                     ) {
                         row.forEach { cat ->
                             Box(modifier = Modifier.weight(1f)) {
-                                AtmosphericGlassCategoryCard(
+                                CategoryCard(
                                     category = cat,
                                     onClick = {
                                         onQueryChange(cat.title)
@@ -952,16 +944,10 @@ fun SearchScreen(
 }
 
 /**
- * Atmospheric Glowing Mesh Category Card replicating the Dribbble Reference:
- * - Dynamic Light Mode and Dark Mode support
- * - Lush pillowy 28.dp squircle shape
- * - Organic multi-node mesh shader matching each genre
- * - Dual-pass Frosted Glass Specular Sheen (top ambient arc reflection + diagonal glass face sheen)
- * - Specular Refractive Beveled Glass Border with ambient colored drop aura
- * - Centered bold crisp typography with contrast shadow
+ * Clean monochrome category card for search genres.
  */
 @Composable
-fun AtmosphericGlassCategoryCard(
+fun CategoryCard(
     category: SearchCategory,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -1016,13 +1002,9 @@ fun TopArtistResultCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 8.dp)
-            .frostedGlass(
-                shape = cardShape,
-                isDark = isDark,
-                elevation = if (isDark) 10.dp else 6.dp,
-                borderWidth = 1.2.dp,
-                sheenAlpha = if (isDark) 0.18f else 0.38f
-            )
+            .clip(cardShape)
+            .background(MaterialTheme.colorScheme.surface, cardShape)
+            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), cardShape)
             .clickable(onClick = onClick)
             .padding(16.dp)
     ) {

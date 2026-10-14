@@ -3,7 +3,6 @@ package com.aman.auramusic.ui.theme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 /**
@@ -65,21 +64,18 @@ val Monochrome: MonochromeColors
     @ReadOnlyComposable
     get() = LocalMonochromeColors.current
 
-// --- Safely preserved legacy symbols mapped to pure monochrome palette ---
-val AppleMusicAccent = Color(0xFF000000) // Default fallback in light mode; migrated call sites use semantic palette
+// --- Semantic aliases mapped strictly to pure monochrome palette ---
+val AppleMusicAccent = Color(0xFF000000)
 val AuraPrimary = Color(0xFF000000)
 val AuraPrimaryVariant = Color(0xFF262626)
 val AuraSecondary = Color(0xFF666666)
 val AuraTertiary = Color(0xFF888888)
-val AuraCyan = Color(0xFF000000)
-val AuraEmerald = Color(0xFF000000)
 
 // --- Dark Theme constants ---
 val AuraDarkBackground = Color(0xFF000000)
 val AuraDarkSurface = Color(0xFF111111)
 val AuraDarkSurfaceVariant = Color(0xFF1A1A1A)
 val AuraDarkSurfaceElevated = Color(0xFF262626)
-val AuraDarkSurfaceGlass = Color(0xFF111111)
 val AuraDarkBorder = Color(0xFF333333)
 val AuraDarkBorderGlow = Color(0xFF555555)
 
@@ -92,22 +88,8 @@ val AuraLightBackground = Color(0xFFFFFFFF)
 val AuraLightSurface = Color(0xFFF5F5F5)
 val AuraLightSurfaceVariant = Color(0xFFEEEEEE)
 val AuraLightSurfaceElevated = Color(0xFFE5E5E5)
-val AuraLightSurfaceGlass = Color(0xFFF5F5F5)
 val AuraLightBorder = Color(0xFFD9D9D9)
 
 val AuraTextPrimaryLight = Color(0xFF000000)
 val AuraTextSecondaryLight = Color(0xFF666666)
 val AuraTextTertiaryLight = Color(0xFF888888)
-
-// --- Preserved solid brushes for compatibility ---
-val AuraGlassBorderDark = Brush.verticalGradient(
-    listOf(Color(0xFF333333), Color(0xFF333333))
-)
-
-val AuraGlassBorderLight = Brush.verticalGradient(
-    listOf(Color(0xFFD9D9D9), Color(0xFFD9D9D9))
-)
-
-val AuraHeroGradientDark = Brush.verticalGradient(
-    listOf(Color(0xFF000000), Color(0xFF000000))
-)

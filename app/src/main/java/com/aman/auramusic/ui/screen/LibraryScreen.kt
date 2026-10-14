@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -568,7 +569,7 @@ fun LibraryScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Segmented Category Tabs with Frosted Glass Pills (Songs | Favorites | Albums | Artists | Playlists)
+            // Segmented Category Tabs (Songs | Favorites | Albums | Artists | Playlists)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -664,13 +665,9 @@ fun LibraryScreen(
                                         modifier = Modifier
                                             .weight(1f)
                                             .height(40.dp)
-                                            .frostedGlass(
-                                                shape = RoundedCornerShape(14.dp),
-                                                isDark = isDark,
-                                                elevation = 2.dp,
-                                                borderWidth = 1.dp,
-                                                sheenAlpha = if (isDark) 0.16f else 0.35f
-                                            )
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp))
+                                            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(14.dp))
                                             .clickable {
                                                 if (filteredSongs.isNotEmpty()) {
                                                     val shuffled = filteredSongs.shuffled()
@@ -761,13 +758,9 @@ fun LibraryScreen(
                                         modifier = Modifier
                                             .weight(1f)
                                             .height(40.dp)
-                                            .frostedGlass(
-                                                shape = RoundedCornerShape(14.dp),
-                                                isDark = isDark,
-                                                elevation = 2.dp,
-                                                borderWidth = 1.dp,
-                                                sheenAlpha = if (isDark) 0.16f else 0.35f
-                                            )
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp))
+                                            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(14.dp))
                                             .clickable {
                                                 if (filteredFavorites.isNotEmpty()) {
                                                     val shuffled = filteredFavorites.shuffled()

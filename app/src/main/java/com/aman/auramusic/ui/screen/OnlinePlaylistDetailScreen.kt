@@ -1,6 +1,7 @@
 package com.aman.auramusic.ui.screen
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -67,8 +68,6 @@ import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.AuraLoadingState
 import com.aman.auramusic.ui.theme.AuraPrimary
 import com.aman.auramusic.ui.theme.AuraScreenBackground
-import com.aman.auramusic.ui.theme.GlassLevel
-import com.aman.auramusic.ui.theme.liquidGlass
 
 @Composable
 fun OnlinePlaylistDetailScreen(
@@ -235,7 +234,7 @@ fun OnlinePlaylistDetailScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Liquid Glass Action Controls (Shuffle, Play, and optional Add button)
+                    // Action Controls (Shuffle, Play, and optional Add button)
                     val isAlbum = playlist.id.startsWith("ytmusic:MPRE") ||
                         playlist.id.startsWith("ytmusic_album_MPRE") ||
                         playlist.id.startsWith("album_") ||
@@ -253,13 +252,9 @@ fun OnlinePlaylistDetailScreen(
                             Box(
                                 modifier = Modifier
                                     .size(48.dp)
-                                    .liquidGlass(
-                                        shape = CircleShape,
-                                        level = GlassLevel.UltraThin,
-                                        isDark = isDark,
-                                        elevation = 6.dp,
-                                        borderWidth = 1.1.dp
-                                    )
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), CircleShape)
                                     .clickable {
                                         if (songs.isNotEmpty()) {
                                             val shuffled = songs.shuffled()
@@ -313,13 +308,9 @@ fun OnlinePlaylistDetailScreen(
                             Box(
                                 modifier = Modifier
                                     .size(48.dp)
-                                    .liquidGlass(
-                                        shape = CircleShape,
-                                        level = GlassLevel.UltraThin,
-                                        isDark = isDark,
-                                        elevation = 6.dp,
-                                        borderWidth = 1.1.dp
-                                    )
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), CircleShape)
                                     .clickable {
                                         onToggleSaveToLibrary?.invoke()
                                     },
@@ -370,13 +361,9 @@ fun OnlinePlaylistDetailScreen(
                                 modifier = Modifier
                                     .height(48.dp)
                                     .weight(1f)
-                                    .liquidGlass(
-                                        shape = RoundedCornerShape(24.dp),
-                                        level = GlassLevel.UltraThin,
-                                        isDark = isDark,
-                                        elevation = 6.dp,
-                                        borderWidth = 1.1.dp
-                                    )
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp))
+                                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
                                     .clickable {
                                         if (songs.isNotEmpty()) {
                                             val shuffled = songs.shuffled()

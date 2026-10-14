@@ -44,11 +44,8 @@ import androidx.compose.ui.semantics.Role
 import com.aman.auramusic.BuildConfig
 import com.aman.auramusic.R
 import com.aman.auramusic.data.model.AppSettings
-import com.aman.auramusic.data.model.LiquidGlassPreset
 import com.aman.auramusic.data.model.ThemeMode
 import com.aman.auramusic.ui.theme.AuraScreenBackground
-import com.aman.auramusic.ui.theme.GlassLevel
-import com.aman.auramusic.ui.theme.liquidGlass
 import com.aman.auramusic.ui.theme.Monochrome
 import com.aman.auramusic.ui.theme.LocalIsDark
 
@@ -78,17 +75,6 @@ fun SettingsScreen(
     onRefresh: () -> Unit,
     onBack: () -> Unit,
     onShowAbout: () -> Unit,
-    onLiquidGlassPresetChange: (LiquidGlassPreset) -> Unit = {},
-    onLiquidGlassIntensityChange: (Float) -> Unit = {},
-    onLiquidGlassBlurRadiusChange: (Int) -> Unit = {},
-    onLiquidGlassHighlightStrengthChange: (Float) -> Unit = {},
-    onLiquidGlassShadowElevationChange: (Int) -> Unit = {},
-    onLiquidGlassCornerRadiusChange: (Int) -> Unit = {},
-    onLiquidGlassTintHexChange: (String) -> Unit = {},
-    onLiquidGlassAccentTintChange: (Boolean) -> Unit = {},
-    onLiquidGlassReduceTransparencyChange: (Boolean) -> Unit = {},
-    onLiquidGlassReduceMotionChange: (Boolean) -> Unit = {},
-    onResetLiquidGlass: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -109,7 +95,7 @@ fun SettingsScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val initial = remember(username) { username.trim().firstOrNull()?.uppercase() ?: "A" }
-                        com.aman.auramusic.ui.screen.home.ClearGlassAvatarBadge(
+                        com.aman.auramusic.ui.screen.home.AuraAvatarBadge(
                             initial = initial,
                             onClick = {},
                             size = 42.dp
@@ -126,7 +112,9 @@ fun SettingsScreen(
                         onClick = onBack,
                         modifier = Modifier
                             .size(38.dp)
-                            .liquidGlass(level = GlassLevel.UltraThin, shape = CircleShape)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), CircleShape)
                     ) {
                         Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onBackground)
                     }
@@ -138,7 +126,9 @@ fun SettingsScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .liquidGlass(level = GlassLevel.Regular, shape = RoundedCornerShape(24.dp))
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
+                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Text("Personalization", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -178,7 +168,9 @@ fun SettingsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .liquidGlass(level = GlassLevel.Regular, shape = RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
+                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("Playback", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -192,7 +184,9 @@ fun SettingsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .liquidGlass(level = GlassLevel.Regular, shape = RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
+                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("System & Files", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -225,7 +219,9 @@ fun SettingsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .liquidGlass(level = GlassLevel.Regular, shape = RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
+                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
             ) {
                 Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SettingsRow(

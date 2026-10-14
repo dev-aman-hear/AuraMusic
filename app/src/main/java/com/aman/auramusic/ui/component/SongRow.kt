@@ -2,7 +2,9 @@ package com.aman.auramusic.ui.component
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,7 +50,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.online.model.OnlineSong
-import com.aman.auramusic.ui.theme.frostedGlass
 import com.aman.auramusic.online.model.toSong
 import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.util.formatDuration
@@ -90,14 +91,9 @@ fun SongRow(
         modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 2.dp)
-            .frostedGlass(
-                shape = rowShape,
-                isDark = isDark,
-                tint = activeColor,
-                elevation = 4.dp,
-                borderWidth = 1.dp,
-                sheenAlpha = if (isDark) 0.16f else 0.30f
-            )
+            .clip(rowShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant, rowShape)
+            .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), rowShape)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick

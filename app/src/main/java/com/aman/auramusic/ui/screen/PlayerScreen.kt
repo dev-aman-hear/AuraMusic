@@ -104,7 +104,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -132,7 +131,6 @@ import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.aman.auramusic.playback.RepeatMode
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.theme.LocalIsDark
-import com.aman.auramusic.ui.theme.frostedGlass
 import com.aman.auramusic.util.audioQuality
 import com.aman.auramusic.util.formatDuration
 import com.aman.auramusic.viewmodel.PlayerViewModel
@@ -847,15 +845,12 @@ private fun SleepTimerDialog(
 ) {
     val isDark = LocalIsDark.current
     Dialog(onDismissRequest = onDismiss) {
+        val dialogShape = RoundedCornerShape(28.dp)
         Box(
             modifier = Modifier
-                .frostedGlass(
-                    shape = RoundedCornerShape(28.dp),
-                    isDark = isDark,
-                    elevation = 16.dp,
-                    borderWidth = 1.2.dp,
-                    sheenAlpha = if (isDark) 0.22f else 0.40f
-                )
+                .clip(dialogShape)
+                .background(MaterialTheme.colorScheme.surface, dialogShape)
+                .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), dialogShape)
         ) {
             Column(
                 modifier = Modifier

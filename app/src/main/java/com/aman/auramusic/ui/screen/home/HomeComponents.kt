@@ -57,12 +57,10 @@ import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.theme.LocalIsDark
-import com.aman.auramusic.ui.theme.AuraGlass
-import com.aman.auramusic.ui.theme.frostedGlass
 import com.aman.auramusic.util.formatDuration
 
 /**
- * Editorial top bar for the Apple Music Liquid Glass Home experience.
+ * Editorial top bar for the Apple Music monochrome Home experience.
  */
 @Composable
 fun HomeHeader(
@@ -156,7 +154,7 @@ fun HomeHeader(
                 }
 
                 // Profile Avatar Badge
-                ClearGlassAvatarBadge(
+                AuraAvatarBadge(
                     initial = userInitial,
                     onClick = onOpenSettings,
                     size = 42.dp
@@ -170,7 +168,7 @@ fun HomeHeader(
  * Profile Avatar Badge.
  */
 @Composable
-fun ClearGlassAvatarBadge(
+fun AuraAvatarBadge(
     initial: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -293,7 +291,7 @@ fun HomeSectionHeader(
  * Minimal Circular Monochrome Play Button
  */
 @Composable
-fun ClearGlassPlayButton(
+fun AuraPlayButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     size: Dp = 36.dp,
@@ -430,7 +428,7 @@ fun DailyFeaturedCard(
                         Spacer(modifier = Modifier.width(1.dp))
                     }
 
-                    ClearGlassPlayButton(
+                    AuraPlayButton(
                         onClick = onClick,
                         size = 36.dp
                     )
@@ -868,7 +866,7 @@ fun ArtistDetailSheet(
                                 )
                             }
                         }
-                        ClearGlassPlayButton(
+                        AuraPlayButton(
                             onClick = onPlayAll,
                             size = 54.dp,
                             iconSize = 28.dp
@@ -937,7 +935,7 @@ fun ArtistDetailSheet(
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
-                            ClearGlassPlayButton(
+                            AuraPlayButton(
                                 onClick = { onPlayOnlineSong(song, onlineSongs) },
                                 size = 32.dp,
                                 iconSize = 16.dp
@@ -980,7 +978,7 @@ fun ArtistDetailSheet(
                                     .ifBlank { song.artist }
                                 Text(subtitleText, color = secondaryColor, fontSize = 11.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            ClearGlassPlayButton(
+                            AuraPlayButton(
                                 onClick = { onPlaySong(song, localSongs) },
                                 size = 32.dp,
                                 iconSize = 16.dp
@@ -1243,7 +1241,7 @@ fun QuickHitTrackItem(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
             } else {
-                ClearGlassPlayButton(
+                AuraPlayButton(
                     onClick = onClick,
                     size = 32.dp,
                     iconSize = 16.dp
@@ -1361,7 +1359,7 @@ fun CategoryDetailSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = AuraGlass.containerColor(isDark, 0.94f),
+        containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
@@ -1490,7 +1488,7 @@ fun AllArtistsSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = AuraGlass.containerColor(isDark, 0.94f),
+        containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
@@ -1548,7 +1546,7 @@ fun AllQuickHitsSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = AuraGlass.containerColor(isDark, 0.94f),
+        containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
@@ -1611,7 +1609,7 @@ fun AllCategoriesSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = AuraGlass.containerColor(isDark, 0.94f),
+        containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(

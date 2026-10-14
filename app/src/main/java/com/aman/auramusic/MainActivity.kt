@@ -194,9 +194,8 @@ class MainActivity : ComponentActivity() {
             
             AuraMusicTheme(
                 themeMode = appSettings.themeMode,
-                dynamicColor = appSettings.dynamicColors,
-                amoledMode = appSettings.amoledMode,
-                liquidGlassConfig = appSettings.liquidGlass
+                dynamicColor = false,
+                amoledMode = appSettings.amoledMode
             ) {
                 MusicScreen(musicViewModel)
             }
@@ -790,18 +789,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 onExportPlaylist = { showExportPlaylistDialog = true },
                                 onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
                                 onBack = { showSettings = false },
-                                onShowAbout = { showAboutDialog = true },
-                                onLiquidGlassPresetChange = { musicViewModel.setLiquidGlassPreset(it) },
-                                onLiquidGlassIntensityChange = { musicViewModel.setLiquidGlassIntensity(it) },
-                                onLiquidGlassBlurRadiusChange = { musicViewModel.setLiquidGlassBlurRadius(it) },
-                                onLiquidGlassHighlightStrengthChange = { musicViewModel.setLiquidGlassHighlightStrength(it) },
-                                onLiquidGlassShadowElevationChange = { musicViewModel.setLiquidGlassShadowElevation(it) },
-                                onLiquidGlassCornerRadiusChange = { musicViewModel.setLiquidGlassCornerRadius(it) },
-                                onLiquidGlassTintHexChange = { musicViewModel.setLiquidGlassTintHex(it) },
-                                onLiquidGlassAccentTintChange = { musicViewModel.setLiquidGlassAccentTintEnabled(it) },
-                                onLiquidGlassReduceTransparencyChange = { musicViewModel.setLiquidGlassReduceTransparency(it) },
-                                onLiquidGlassReduceMotionChange = { musicViewModel.setLiquidGlassReduceMotion(it) },
-                                onResetLiquidGlass = { musicViewModel.resetLiquidGlassConfig() }
+                                onShowAbout = { showAboutDialog = true }
                             )
                         }
                         selectedPlaylistId != null -> {
@@ -1015,7 +1003,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                     }
                 }
 
-                // Floating Liquid Glass Navigation & Playback Pod with Frosted Scrim Backdrop
+                // Floating Navigation & Playback Pod
                 if (!showPlayer) {
                     Box(
                         modifier = Modifier

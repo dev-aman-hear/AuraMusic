@@ -38,9 +38,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.aman.auramusic.ui.theme.GlassLevel
 import com.aman.auramusic.ui.theme.LocalIsDark
-import com.aman.auramusic.ui.theme.liquidGlass
 
 enum class AppTab(
     val label: String,
@@ -58,10 +56,8 @@ enum class AppTab(
 }
 
 /**
- * Floating Liquid Glass Navigation Bar inspired by iOS & Apple Music.
- * Features a dual floating surface system:
- * 1. A floating glass capsule containing the main navigation tabs with animated active selection pill.
- * 2. An attached floating circular glass orb for Instant Search.
+ * Floating Minimalist Navigation Bar inspired by Apple Music.
+ * Features a floating capsule containing the main navigation tabs with active selection indicator.
  */
 @Composable
 fun BottomNavBar(
@@ -143,12 +139,3 @@ fun BottomNavBar(
         }
     }
 }
-
-/**
- * Reusable Liquid Glass Navigation Bar.
- */
-@Composable
-fun LiquidGlassNavigationBar(
-    selectedTab: AppTab,
-    onTabSelected: (AppTab) -> Unit
-) = BottomNavBar(selectedTab = selectedTab, onTabSelected = onTabSelected)
