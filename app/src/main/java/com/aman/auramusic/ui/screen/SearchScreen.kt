@@ -13,6 +13,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +29,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -138,6 +141,8 @@ fun SearchScreen(
     currentSongId: Long?,
     query: String,
     onQueryChange: (String) -> Unit,
+    activeFilter: SearchFilter = SearchFilter.ALL,
+    onActiveFilterChange: (SearchFilter) -> Unit = {},
     onSongSelected: (Song, List<Song>) -> Unit,
     onFavoriteToggle: (Song) -> Unit,
     onAddToPlaylist: (Song) -> Unit,
@@ -167,17 +172,38 @@ fun SearchScreen(
     val avatarBorder = MaterialTheme.colorScheme.outline
     val avatarIconTint = MaterialTheme.colorScheme.onSurfaceVariant
 
+    // Active result filter state
+    var internalFilter by rememberSaveable(
+        stateSaver = Saver(
+            save = { it.name },
+            restore = { name -> runCatching { SearchFilter.valueOf(name) }.getOrDefault(SearchFilter.ALL) }
+        )
+    ) { mutableStateOf(activeFilter) }
+
+    LaunchedEffect(activeFilter) {
+        if (internalFilter != activeFilter) {
+            internalFilter = activeFilter
+        }
+    }
+
+    val updateFilter: (SearchFilter) -> Unit = { newFilter ->
+        internalFilter = newFilter
+        onActiveFilterChange(newFilter)
+    }
+
+    val activeFilter = internalFilter
+    val searchListState = rememberLazyListState()
+
     // Intercept back button when search query is active to smoothly return to category discovery
     BackHandler(enabled = query.isNotEmpty()) {
         onQueryChange("")
+        updateFilter(SearchFilter.ALL)
         focusManager.clearFocus()
     }
 
     // Recent search history state
     var recentSearches by remember { mutableStateOf(getRecentSearches(context)) }
 
-    // Active result filter
-    var activeFilter by remember { mutableStateOf(SearchFilter.ALL) }
     var selectedAudioSource by remember { mutableStateOf(AudioSource.ALL) }
 
     // Online search state
@@ -357,6 +383,7 @@ fun SearchScreen(
         modifier = modifier
     ) {
         LazyColumn(
+            state = searchListState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 140.dp)
         ) {
@@ -383,6 +410,7 @@ fun SearchScreen(
                             IconButton(
                                 onClick = {
                                     onQueryChange("")
+                                    updateFilter(SearchFilter.ALL)
                                     focusManager.clearFocus()
                                 },
                                 modifier = Modifier.size(36.dp)
@@ -450,6 +478,7 @@ fun SearchScreen(
                             if (query.isNotEmpty()) {
                                 IconButton(onClick = {
                                     onQueryChange("")
+                                    updateFilter(SearchFilter.ALL)
                                     focusManager.clearFocus()
                                 }) {
                                     Icon(
@@ -542,6 +571,7 @@ fun SearchScreen(
                                         )
                                         .clickable {
                                             onQueryChange(hist)
+                                            updateFilter(SearchFilter.ALL)
                                             saveRecentSearch(context, hist)
                                             recentSearches = getRecentSearches(context)
                                         }
@@ -605,7 +635,7 @@ fun SearchScreen(
                                             if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                                             RoundedCornerShape(20.dp)
                                         )
-                                        .clickable { activeFilter = filter }
+                                        .clickable { updateFilter(filter) }
                                         .padding(horizontal = 14.dp, vertical = 6.dp)
                                 ) {
                                     Text(
@@ -639,6 +669,7 @@ fun SearchScreen(
                                     category = cat,
                                     onClick = {
                                         onQueryChange(cat.title)
+                                        updateFilter(SearchFilter.ALL)
                                         saveRecentSearch(context, cat.title)
                                         recentSearches = getRecentSearches(context)
                                     }

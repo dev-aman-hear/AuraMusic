@@ -146,6 +146,7 @@ import com.aman.auramusic.playback.RepeatMode
 import com.aman.auramusic.viewmodel.QueueEntry
 import com.aman.auramusic.ui.screen.PlayerScreen
 import com.aman.auramusic.ui.screen.SearchScreen
+import com.aman.auramusic.ui.screen.SearchFilter
 import com.aman.auramusic.ui.screen.SettingsScreen
 import com.aman.auramusic.ui.screen.CollectionDetailScreen
 import com.aman.auramusic.ui.screen.home.ArtistDetailSheet
@@ -411,7 +412,13 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     var showAboutDialog by remember { mutableStateOf(false) }
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
     var showExportPlaylistDialog by remember { mutableStateOf(false) }
-    var query by remember { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf("") }
+    var searchFilter by rememberSaveable(
+        stateSaver = androidx.compose.runtime.saveable.Saver(
+            save = { it.name },
+            restore = { name -> runCatching { SearchFilter.valueOf(name) }.getOrDefault(SearchFilter.ALL) }
+        )
+    ) { mutableStateOf(SearchFilter.ALL) }
     
     var selectedPlaylistId by remember { mutableStateOf<Long?>(null) }
     var selectedAlbumName by remember { mutableStateOf<String?>(null) }
@@ -540,6 +547,117 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 Box(modifier = Modifier.fillMaxSize()) {
+                    // Base Tab Screen destination: stays active on back-stack
+                    when (selectedTab) {
+                        AppTab.Home -> HomeScreen(
+                            songs = filteredSongs,
+                            username = username,
+                            history = playbackHistory,
+                            favorites = favoriteSongs,
+                            favoriteIds = favoriteIds,
+                            currentSongId = playerViewModel.currentSong?.id,
+                            isPlaying = playerViewModel.isPlaying,
+                            onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
+                            onSongSelected = { song, queue ->
+                                playSong(song, queue)
+                            },
+                            onFavoriteToggle = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
+                            onAddToPlaylist = { songToAddToPlaylist = it },
+                            onAddToQueue = { playerViewModel.addToQueue(it) },
+                            onOnlineSongSelected = { onlineSong, queue ->
+                                playOnlineSong(onlineSong, queue)
+                            },
+                            onAlbumSelected = { selectedAlbumName = it },
+                            onArtistSelected = { selectedArtistName = it },
+                            onPlaylistSelected = { selectedPlaylistId = it },
+                            onOpenSettings = { showSettings = true },
+                            savedOnlineArtists = savedOnlineArtists,
+                            savedOnlineAlbums = savedOnlineAlbums,
+                            onSaveOnlineArtist = { musicViewModel.saveOnlineArtistToLibrary(it) },
+                            onRemoveSavedOnlineArtist = { musicViewModel.removeOnlineArtistFromLibrary(it) },
+                            onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
+                            onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
+                            homeResetKey = homeReselectKey
+                        )
+                        AppTab.Online -> OnlineScreen(
+                            onlinePlaybackManager = onlinePlaybackManager,
+                            onOnlineSongSelected = { onlineSong, queue ->
+                                playOnlineSong(onlineSong, queue)
+                            },
+                            onOpenSettings = { showSettings = true },
+                            savedOnlinePlaylists = savedOnlinePlaylists,
+                            onSaveOnlinePlaylist = { musicViewModel.saveOnlinePlaylistToLibrary(it) },
+                            onRemoveSavedOnlinePlaylist = { musicViewModel.removeOnlinePlaylistFromLibrary(it) },
+                            savedOnlineAlbums = savedOnlineAlbums,
+                            onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
+                            onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
+                            onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
+                        )
+                        AppTab.Library -> LibraryScreen(
+                            selectedTab = selectedLibraryTab,
+                            onTabSelected = { selectedLibraryTab = it },
+                            songs = filteredSongs,
+                            allSongs = songs,
+                            favoriteSongs = favoriteSongs,
+                            favoriteIds = favoriteIds,
+                            playlists = playlists,
+                            query = query,
+                            currentSongId = playerViewModel.currentSong?.id,
+                            playlistGridColumns = appSettings.playlistGridColumns,
+                            onQueryChange = { query = it },
+                            onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
+                            onFavoriteToggle = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
+                            onSongSelected = { song, queue -> 
+                                playSong(song, queue) 
+                            },
+                            onOpenSettings = { showSettings = true },
+                            onAddToPlaylist = { songToAddToPlaylist = it },
+                            onCreatePlaylist = { showNewPlaylistDialog = true },
+                            onPlaylistSelected = { selectedPlaylistId = it.id },
+                            onPlaylistExport = { 
+                                playlistToExport = it
+                                exportFileLauncher.launch("${it.name}.aura")
+                            },
+                            onAlbumSelected = { selectedAlbumName = it },
+                            onArtistSelected = { selectedArtistName = it },
+                            onlinePlaybackManager = onlinePlaybackManager,
+                            onOnlineSongSelected = { onlineSong, queue ->
+                                playOnlineSong(onlineSong, queue)
+                            },
+                            savedOnlinePlaylists = savedOnlinePlaylists,
+                            onSaveOnlinePlaylist = { musicViewModel.saveOnlinePlaylistToLibrary(it) },
+                            onRemoveSavedOnlinePlaylist = { musicViewModel.removeOnlinePlaylistFromLibrary(it) },
+                            savedOnlineArtists = savedOnlineArtists,
+                            onSaveOnlineArtist = { musicViewModel.saveOnlineArtistToLibrary(it) },
+                            onRemoveSavedOnlineArtist = { musicViewModel.removeOnlineArtistFromLibrary(it) },
+                            savedOnlineAlbums = savedOnlineAlbums,
+                            onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
+                            onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
+                            onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
+                        )
+                        AppTab.Search -> SearchScreen(
+                            songs = songs,
+                            favoriteIds = favoriteIds,
+                            currentSongId = playerViewModel.currentSong?.id,
+                            query = query,
+                            onQueryChange = { query = it },
+                            activeFilter = searchFilter,
+                            onActiveFilterChange = { searchFilter = it },
+                            onSongSelected = { song, queue -> playSong(song, queue) },
+                            onFavoriteToggle = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
+                            onAddToPlaylist = { songToAddToPlaylist = it },
+                            onAddToQueue = { playerViewModel.addToQueue(it) },
+                            onAlbumSelected = { selectedAlbumName = it },
+                            onArtistSelected = { selectedArtistName = it },
+                            onlinePlaybackManager = onlinePlaybackManager,
+                            onOnlineSongSelected = { onlineSong, queue ->
+                                playOnlineSong(onlineSong, queue)
+                            },
+                            onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
+                        )
+                    }
+
+                    // Detail Screens overlay
                     when {
                         showSettings -> {
                             SettingsScreen(
@@ -790,117 +908,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                         val shuffled = artistOnlineSongs.shuffled()
                                         playOnlineSong(shuffled.first(), shuffled)
                                     }
-                                    selectedArtistName = null
                                 }
                             )
-                        }
-                        else -> {
-                            when (selectedTab) {
-                                AppTab.Home -> HomeScreen(
-                                    songs = filteredSongs,
-                                    username = username,
-                                    history = playbackHistory,
-                                    favorites = favoriteSongs,
-                                    favoriteIds = favoriteIds,
-                                    currentSongId = playerViewModel.currentSong?.id,
-                                    isPlaying = playerViewModel.isPlaying,
-                                    onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
-                                    onSongSelected = { song, queue ->
-                                        playSong(song, queue)
-                                    },
-                                    onFavoriteToggle = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
-                                    onAddToPlaylist = { songToAddToPlaylist = it },
-                                    onAddToQueue = { playerViewModel.addToQueue(it) },
-                                    onOnlineSongSelected = { onlineSong, queue ->
-                                        playOnlineSong(onlineSong, queue)
-                                    },
-                                    onAlbumSelected = { selectedAlbumName = it },
-                                    onArtistSelected = { selectedArtistName = it },
-                                    onPlaylistSelected = { selectedPlaylistId = it },
-                                    onOpenSettings = { showSettings = true },
-                                    savedOnlineArtists = savedOnlineArtists,
-                                    savedOnlineAlbums = savedOnlineAlbums,
-                                    onSaveOnlineArtist = { musicViewModel.saveOnlineArtistToLibrary(it) },
-                                    onRemoveSavedOnlineArtist = { musicViewModel.removeOnlineArtistFromLibrary(it) },
-                                    onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
-                                    onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
-                                    homeResetKey = homeReselectKey
-                                )
-                                AppTab.Online -> OnlineScreen(
-                                    onlinePlaybackManager = onlinePlaybackManager,
-                                    onOnlineSongSelected = { onlineSong, queue ->
-                                        playOnlineSong(onlineSong, queue)
-                                    },
-                                    onOpenSettings = { showSettings = true },
-                                    savedOnlinePlaylists = savedOnlinePlaylists,
-                                    onSaveOnlinePlaylist = { musicViewModel.saveOnlinePlaylistToLibrary(it) },
-                                    onRemoveSavedOnlinePlaylist = { musicViewModel.removeOnlinePlaylistFromLibrary(it) },
-                                    savedOnlineAlbums = savedOnlineAlbums,
-                                    onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
-                                    onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
-                                    onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
-                                )
-                                AppTab.Library -> LibraryScreen(
-                                    selectedTab = selectedLibraryTab,
-                                    onTabSelected = { selectedLibraryTab = it },
-                                    songs = filteredSongs,
-                                    allSongs = songs,
-                                    favoriteSongs = favoriteSongs,
-                                    favoriteIds = favoriteIds,
-                                    playlists = playlists,
-                                    query = query,
-                                    currentSongId = playerViewModel.currentSong?.id,
-                                    playlistGridColumns = appSettings.playlistGridColumns,
-                                    onQueryChange = { query = it },
-                                    onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
-                                    onFavoriteToggle = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
-                                    onSongSelected = { song, queue -> 
-                                        playSong(song, queue) 
-                                    },
-                                    onOpenSettings = { showSettings = true },
-                                    onAddToPlaylist = { songToAddToPlaylist = it },
-                                    onCreatePlaylist = { showNewPlaylistDialog = true },
-                                    onPlaylistSelected = { selectedPlaylistId = it.id },
-                                    onPlaylistExport = { 
-                                        playlistToExport = it
-                                        exportFileLauncher.launch("${it.name}.aura")
-                                    },
-                                    onAlbumSelected = { selectedAlbumName = it },
-                                    onArtistSelected = { selectedArtistName = it },
-                                    onlinePlaybackManager = onlinePlaybackManager,
-                                    onOnlineSongSelected = { onlineSong, queue ->
-                                        playOnlineSong(onlineSong, queue)
-                                    },
-                                    savedOnlinePlaylists = savedOnlinePlaylists,
-                                    onSaveOnlinePlaylist = { musicViewModel.saveOnlinePlaylistToLibrary(it) },
-                                    onRemoveSavedOnlinePlaylist = { musicViewModel.removeOnlinePlaylistFromLibrary(it) },
-                                    savedOnlineArtists = savedOnlineArtists,
-                                    onSaveOnlineArtist = { musicViewModel.saveOnlineArtistToLibrary(it) },
-                                    onRemoveSavedOnlineArtist = { musicViewModel.removeOnlineArtistFromLibrary(it) },
-                                    savedOnlineAlbums = savedOnlineAlbums,
-                                    onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
-                                    onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
-                                    onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
-                                )
-                                AppTab.Search -> SearchScreen(
-                                    songs = songs,
-                                    favoriteIds = favoriteIds,
-                                    currentSongId = playerViewModel.currentSong?.id,
-                                    query = query,
-                                    onQueryChange = { query = it },
-                                    onSongSelected = { song, queue -> playSong(song, queue) },
-                                    onFavoriteToggle = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
-                                    onAddToPlaylist = { songToAddToPlaylist = it },
-                                    onAddToQueue = { playerViewModel.addToQueue(it) },
-                                    onAlbumSelected = { selectedAlbumName = it },
-                                    onArtistSelected = { selectedArtistName = it },
-                                    onlinePlaybackManager = onlinePlaybackManager,
-                                    onOnlineSongSelected = { onlineSong, queue ->
-                                        playOnlineSong(onlineSong, queue)
-                                    },
-                                    onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
-                                )
-                            }
                         }
                     }
                 }
