@@ -34,6 +34,14 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
+import com.aman.auramusic.BuildConfig
 import com.aman.auramusic.R
 import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.LiquidGlassPreset
@@ -41,6 +49,8 @@ import com.aman.auramusic.data.model.ThemeMode
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.GlassLevel
 import com.aman.auramusic.ui.theme.liquidGlass
+import com.aman.auramusic.ui.theme.Monochrome
+import com.aman.auramusic.ui.theme.LocalIsDark
 
 @Composable
 fun SettingsScreen(
@@ -172,18 +182,8 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("Playback", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    ToggleRow(title = "Crossfade", checked = appSettings.crossfadeEnabled, onCheckedChange = onCrossfadeChange)
-                    ToggleRow(title = "Gapless playback", checked = appSettings.gaplessEnabled, onCheckedChange = onGaplessChange)
-                    ToggleRow(title = "Skip silence", checked = appSettings.skipSilence, onCheckedChange = onSkipSilenceChange)
                     ToggleRow(title = "Smart audio focus", checked = appSettings.smartAudioFocus, onCheckedChange = onSmartAudioFocusChange)
                     ToggleRow(title = "Keep playing on app close", checked = appSettings.keepPlayingOnClose, onCheckedChange = onKeepPlayingOnCloseChange)
-                    Text("Playlist view columns: ${appSettings.playlistGridColumns}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                    Slider(
-                        value = appSettings.playlistGridColumns.toFloat(),
-                        onValueChange = { onPlaylistGridColumnsChange(it.toInt()) },
-                        valueRange = 1f..2f,
-                        steps = 0
-                    )
                 }
             }
         }
@@ -237,7 +237,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Default.Info,
                         title = "About Aura Music",
-                        subtitle = "Version 1.0.0 (Liquid Glass)",
+                        subtitle = "Version ${BuildConfig.VERSION_NAME}",
                         onClick = onShowAbout
                     )
                 }
@@ -249,11 +249,28 @@ fun SettingsScreen(
 
 @Composable
 fun AboutDialog(onDismiss: () -> Unit) {
+    val colors = Monochrome
+    val dialogShape = RoundedCornerShape(28.dp)
+    val buttonShape = RoundedCornerShape(22.dp)
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val targetButtonBg = if (isPressed) colors.surfacePressed else colors.controlSelected
+    val targetButtonText = if (isPressed) colors.textPrimary else colors.controlSelectedContent
+    val targetButtonBorder = if (isPressed) colors.borderStrong else colors.controlSelected
+
+    val buttonBg by animateColorAsState(targetValue = targetButtonBg, animationSpec = tween(150), label = "aboutCloseBg")
+    val buttonText by animateColorAsState(targetValue = targetButtonText, animationSpec = tween(150), label = "aboutCloseText")
+    val buttonBorder by animateColorAsState(targetValue = targetButtonBorder, animationSpec = tween(150), label = "aboutCloseBorder")
+
     Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .liquidGlass(level = GlassLevel.Thick, shape = RoundedCornerShape(28.dp))
+                .clip(dialogShape)
+                .background(colors.surface, dialogShape)
+                .border(BorderStroke(1.dp, colors.border), dialogShape)
         ) {
             Column(
                 modifier = Modifier
@@ -264,7 +281,9 @@ fun AboutDialog(onDismiss: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .size(80.dp)
-                        .liquidGlass(level = GlassLevel.Regular, shape = RoundedCornerShape(20.dp)),
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(colors.surfaceSecondary, RoundedCornerShape(20.dp))
+                        .border(BorderStroke(1.dp, colors.border), RoundedCornerShape(20.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Image(
@@ -273,49 +292,64 @@ fun AboutDialog(onDismiss: () -> Unit) {
                         modifier = Modifier.size(64.dp)
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(20.dp))
-                
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Text(
                     text = "Aura Music",
                     style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.textPrimary
                 )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
                 Text(
-                    text = "Version 1.0.0 (Liquid Glass Edition)",
+                    text = "Version ${BuildConfig.VERSION_NAME}",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    color = colors.textSecondary
                 )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Text(
-                    text = "A premium, Apple Music-inspired player with stable background playback, intelligent audio focus, and cross-user playlist sharing.",
+                    text = "Aura Music is a modern music player inspired by Apple Music, combining a clean listening experience with local music playback, online music discovery, playlists, lyrics, and customizable playback settings.",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = colors.textPrimary
                 )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Text(
                     text = "Developed by Aman",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = colors.textSecondary
                 )
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
-                
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp)
-                        .liquidGlass(level = GlassLevel.Tinted, shape = RoundedCornerShape(22.dp), tint = MaterialTheme.colorScheme.primary)
-                        .clickable(onClick = onDismiss),
+                        .clip(buttonShape)
+                        .background(buttonBg, buttonShape)
+                        .border(BorderStroke(1.dp, buttonBorder), buttonShape)
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = ripple(),
+                            onClick = onDismiss
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Close", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Close",
+                        color = buttonText,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
             }
         }
@@ -324,6 +358,18 @@ fun AboutDialog(onDismiss: () -> Unit) {
 
 @Composable
 fun ToggleRow(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val colors = Monochrome
+    val isDark = LocalIsDark.current
+
+    val switchColors = SwitchDefaults.colors(
+        checkedThumbColor = colors.controlSelectedContent,
+        checkedTrackColor = colors.controlSelected,
+        checkedBorderColor = colors.controlSelected,
+        uncheckedThumbColor = if (isDark) colors.textSecondary else colors.background,
+        uncheckedTrackColor = if (isDark) colors.border else colors.surfaceSecondary,
+        uncheckedBorderColor = colors.borderStrong
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -332,7 +378,11 @@ fun ToggleRow(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Uni
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text = title, style = MaterialTheme.typography.bodyLarge)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = switchColors
+        )
     }
 }
 
@@ -382,7 +432,9 @@ fun ThemeSelectionRow(
             color = MaterialTheme.colorScheme.onSurface
         )
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .selectableGroup(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             val themes = listOf(
@@ -390,19 +442,50 @@ fun ThemeSelectionRow(
                 ThemeMode.LIGHT to ("Light" to Icons.Default.LightMode),
                 ThemeMode.DARK to ("Dark" to Icons.Default.DarkMode)
             )
+            val colors = Monochrome
             themes.forEach { (mode, pair) ->
                 val (label, icon) = pair
                 val isSelected = selectedTheme == mode
                 val pillShape = RoundedCornerShape(16.dp)
+                val interactionSource = remember { MutableInteractionSource() }
+                val isPressed by interactionSource.collectIsPressedAsState()
+
+                val targetBackgroundColor = when {
+                    isSelected -> colors.controlSelected
+                    isPressed -> colors.surfacePressed
+                    else -> colors.surfaceSecondary
+                }
+                val targetContentColor = if (isSelected) colors.controlSelectedContent else colors.textSecondary
+                val targetBorderColor = if (isSelected) colors.controlSelected else colors.border
+
+                val backgroundColor by animateColorAsState(
+                    targetValue = targetBackgroundColor,
+                    animationSpec = tween(durationMillis = 150),
+                    label = "themePillBg"
+                )
+                val contentColor by animateColorAsState(
+                    targetValue = targetContentColor,
+                    animationSpec = tween(durationMillis = 150),
+                    label = "themePillContent"
+                )
+                val borderColor by animateColorAsState(
+                    targetValue = targetBorderColor,
+                    animationSpec = tween(durationMillis = 150),
+                    label = "themePillBorder"
+                )
+
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .clip(pillShape)
-                        .clickable { onThemeSelected(mode) }
-                        .liquidGlass(
-                            level = if (isSelected) GlassLevel.Tinted else GlassLevel.UltraThin,
-                            shape = pillShape,
-                            tint = if (isSelected) MaterialTheme.colorScheme.primary else null
+                        .background(backgroundColor, pillShape)
+                        .border(BorderStroke(1.dp, borderColor), pillShape)
+                        .selectable(
+                            selected = isSelected,
+                            onClick = { onThemeSelected(mode) },
+                            role = Role.RadioButton,
+                            interactionSource = interactionSource,
+                            indication = ripple()
                         )
                         .padding(vertical = 10.dp, horizontal = 4.dp),
                     contentAlignment = Alignment.Center
@@ -413,8 +496,8 @@ fun ThemeSelectionRow(
                     ) {
                         Icon(
                             imageVector = icon,
-                            contentDescription = label,
-                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            contentDescription = null,
+                            tint = contentColor,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -422,7 +505,8 @@ fun ThemeSelectionRow(
                             text = label,
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                            color = contentColor,
+                            maxLines = 1
                         )
                     }
                 }

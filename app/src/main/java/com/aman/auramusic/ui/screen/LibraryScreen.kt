@@ -275,7 +275,7 @@ fun LibraryScreen(
             songs = playlistDetailSongs,
             isLoading = isPlaylistDetailLoading,
             isSavedInLibrary = isSaved,
-            showAddButton = !isSavedAlbum,
+            showAddButton = true,
             onToggleSaveToLibrary = {
                 val cur = selectedOnlinePlaylist ?: return@OnlinePlaylistDetailScreen
                 if (isSaved) {

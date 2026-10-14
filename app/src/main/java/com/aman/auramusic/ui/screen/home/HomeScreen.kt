@@ -463,7 +463,7 @@ fun HomeScreen(
                 songs = selectedOnlineAlbumSongs,
                 isLoading = isAlbumLoading,
                 isSavedInLibrary = isAlbumSaved,
-                showAddButton = false,
+                showAddButton = true,
                 onToggleSaveToLibrary = {
                     if (isAlbumSaved) {
                         onRemoveSavedOnlineAlbum?.invoke(curAlbum.id)

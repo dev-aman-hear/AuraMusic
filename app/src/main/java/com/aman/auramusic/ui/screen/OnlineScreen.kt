@@ -796,7 +796,7 @@ fun OnlineScreen(
                     onBack = { selectedCollection = null },
                     onSongSelected = onOnlineSongSelected,
                     onAddOnlineSongToPlaylist = onAddOnlineSongToPlaylist,
-                    showMenuButton = true,
+                    showMenuButton = false,
                     modifier = Modifier.fillMaxSize()
                 )
             }
