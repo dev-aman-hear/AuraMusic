@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>A modern Android audio player combining local high-fidelity playback with online streaming discovery.</b><br />
-  Built with Kotlin and Jetpack Compose, featuring an Apple Music-inspired Liquid Glass design system,<br />
+  Built with Kotlin and Jetpack Compose, featuring an Apple Music-inspired flat monochrome design system,<br />
   dual-engine audio architecture (LibVLC & AndroidX Media3 ExoPlayer), synchronized lyrics, and unified library management.
 </p>
 
@@ -26,7 +26,7 @@
 - [Overview](#overview)
 - [Interface & Screenshot Plan](#interface--screenshot-plan)
 - [Features](#features)
-  - [Liquid Glass Interface & Appearance](#liquid-glass-interface--appearance)
+  - [Monochrome Interface & Appearance](#monochrome-interface--appearance)
   - [Local Music Library (LibVLC)](#local-music-library-libvlc)
   - [Online Streaming & Discovery (ExoPlayer)](#online-streaming--discovery-exoplayer)
   - [Unified Library, Favorites & Playlists](#unified-library-favorites--playlists)
@@ -50,7 +50,7 @@
 
 ## Overview
 
-Aura Music is an open-source Android music player developed to provide a unified listening experience across local offline files and online music catalogs. Rather than switching between a barebones offline player and proprietary streaming apps, Aura Music brings both together under a cohesive, customizable interface with translucent Liquid Glass styling.
+Aura Music is an open-source Android music player developed to provide a unified listening experience across local offline files and online music catalogs. Rather than switching between a barebones offline player and proprietary streaming apps, Aura Music brings both together under a clean, cohesive, Apple Music-inspired flat monochrome interface.
 
 The application uses two specialized audio engines:
 1. **LibVLC Engine**: Manages local audio files directly on your device storage, supporting standard formats as well as lossless codecs (such as FLAC, WAV, and ALAC) with native playback handling.
@@ -78,12 +78,14 @@ Aura Music centers on a clean, four-tab navigation model (`Home`, `Online`, `Lib
 
 ## Features
 
-### Liquid Glass Interface & Appearance
-* **Translucent Surfaces**: Built on custom `LiquidGlassTokens` with configurable blur radius, surface tint, specular rim borders, and corner radii.
-* **Presets & Customization**: Supports presets (`Regular`, `Thick`, `UltraThin`, `Tinted`) alongside manual sliders in Settings.
-* **Theme Modes**: Supports System Default, Light Theme, Dark Theme, and an AMOLED / Pure Monochrome obsidian black mode.
-* **Dynamic Palette**: Extracts dominant accent colors from album artwork via `androidx.palette` to subtly tint player backgrounds.
-* **Accessibility Options**: Includes options to reduce transparency and minimize motion animations for improved battery efficiency or reduced GPU load.
+### Monochrome Interface & Appearance
+* **Apple Music-Inspired Flat Aesthetics**: Replaces ornate glass and blur effects with a clean, minimalist monochrome design using crisp borders, elevated surfaces, and modern typography.
+* **Strict Semantic Color Palette**: Uses a single source of truth monochrome system for all UI chrome:
+  * **Light Theme**: Background (`#FFFFFF`), Surface (`#F5F5F5`), Secondary Surface (`#EEEEEE`), Pressed Surface (`#E5E5E5`), Primary Text/Icons (`#000000`), Secondary Text (`#666666`), Tertiary Text (`#888888`), Subtle Border (`#D9D9D9`), Strong Border (`#BFBFBF`), Selected Control (Black with White text/icons).
+  * **Dark Theme**: Background (`#000000`), Surface (`#111111`), Secondary Surface (`#1A1A1A`), Pressed Surface (`#262626`), Primary Text/Icons (`#FFFFFF`), Secondary Text (`#AAAAAA`), Tertiary Text (`#808080`), Subtle Border (`#333333`), Strong Border (`#555555`), Selected Control (White with Black text/icons).
+* **Theme & Appearance Modes**: Supports System Default, Light Theme, Dark Theme, and an AMOLED mode with pure pitch-black (`#000000`) backgrounds.
+* **Artwork Fidelity**: Genuine album artwork, artist photographs, and downloaded media artwork retain their authentic colors and are never altered or desaturated.
+* **Artwork-Driven Ambient Player**: The full-screen player extracts soft ambient color swatches from active track artwork via `androidx.palette` for the player backdrop, while playback controls, menus, sheets, and typography remain strictly monochrome.
 
 ### Local Music Library (LibVLC)
 * **Local MediaStore Scanner**: Queries audio content from device storage with permissions handling for Android 13+ (`READ_MEDIA_AUDIO`) and older releases (`READ_EXTERNAL_STORAGE`).
@@ -133,7 +135,7 @@ Aura Music centers on a clean, four-tab navigation model (`Home`, `Online`, `Lib
 |---|---|---|---|
 | **Language** | Kotlin | `2.0.21` | Modern language features, Coroutines, StateFlow |
 | **UI Framework** | Jetpack Compose | BOM `2024.10.01` | Declarative UI, animated transitions, custom modifiers |
-| **Design System** | Material 3 + Custom Liquid Glass | `1.3.1` (Compose M3) | Frosted glass tokens, dynamic color, typography |
+| **Design System** | Jetpack Compose + Material 3 + Monochrome Theme | `1.3.1` (Compose M3) | Flat monochrome tokens, semantic palette, typography |
 | **Offline Audio** | LibVLC Android SDK | `3.6.0-eap14` | Native audio decoding (FLAC, WAV, ALAC, etc.) |
 | **Streaming Audio** | AndroidX Media3 ExoPlayer | `1.2.1` | Network streaming, HTTP DataSource caching |
 | **Dependency Injection** | Dagger Hilt | `2.51.1` | ViewModels, Repositories, Application context |
@@ -152,7 +154,7 @@ Aura Music uses a layered architecture following the Model-View-ViewModel (MVVM)
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │                          PRESENTATION LAYER                            │
-│  Jetpack Compose · Material 3 · LiquidGlassTokens · ComponentActivity  │
+│  Jetpack Compose · Material 3 · Monochrome Theme · ComponentActivity   │
 │  MainActivity · HomeScreen · OnlineScreen · LibraryScreen · Search     │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ UI Events / StateFlow
@@ -184,7 +186,7 @@ app/src/main/java/com/aman/auramusic/
 ├── MainActivity.kt                 # Single Activity entry point & navigation tabs
 ├── coloros/                        # ColorOS / RealmeUI status bar lyrics bridge
 ├── data/
-│   ├── model/                      # Data models (Song, Playlist, LiquidGlassConfig)
+│   ├── model/                      # Data models (Song, Playlist, AppSettings)
 │   └── repository/                 # Local music, lyrics, and user preference repositories
 ├── di/                             # Dagger Hilt dependency injection modules
 ├── online/
@@ -199,7 +201,7 @@ app/src/main/java/com/aman/auramusic/
 │   ├── component/                  # Reusable UI controls (MiniPlayer, SongRow, Dialogs)
 │   ├── screen/                     # Primary screens (Library, Player, Search, Settings)
 │   │   └── home/                   # HomeScreen, HomeViewModel, and components
-│   └── theme/                      # AuraDesign, LiquidGlassTokens, GlassUtils, Colors
+│   └── theme/                      # AuraDesign, Color, Theme, Type
 └── viewmodel/                      # PlayerViewModel, MusicViewModel
 ```
 
@@ -295,10 +297,11 @@ To verify code compilation without building APK packages:
 * **Internal Application Version**: `1.0.1` (`versionCode = 14`)
 * **Status**: Development & Beta Testing.
 * **Changelog Highlights (v1.0.1)**:
+  * **Monochrome Design System Migration**: Completely removed Liquid Glass, frosted glass modifiers, custom shaders, and obsolete glass settings in favor of an Apple Music-inspired flat monochrome design system.
+  * **Strict Semantic Color Palette**: Standardized light, dark, and AMOLED themes with strict contrast boundaries, flat surfaces, and subtle borders.
   * **Dedicated Library Favorites**: Added a dedicated Favorites category tab in `LibraryScreen` with quick Play All and Shuffle actions.
   * **Online Song Favorites Persistence**: Favorited online songs now persist in DataStore and appear alongside local favorites.
-  * **Refined Category Chips**: Category chips in the Library use clean, text-only styling.
-  * **Theme & Contrast Adjustments**: Improved light and dark mode text readability across detail screens.
+  * **Refined Category Chips**: Category chips in the Library use clean, text-only styling without legacy accent badges.
 
 > **Release Note**: Signed release builds require a configured `signing.properties` file in the project root containing `STORE_FILE`, `STORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`. When no signing properties file is present, the release build type automatically falls back to debug signing.
 
