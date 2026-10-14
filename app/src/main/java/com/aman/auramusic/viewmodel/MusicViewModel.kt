@@ -58,6 +58,12 @@ class MusicViewModel @Inject constructor(
         emptySet()
     )
 
+    val favoriteOnlineSongs = userRepository.favoriteOnlineSongsFlow.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        emptyList()
+    )
+
     val playbackHistory = userRepository.historyFlow.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -134,9 +140,9 @@ class MusicViewModel @Inject constructor(
         }
     }
 
-    fun toggleFavorite(songId: Long, isFavorite: Boolean) {
+    fun toggleFavorite(songId: Long, isFavorite: Boolean, onlineSong: OnlineSong? = null) {
         viewModelScope.launch(Dispatchers.IO) {
-            userRepository.setFavorite(songId, isFavorite)
+            userRepository.setFavorite(songId, isFavorite, onlineSong)
         }
     }
 

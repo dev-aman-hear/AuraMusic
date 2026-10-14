@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -15,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Playlist
@@ -78,6 +81,7 @@ private fun formatArtistAudience(raw: String?): String {
 
 enum class LibraryTab(val label: String) {
     SONGS("Songs"),
+    FAVORITES("Favorites"),
     ALBUMS("Albums"),
     ARTISTS("Artists"),
     PLAYLISTS("Playlists")
@@ -420,6 +424,18 @@ fun LibraryScreen(
         }
     }
 
+    val libraryVisibleFavorites = remember(favoriteSongs) {
+        favoriteSongs.filterNot { ExplicitTitleFilter.shouldHideTitle(it.title) }
+    }
+
+    val filteredFavorites = remember(libraryVisibleFavorites, query) {
+        if (query.isBlank()) libraryVisibleFavorites else libraryVisibleFavorites.filter {
+            it.title.contains(query, ignoreCase = true) ||
+            it.artist.contains(query, ignoreCase = true) ||
+            it.album.contains(query, ignoreCase = true)
+        }
+    }
+
     val albumsList = remember(libraryVisibleSongs, query) {
         val grouped = libraryVisibleSongs.groupBy { it.album }
         if (query.isBlank()) {
@@ -528,7 +544,13 @@ fun LibraryScreen(
                         letterSpacing = 0.sp
                     )
                     Text(
-                        text = "${libraryVisibleSongs.size} tracks collected",
+                        text = when (selectedTab) {
+                            LibraryTab.FAVORITES -> "${libraryVisibleFavorites.size} favorite tracks"
+                            LibraryTab.SONGS -> "${libraryVisibleSongs.size} tracks collected"
+                            LibraryTab.ALBUMS -> "${albumsList.size} albums"
+                            LibraryTab.ARTISTS -> "${artistsList.size} artists"
+                            LibraryTab.PLAYLISTS -> "${filteredPlaylists.size + savedOnlinePlaylists.size} playlists"
+                        },
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
@@ -546,9 +568,11 @@ fun LibraryScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Segmented Category Tabs with Frosted Glass Pills (Songs | Albums | Artists | Playlists)
+            // Segmented Category Tabs with Frosted Glass Pills (Songs | Favorites | Albums | Artists | Playlists)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 LibraryTab.values().forEach { tab ->
@@ -557,7 +581,6 @@ fun LibraryScreen(
 
                     Box(
                         modifier = Modifier
-                            .weight(1f)
                             .clip(AuraShapes.Control)
                             .background(
                                 if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
@@ -569,7 +592,7 @@ fun LibraryScreen(
                                 AuraShapes.Control
                             )
                             .clickable { onTabSelected(tab) }
-                            .padding(vertical = 10.dp),
+                            .padding(horizontal = 14.dp, vertical = 9.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -681,6 +704,102 @@ fun LibraryScreen(
                                     isFavorite = isFav,
                                     onClick = { onSongSelected(song, filteredSongs) },
                                     onPlayNow = { onSongSelected(song, filteredSongs) },
+                                    onToggleFavorite = { onFavoriteToggle(song) },
+                                    onAddToPlaylist = { onAddToPlaylist(song) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                LibraryTab.FAVORITES -> {
+                    if (filteredFavorites.isEmpty()) {
+                        AuraEmptyState(
+                            title = if (query.isNotBlank()) "No Matching Favorites" else "No Favorite Songs Yet",
+                            message = if (query.isNotBlank()) "No favorite songs matching \"$query\" found." else "Heart songs while playing or browsing to add them to your favorites collection.",
+                            icon = if (query.isNotBlank()) Icons.Default.MusicNote else Icons.Default.FavoriteBorder,
+                            actionLabel = if (query.isNotBlank()) "Clear Filter" else null,
+                            onAction = if (query.isNotBlank()) { { onQueryChange("") } } else null,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 140.dp)
+                        ) {
+                            // Quick Action Header: Play All & Shuffle
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            if (filteredFavorites.isNotEmpty()) {
+                                                onSongSelected(filteredFavorites.first(), filteredFavorites)
+                                            }
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary
+                                        )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Play All (${filteredFavorites.size})", fontWeight = FontWeight.Bold)
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(40.dp)
+                                            .frostedGlass(
+                                                shape = RoundedCornerShape(14.dp),
+                                                isDark = isDark,
+                                                elevation = 2.dp,
+                                                borderWidth = 1.dp,
+                                                sheenAlpha = if (isDark) 0.16f else 0.35f
+                                            )
+                                            .clickable {
+                                                if (filteredFavorites.isNotEmpty()) {
+                                                    val shuffled = filteredFavorites.shuffled()
+                                                    onSongSelected(shuffled.first(), shuffled)
+                                                }
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Shuffle,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp),
+                                                tint = textColor
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Shuffle", color = textColor, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Favorite tracks list using unified SongRow
+                            items(filteredFavorites, key = { "fav_${it.id}" }) { song ->
+                                val isCurrent = song.id == currentSongId
+
+                                SongRow(
+                                    song = song,
+                                    isPlaying = isCurrent,
+                                    isFavorite = true,
+                                    onClick = { onSongSelected(song, filteredFavorites) },
+                                    onPlayNow = { onSongSelected(song, filteredFavorites) },
                                     onToggleFavorite = { onFavoriteToggle(song) },
                                     onAddToPlaylist = { onAddToPlaylist(song) }
                                 )
@@ -880,13 +999,23 @@ fun LibraryScreen(
                         }
 
                         // User Playlists Horizontal Carousel
-                        if (filteredPlaylists.isNotEmpty()) {
+                        if (filteredPlaylists.isNotEmpty() || libraryVisibleFavorites.isNotEmpty()) {
                             item {
                                 LazyRow(
                                     modifier = Modifier.fillMaxWidth(),
                                     contentPadding = PaddingValues(horizontal = 20.dp),
                                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                                 ) {
+                                    // Pinned Favorite Songs Card in Playlists
+                                    if (libraryVisibleFavorites.isNotEmpty() || query.isBlank()) {
+                                        item(key = "fav_songs_pinned_pl") {
+                                            FavoriteSongsPlaylistCard(
+                                                count = libraryVisibleFavorites.size,
+                                                onClick = { onTabSelected(LibraryTab.FAVORITES) }
+                                            )
+                                        }
+                                    }
+
                                     items(filteredPlaylists, key = { "pl_${it.id}" }) { playlist ->
                                         val firstSong = playlist.songIds.firstOrNull()?.let { songById[it] }
                                         val artworkModel = firstSong?.artworkUri
@@ -901,7 +1030,7 @@ fun LibraryScreen(
                                 }
                                 Spacer(modifier = Modifier.height(20.dp))
                             }
-                        } else if (playlists.isEmpty()) {
+                        } else if (playlists.isEmpty() && libraryVisibleFavorites.isEmpty()) {
                             item {
                                 Box(
                                     modifier = Modifier
@@ -973,3 +1102,67 @@ fun LibraryScreen(
     }
     }
 }
+
+@Composable
+private fun FavoriteSongsPlaylistCard(
+    count: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 148.dp
+) {
+    val titleColor = MaterialTheme.colorScheme.onSurface
+    val subtitleColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.tertiary
+
+    Column(
+        modifier = modifier
+            .width(size)
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+            .padding(bottom = 6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(size)
+                .fillMaxWidth()
+                .shadow(6.dp, RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(18.dp))
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(primaryColor, secondaryColor)
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Favorite,
+                contentDescription = "Favorite Songs",
+                tint = Color.White,
+                modifier = Modifier.size(48.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Favorite Songs",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = titleColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Text(
+            text = if (count == 1) "1 song" else "$count songs",
+            fontSize = 12.sp,
+            color = subtitleColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+

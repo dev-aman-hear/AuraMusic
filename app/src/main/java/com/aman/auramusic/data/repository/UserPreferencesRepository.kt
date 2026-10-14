@@ -71,6 +71,10 @@ class UserPreferencesRepository(private val context: Context) {
         prefs[Keys.favoriteIds].decodeLongSet()
     }.distinctUntilChanged()
 
+    val favoriteOnlineSongsFlow: Flow<List<OnlineSong>> = dataStore.data.map { prefs ->
+        prefs[Keys.favoriteOnlineSongs].decodeOnlineSongs()
+    }.distinctUntilChanged()
+
     val recentSearchesFlow: Flow<List<String>> = dataStore.data.map { prefs ->
         prefs[Keys.recentSearches].decodeStringList()
     }.distinctUntilChanged()
@@ -237,11 +241,30 @@ class UserPreferencesRepository(private val context: Context) {
         setLiquidGlassPreset(LiquidGlassPreset.LIQUID)
     }
 
-    suspend fun setFavorite(songId: Long, isFavorite: Boolean) {
+    suspend fun setFavorite(songId: Long, isFavorite: Boolean, onlineSong: OnlineSong? = null) {
         dataStore.edit { prefs ->
             val ids = prefs[Keys.favoriteIds].decodeLongSet().toMutableSet()
             if (isFavorite) ids.add(songId) else ids.remove(songId)
             prefs[Keys.favoriteIds] = ids.encodeLongSet()
+
+            val onlineList = prefs[Keys.favoriteOnlineSongs].decodeOnlineSongs().toMutableList()
+            if (onlineSong != null) {
+                onlineList.removeAll { 
+                    it.id == onlineSong.id || 
+                    (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == songId 
+                }
+                if (isFavorite) {
+                    onlineList.add(0, onlineSong.copy(streamUrl = ""))
+                }
+                prefs[Keys.favoriteOnlineSongs] = onlineList.encodeOnlineSongs()
+            } else if (!isFavorite) {
+                val removed = onlineList.removeAll { 
+                    (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == songId 
+                }
+                if (removed) {
+                    prefs[Keys.favoriteOnlineSongs] = onlineList.encodeOnlineSongs()
+                }
+            }
         }
     }
 
@@ -543,6 +566,7 @@ class UserPreferencesRepository(private val context: Context) {
             val glassReduceTransparency = booleanPreferencesKey("glass_reduce_transparency")
             val glassReduceMotion = booleanPreferencesKey("glass_reduce_motion")
             val favoriteIds = stringPreferencesKey("favorite_ids")
+            val favoriteOnlineSongs = stringPreferencesKey("favorite_online_songs")
             val recentSearches = stringPreferencesKey("recent_searches")
             val playbackHistory = stringPreferencesKey("playback_history")
             val playlists = stringPreferencesKey("playlists")
@@ -847,4 +871,54 @@ private fun List<SavedOnlineArtist>.encodeSavedOnlineArtists(): String {
     }
     return array.toString()
 }
+
+private fun String?.decodeOnlineSongs(): List<OnlineSong> {
+    if (this.isNullOrBlank()) return emptyList()
+    return runCatching {
+        JSONArray(this).let { array ->
+            buildList {
+                for (i in 0 until array.length()) {
+                    val oObj = array.optJSONObject(i) ?: continue
+                    val id = oObj.optString("id")
+                    if (id.isBlank()) continue
+                    val srcStr = oObj.optString("source", AudioSource.YOUTUBE.name)
+                    val source = runCatching { AudioSource.valueOf(srcStr) }.getOrDefault(AudioSource.YOUTUBE)
+                    add(
+                        OnlineSong(
+                            id = id,
+                            title = oObj.optString("title"),
+                            artist = oObj.optString("artist"),
+                            album = oObj.optString("album"),
+                            artworkUrl = oObj.optString("artworkUrl"),
+                            durationSeconds = oObj.optLong("durationSeconds", 0L),
+                            source = source,
+                            streamUrl = "", // NEVER store expiring stream URLs
+                            bitrate = oObj.optString("bitrate", "320 kbps"),
+                            format = oObj.optString("format", "AAC/MP4")
+                        )
+                    )
+                }
+            }
+        }
+    }.getOrDefault(emptyList())
+}
+
+private fun List<OnlineSong>.encodeOnlineSongs(): String {
+    val array = JSONArray()
+    forEach { os ->
+        val obj = JSONObject()
+            .put("id", os.id)
+            .put("title", os.title)
+            .put("artist", os.artist)
+            .put("album", os.album)
+            .put("artworkUrl", os.artworkUrl)
+            .put("durationSeconds", os.durationSeconds)
+            .put("source", os.source.name)
+            .put("bitrate", os.bitrate)
+            .put("format", os.format)
+        array.put(obj)
+    }
+    return array.toString()
+}
+
 
