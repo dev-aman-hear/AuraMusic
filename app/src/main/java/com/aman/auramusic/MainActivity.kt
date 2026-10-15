@@ -80,6 +80,10 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.AlertDialog
@@ -274,6 +278,23 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     var homeReselectKey by remember { mutableIntStateOf(0) }
     var showPlayer by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var isBottomCollapsed by remember { mutableStateOf(false) }
+
+    val bottomBarScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                when {
+                    available.y < -1f -> isBottomCollapsed = true
+                    available.y > 1f -> isBottomCollapsed = false
+                }
+                return Offset.Zero
+            }
+        }
+    }
 
     val onlinePlaybackManager = remember { OnlinePlaybackManager(context) }
     val onlinePlaybackState by onlinePlaybackManager.playbackState.collectAsStateWithLifecycle()
@@ -597,6 +618,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
+                .nestedScroll(bottomBarScrollConnection)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -1076,7 +1098,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onPlayPause = { onlinePlaybackManager.togglePlayPause() },
                                     onNext = { onlinePlaybackManager.playNext() },
                                     onPrevious = { onlinePlaybackManager.playPrevious() },
-                                    onOpen = { showPlayer = true }
+                                    onOpen = { showPlayer = true },
+                                    compact = isBottomCollapsed
                                 )
                             } else {
                                 playerViewModel.currentSong?.let { song ->
@@ -1088,13 +1111,15 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                         onPlayPause = { playerViewModel.togglePlayPause() },
                                         onNext = { playerViewModel.playNext() },
                                         onPrevious = { playerViewModel.playPrevious() },
-                                        onOpen = { showPlayer = true }
+                                        onOpen = { showPlayer = true },
+                                        compact = isBottomCollapsed
                                     )
                                 }
                             }
 
                             BottomNavBar(
                                 selectedTab = selectedTab,
+                                compact = isBottomCollapsed,
                                 onTabSelected = { 
                                     if (it == AppTab.Home && selectedTab == AppTab.Home) {
                                         homeReselectKey++
