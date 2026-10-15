@@ -330,17 +330,17 @@ fun DailyFeaturedCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cardShape = RoundedCornerShape(32.dp)
+    val cardShape = RoundedCornerShape(26.dp)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .padding(horizontal = 20.dp, vertical = 6.dp)
             .clip(cardShape)
             .background(MaterialTheme.colorScheme.surface)
             .border(1.dp, MaterialTheme.colorScheme.outline, cardShape)
             .clickable(onClick = onClick)
-            .padding(14.dp)
+            .padding(16.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -349,18 +349,18 @@ fun DailyFeaturedCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(118.dp)
-                    .clip(RoundedCornerShape(22.dp))
+                    .size(112.dp)
+                    .clip(RoundedCornerShape(20.dp))
                     .border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outlineVariant,
-                        shape = RoundedCornerShape(22.dp)
+                        shape = RoundedCornerShape(20.dp)
                     )
             ) {
                 AuraArtwork(
                     model = item.artworkUrl,
-                    size = 118,
-                    shape = RoundedCornerShape(22.dp),
+                    size = 112,
+                    shape = RoundedCornerShape(20.dp),
                     elevation = 0.dp,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -370,20 +370,20 @@ fun DailyFeaturedCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.height(22.dp)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(horizontal = 8.dp, vertical = 5.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = item.badgeLabel.uppercase().ifBlank { "DAILY FEATURED PLAYLIST" },
                         fontSize = 9.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 0.6.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+                        letterSpacing = 0.3.sp,
+                        maxLines = 1
                     )
                 }
 
@@ -420,13 +420,18 @@ fun DailyFeaturedCard(
                     if (item.songCountText.isNotBlank()) {
                         Text(
                             text = item.songCountText,
-                            fontSize = 13.5.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                     } else {
-                        Spacer(modifier = Modifier.width(1.dp))
+                        Spacer(modifier = Modifier.weight(1f))
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     AuraPlayButton(
                         onClick = onClick,

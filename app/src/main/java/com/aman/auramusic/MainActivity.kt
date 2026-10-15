@@ -404,7 +404,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     var showAboutDialog by remember { mutableStateOf(false) }
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
     var showExportPlaylistDialog by remember { mutableStateOf(false) }
-    var query by rememberSaveable { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var libraryQuery by rememberSaveable { mutableStateOf("") }
     var searchFilter by rememberSaveable(
         stateSaver = androidx.compose.runtime.saveable.Saver(
             save = { it.name },
@@ -419,11 +420,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     var onlineSongToAddToPlaylist by remember { mutableStateOf<OnlineSong?>(null) }
     var songsToAddToPlaylist by remember { mutableStateOf<List<Song>?>(null) }
     var playlistToRename by remember { mutableStateOf<Playlist?>(null) }
-
-    val filteredSongs = remember(songs, query) {
-        if (query.isBlank()) songs
-        else songs.filter { it.title.contains(query, ignoreCase = true) || it.artist.contains(query, ignoreCase = true) }
-    }
 
     val favoriteSongs = remember(songs, favoriteIds, favoriteOnlineSongs, playbackHistory, playlists) {
         val localFavorites = songs.filter { it.id in favoriteIds }
@@ -607,7 +603,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                     // Base Tab Screen destination: stays active on back-stack
                     when (selectedTab) {
                         AppTab.Home -> HomeScreen(
-                            songs = filteredSongs,
+                            songs = songs,
                             username = username,
                             history = playbackHistory,
                             favorites = favoriteSongs,
@@ -653,15 +649,15 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         AppTab.Library -> LibraryScreen(
                             selectedTab = selectedLibraryTab,
                             onTabSelected = { selectedLibraryTab = it },
-                            songs = filteredSongs,
+                            songs = songs,
                             allSongs = songs,
                             favoriteSongs = favoriteSongs,
                             favoriteIds = favoriteIds,
                             playlists = playlists,
-                            query = query,
+                            query = libraryQuery,
                             currentSongId = playerViewModel.currentSong?.id,
                             playlistGridColumns = appSettings.playlistGridColumns,
-                            onQueryChange = { query = it },
+                            onQueryChange = { libraryQuery = it },
                             onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
                             onFavoriteToggle = { song -> toggleSongFavorite(song) },
                             onSongSelected = { song, queue -> 
@@ -732,8 +728,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             songs = songs,
                             favoriteIds = favoriteIds,
                             currentSongId = playerViewModel.currentSong?.id,
-                            query = query,
-                            onQueryChange = { query = it },
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
                             activeFilter = searchFilter,
                             onActiveFilterChange = { searchFilter = it },
                             onSongSelected = { song, queue -> playSong(song, queue) },
