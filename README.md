@@ -12,7 +12,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Branch-BETA-blue?style=flat-square" alt="Branch BETA" />
-  <img src="https://img.shields.io/badge/Version-1.0.1--beta%20(Code%2014)-informational?style=flat-square" alt="Version 1.0.1-beta" />
+  <img src="https://img.shields.io/badge/Version-1.0.2--beta%20(Code%2015)-informational?style=flat-square" alt="Version 1.0.2-beta" />
   <img src="https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-success?style=flat-square" alt="Android API 26-36" />
   <img src="https://img.shields.io/badge/Kotlin-2.0.21-blueviolet?style=flat-square" alt="Kotlin 2.0.21" />
   <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=flat-square" alt="Jetpack Compose" />
@@ -294,8 +294,11 @@ To verify code compilation without building APK packages:
 ## Versioning & Release Information
 
 * **Current Development Branch**: `BETA`
-* **Internal Application Version**: `1.0.1` (`versionCode = 14`)
+* **Internal Application Version**: `1.0.2` (`versionCode = 15`)
 * **Status**: Development & Beta Testing.
+* **Changelog Highlights (v1.0.2)**:
+  * **Daily Featured Playlist Badge Refinement**: Made the badge pill compact, fully rounded, and naturally sized with balanced monochrome palette tokens across dark and light modes.
+  * **Concurrency & Safety Fixes**: Thread-safe playlist caching with `ConcurrentHashMap`, safe `MediaMetadataRetriever` release, and offloaded library queries.
 * **Changelog Highlights (v1.0.1)**:
   * **Monochrome Design System Migration**: Completely removed Liquid Glass, frosted glass modifiers, custom shaders, and obsolete glass settings in favor of an Apple Music-inspired flat monochrome design system.
   * **Strict Semantic Color Palette**: Standardized light and dark themes with strict contrast boundaries, flat surfaces, and subtle borders.

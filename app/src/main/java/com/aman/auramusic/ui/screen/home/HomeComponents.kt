@@ -373,16 +373,16 @@ fun DailyFeaturedCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(horizontal = 8.dp, vertical = 5.dp),
+                        .background(MaterialTheme.colorScheme.outline)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = item.badgeLabel.uppercase().ifBlank { "DAILY FEATURED PLAYLIST" },
-                        fontSize = 9.5.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 0.3.sp,
+                        letterSpacing = 0.4.sp,
                         maxLines = 1
                     )
                 }
