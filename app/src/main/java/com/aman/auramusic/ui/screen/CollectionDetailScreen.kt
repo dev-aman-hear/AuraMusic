@@ -312,6 +312,8 @@ fun CollectionDetailScreen(
                                     tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(22.dp)
                                 )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Play", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = onPrimary)
                             }
 
                             DropdownMenu(
