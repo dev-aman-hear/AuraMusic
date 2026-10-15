@@ -190,7 +190,7 @@ fun SearchScreen(
         onActiveFilterChange(newFilter)
     }
 
-    val activeFilter = internalFilter
+    val currentFilter = internalFilter
     val searchListState = rememberLazyListState()
 
     // Intercept back button when search query is active to smoothly return to category discovery
@@ -611,7 +611,7 @@ fun SearchScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             SearchFilter.values().forEach { filter ->
-                                val isSelected = activeFilter == filter
+                                val isSelected = currentFilter == filter
                                 val activeTextColor = MaterialTheme.colorScheme.onPrimary
                                 val inactiveTextColor = MaterialTheme.colorScheme.onSurfaceVariant
 
@@ -705,7 +705,7 @@ fun SearchScreen(
                 }
 
                 // 1. TOP RESULT CARD (Standout Artist or Song highlight)
-                if (activeFilter == SearchFilter.ALL || activeFilter == SearchFilter.ARTISTS) {
+                if (currentFilter == SearchFilter.ALL || currentFilter == SearchFilter.ARTISTS) {
                     if (topArtistMatch != null) {
                         item {
                             val artSongs = songs.filter { it.artist.contains(topArtistMatch, ignoreCase = true) }
@@ -723,7 +723,7 @@ fun SearchScreen(
                 }
 
                 // 2. LOCAL SONGS
-                if (activeFilter in listOf(SearchFilter.ALL, SearchFilter.SONGS)) {
+                if (currentFilter in listOf(SearchFilter.ALL, SearchFilter.SONGS)) {
                     if (filteredLocalSongs.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(10.dp))
@@ -749,7 +749,7 @@ fun SearchScreen(
                 }
 
                 // 3. ONLINE STREAMING SONGS (YouTube + JioSaavn)
-                if (activeFilter in listOf(SearchFilter.ALL, SearchFilter.SONGS)) {
+                if (currentFilter in listOf(SearchFilter.ALL, SearchFilter.SONGS)) {
                     if (onlineResults.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(10.dp))
@@ -774,7 +774,7 @@ fun SearchScreen(
                 }
 
                 // 4. MATCHING ARTISTS
-                if (activeFilter in listOf(SearchFilter.ALL, SearchFilter.ARTISTS)) {
+                if (currentFilter in listOf(SearchFilter.ALL, SearchFilter.ARTISTS)) {
                     if (matchedArtists.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(10.dp))
@@ -806,7 +806,7 @@ fun SearchScreen(
                     }
 
                     // When filter is specifically ARTISTS, also display the artist tracks below
-                    if (activeFilter == SearchFilter.ARTISTS) {
+                    if (currentFilter == SearchFilter.ARTISTS) {
                         if (artistLocalSongs.isNotEmpty() || artistOnlineSongs.isNotEmpty()) {
                             item {
                                 Spacer(modifier = Modifier.height(14.dp))
@@ -843,7 +843,7 @@ fun SearchScreen(
                 }
 
                 // 5. MATCHING ALBUMS
-                if (activeFilter in listOf(SearchFilter.ALL, SearchFilter.ALBUMS)) {
+                if (currentFilter in listOf(SearchFilter.ALL, SearchFilter.ALBUMS)) {
                     if (matchedAlbums.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(10.dp))
@@ -870,7 +870,7 @@ fun SearchScreen(
                     }
 
                     // When filter is specifically ALBUMS, also display the album tracks below
-                    if (activeFilter == SearchFilter.ALBUMS) {
+                    if (currentFilter == SearchFilter.ALBUMS) {
                         if (albumLocalSongs.isNotEmpty() || albumOnlineSongs.isNotEmpty()) {
                             item {
                                 Spacer(modifier = Modifier.height(14.dp))
@@ -907,7 +907,7 @@ fun SearchScreen(
                 }
 
                 // EMPTY STATE
-                val isFilterEmpty = when (activeFilter) {
+                val isFilterEmpty = when (currentFilter) {
                     SearchFilter.ALL -> filteredLocalSongs.isEmpty() && onlineResults.isEmpty() && matchedArtists.isEmpty() && matchedAlbums.isEmpty()
                     SearchFilter.SONGS -> filteredLocalSongs.isEmpty() && onlineResults.isEmpty()
                     SearchFilter.ARTISTS -> matchedArtists.isEmpty() && artistLocalSongs.isEmpty() && artistOnlineSongs.isEmpty()
@@ -916,13 +916,13 @@ fun SearchScreen(
 
                 if (isFilterEmpty && !isOnlineLoading) {
                     item {
-                        val emptyTitle = when (activeFilter) {
+                        val emptyTitle = when (currentFilter) {
                             SearchFilter.ARTISTS -> "No Artists Found"
                             SearchFilter.ALBUMS -> "No Albums Found"
                             SearchFilter.SONGS -> "No Songs Found"
                             SearchFilter.ALL -> "No Matches Found"
                         }
-                        val emptyMsg = when (activeFilter) {
+                        val emptyMsg = when (currentFilter) {
                             SearchFilter.ARTISTS -> "No artists or tracks matched \"$query\"."
                             SearchFilter.ALBUMS -> "No albums or tracks matched \"$query\"."
                             SearchFilter.SONGS -> "No songs matched \"$query\"."
