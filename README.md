@@ -83,7 +83,7 @@ Aura Music centers on a clean, four-tab navigation model (`Home`, `Online`, `Lib
 * **Strict Semantic Color Palette**: Uses a single source of truth monochrome system for all UI chrome:
   * **Light Theme**: Background (`#FFFFFF`), Surface (`#F5F5F5`), Secondary Surface (`#EEEEEE`), Pressed Surface (`#E5E5E5`), Primary Text/Icons (`#000000`), Secondary Text (`#666666`), Tertiary Text (`#888888`), Subtle Border (`#D9D9D9`), Strong Border (`#BFBFBF`), Selected Control (Black with White text/icons).
   * **Dark Theme**: Background (`#000000`), Surface (`#111111`), Secondary Surface (`#1A1A1A`), Pressed Surface (`#262626`), Primary Text/Icons (`#FFFFFF`), Secondary Text (`#AAAAAA`), Tertiary Text (`#808080`), Subtle Border (`#333333`), Strong Border (`#555555`), Selected Control (White with Black text/icons).
-* **Theme & Appearance Modes**: Supports System Default, Light Theme, Dark Theme, and an AMOLED mode with pure pitch-black (`#000000`) backgrounds.
+* **Theme & Appearance Modes**: Supports System Default, Light Theme, and Dark Theme with pure pitch-black (`#000000`) backgrounds.
 * **Artwork Fidelity**: Genuine album artwork, artist photographs, and downloaded media artwork retain their authentic colors and are never altered or desaturated.
 * **Artwork-Driven Ambient Player**: The full-screen player extracts soft ambient color swatches from active track artwork via `androidx.palette` for the player backdrop, while playback controls, menus, sheets, and typography remain strictly monochrome.
 
@@ -298,7 +298,7 @@ To verify code compilation without building APK packages:
 * **Status**: Development & Beta Testing.
 * **Changelog Highlights (v1.0.1)**:
   * **Monochrome Design System Migration**: Completely removed Liquid Glass, frosted glass modifiers, custom shaders, and obsolete glass settings in favor of an Apple Music-inspired flat monochrome design system.
-  * **Strict Semantic Color Palette**: Standardized light, dark, and AMOLED themes with strict contrast boundaries, flat surfaces, and subtle borders.
+  * **Strict Semantic Color Palette**: Standardized light and dark themes with strict contrast boundaries, flat surfaces, and subtle borders.
   * **Dedicated Library Favorites**: Added a dedicated Favorites category tab in `LibraryScreen` with quick Play All and Shuffle actions.
   * **Online Song Favorites Persistence**: Favorited online songs now persist in DataStore and appear alongside local favorites.
   * **Refined Category Chips**: Category chips in the Library use clean, text-only styling without legacy accent badges.

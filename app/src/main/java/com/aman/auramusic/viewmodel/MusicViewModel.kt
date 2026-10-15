@@ -254,18 +254,6 @@ class MusicViewModel @Inject constructor(
         }
     }
 
-    fun setDynamicColors(enabled: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.setDynamicColors(enabled)
-        }
-    }
-
-    fun setAmoledMode(enabled: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.setAmoledMode(enabled)
-        }
-    }
-
     fun setBlurIntensity(intensity: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setBlurIntensity(intensity)

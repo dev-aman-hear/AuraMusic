@@ -36,8 +36,6 @@ class UserPreferencesRepository(private val context: Context) {
 
     val settingsFlow: Flow<AppSettings> = dataStore.data.map { prefs ->
         AppSettings(
-            dynamicColors = prefs[Keys.dynamicColors] ?: true,
-            amoledMode = prefs[Keys.amoledMode] ?: false,
             blurIntensity = prefs[Keys.blurIntensity] ?: 40,
             karaokeMode = prefs[Keys.karaokeMode] ?: false,
             lyricFontScale = prefs[Keys.lyricFontScale] ?: 1.0f,
@@ -87,14 +85,6 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setUsername(name: String) {
         dataStore.edit { it[Keys.username] = name }
-    }
-
-    suspend fun setDynamicColors(enabled: Boolean) {
-        dataStore.edit { it[Keys.dynamicColors] = enabled }
-    }
-
-    suspend fun setAmoledMode(enabled: Boolean) {
-        dataStore.edit { it[Keys.amoledMode] = enabled }
     }
 
     suspend fun setBlurIntensity(intensity: Int) {
@@ -439,8 +429,6 @@ class UserPreferencesRepository(private val context: Context) {
     companion object {
         private object Keys {
             val username = stringPreferencesKey("username")
-            val dynamicColors = booleanPreferencesKey("dynamic_colors")
-            val amoledMode = booleanPreferencesKey("amoled_mode")
             val blurIntensity = intPreferencesKey("blur_intensity")
             val karaokeMode = booleanPreferencesKey("karaoke_mode")
             val lyricFontScale = floatPreferencesKey("lyric_font_scale")

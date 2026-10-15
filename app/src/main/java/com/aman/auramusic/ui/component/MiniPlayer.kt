@@ -56,7 +56,6 @@ fun MiniPlayer(
     isPlaying: Boolean,
     position: Long,
     duration: Long,
-    dominantColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     onOpen: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,

@@ -56,13 +56,11 @@ private val LightColorScheme = lightColorScheme(
 /**
  * Pure Monochrome Root Theme for AuraMusic.
  * Uses only the agreed Monochrome design system without colored accents or glass effects.
- * Supports System, Light, and Dark/AMOLED modes.
+ * Supports System, Light, and Dark modes.
  */
 @Composable
 fun AuraMusicTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    dynamicColor: Boolean = false,
-    amoledMode: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val isSystemDark = isSystemInDarkTheme()

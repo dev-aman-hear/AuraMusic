@@ -58,8 +58,6 @@ fun SettingsScreen(
     appSettings: AppSettings,
     onUsernameChange: (String) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit = {},
-    onDynamicColorsChange: (Boolean) -> Unit = {},
-    onAmoledChange: (Boolean) -> Unit = {},
     onBlurIntensityChange: (Int) -> Unit = {},
     onKaraokeChange: (Boolean) -> Unit = {},
     onLyricFontScaleChange: (Float) -> Unit,

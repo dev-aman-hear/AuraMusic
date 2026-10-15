@@ -14,7 +14,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -193,9 +192,7 @@ class MainActivity : ComponentActivity() {
             val appSettings by musicViewModel.settings.collectAsStateWithLifecycle()
             
             AuraMusicTheme(
-                themeMode = appSettings.themeMode,
-                dynamicColor = false,
-                amoledMode = appSettings.amoledMode
+                themeMode = appSettings.themeMode
             ) {
                 MusicScreen(musicViewModel)
             }
@@ -264,12 +261,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
             }
         }
     }
-
-    val animatedDominantColor by animateColorAsState(
-        targetValue = if (appSettings.dynamicColors) Color(playerViewModel.dominantColor) else Color.Transparent,
-        animationSpec = tween(1000),
-        label = "globalDynamicColor"
-    )
 
     var hasAttemptedRestore by remember { mutableStateOf(false) }
 
@@ -768,8 +759,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 appSettings = appSettings,
                                 onUsernameChange = { musicViewModel.updateUsername(it) },
                                 onThemeModeChange = { mode -> musicViewModel.setThemeMode(mode) },
-                                onDynamicColorsChange = { musicViewModel.setDynamicColors(it) },
-                                onAmoledChange = { musicViewModel.setAmoledMode(it) },
                                 onBlurIntensityChange = { musicViewModel.setBlurIntensity(it) },
                                 onKaraokeChange = { musicViewModel.setKaraokeMode(it) },
                                 onLyricFontScaleChange = { musicViewModel.setLyricFontScale(it) },
@@ -1043,7 +1032,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     isPlaying = onlinePlaybackState.isPlaying,
                                     position = onlinePlaybackState.currentPositionMs,
                                     duration = onlinePlaybackState.durationMs,
-                                    dominantColor = animatedDominantColor,
                                     onPlayPause = { onlinePlaybackManager.togglePlayPause() },
                                     onNext = { onlinePlaybackManager.playNext() },
                                     onPrevious = { onlinePlaybackManager.playPrevious() },
@@ -1056,7 +1044,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                         isPlaying = playerViewModel.isPlaying,
                                         position = playerViewModel.currentPosition,
                                         duration = playerViewModel.duration,
-                                        dominantColor = animatedDominantColor,
                                         onPlayPause = { playerViewModel.togglePlayPause() },
                                         onNext = { playerViewModel.playNext() },
                                         onPrevious = { playerViewModel.playPrevious() },
