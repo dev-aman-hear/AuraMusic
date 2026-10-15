@@ -63,28 +63,9 @@ import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.LocalIsDark
 import kotlinx.coroutines.delay
 
-/**
- * Organic Mesh Pattern styles matching each specific card in the Dribbble search reference design.
- */
-enum class MeshPattern {
-    POP,          // Dark canopy top, radiant lime/emerald glow in center-lower
-    HIP_HOP,      // Deep crimson-dark top, fiery neon amber/orange explosion lower-center
-    ELECTRONIC,   // Candy coral-pink top, neon magenta bottom, dark contrasting void in middle
-    ALTERNATIVE,  // Ethereal ice-cyan top-left & bottom, orchid lavender right, diagonal teal ribbon
-    ROCK,         // Horizontal electric cyan-blue beam across midnight navy abyss
-    RNB,          // Acid chartreuse lime top-left bleeding into royal ultraviolet bottom-right
-    BOLLYWOOD,    // Saffron gold warm left bleeding into royal ruby magenta right
-    HINDI,        // Warm amber-coral center with vibrant fuchsia aura
-    PUNJABI,      // Volcanic amber-flame lower-center
-    INDIE,        // Electric neon violet upper-right, soft pastel rose lower-left
-    CLASSICAL,    // Midnight sapphire with celestial starlight indigo
-    CHILL         // Bioluminescent marine aqua & deep oceanic teal pool
-}
-
 data class SearchCategory(
     val title: String,
-    val keywords: List<String>,
-    val pattern: MeshPattern
+    val keywords: List<String>
 )
 
 enum class SearchFilter(val label: String) {
@@ -216,63 +197,51 @@ fun SearchScreen(
         listOf(
             SearchCategory(
                 title = "Pop",
-                keywords = listOf("pop", "swift", "sheeran", "bieber", "lipa", "ariana", "weekend", "drake", "bruno", "gomez", "billie", "olivia", "perry", "styles", "puth"),
-                pattern = MeshPattern.POP
+                keywords = listOf("pop", "swift", "sheeran", "bieber", "lipa", "ariana", "weekend", "drake", "bruno", "gomez", "billie", "olivia", "perry", "styles", "puth")
             ),
             SearchCategory(
                 title = "Hip Hop",
-                keywords = listOf("hip-hop", "hip hop", "rap", "rapper", "divine", "emiway", "raftaar", "stan", "krsna", "drake", "eminem", "kanye", "travis"),
-                pattern = MeshPattern.HIP_HOP
+                keywords = listOf("hip-hop", "hip hop", "rap", "rapper", "divine", "emiway", "raftaar", "stan", "krsna", "drake", "eminem", "kanye", "travis")
             ),
             SearchCategory(
                 title = "Electronic",
-                keywords = listOf("electronic", "dance", "edm", "party", "club", "dj", "remix", "house", "garrix", "guetta", "avicii", "marshmello"),
-                pattern = MeshPattern.ELECTRONIC
+                keywords = listOf("electronic", "dance", "edm", "party", "club", "dj", "remix", "house", "garrix", "guetta", "avicii", "marshmello")
             ),
             SearchCategory(
                 title = "Alternative",
-                keywords = listOf("alternative", "indie", "alt", "arctic monkeys", "strokes", "radiohead", "cage the elephant", "tame impala", "twenty one pilots"),
-                pattern = MeshPattern.ALTERNATIVE
+                keywords = listOf("alternative", "indie", "alt", "arctic monkeys", "strokes", "radiohead", "cage the elephant", "tame impala", "twenty one pilots")
             ),
             SearchCategory(
                 title = "Rock",
-                keywords = listOf("rock", "metal", "band", "guitar", "queen", "nirvana", "metallica", "coldplay", "dragons", "linkin park", "ac/dc"),
-                pattern = MeshPattern.ROCK
+                keywords = listOf("rock", "metal", "band", "guitar", "queen", "nirvana", "metallica", "coldplay", "dragons", "linkin park", "ac/dc")
             ),
             SearchCategory(
                 title = "R&B",
-                keywords = listOf("r&b", "rnb", "soul", "sza", "frank ocean", "brent faiyaz", "khalid", "daniel caesar", "summer walker", "usher"),
-                pattern = MeshPattern.RNB
+                keywords = listOf("r&b", "rnb", "soul", "sza", "frank ocean", "brent faiyaz", "khalid", "daniel caesar", "summer walker", "usher")
             ),
             SearchCategory(
                 title = "Bollywood",
-                keywords = listOf("bollywood", "hindi", "arijit", "neha", "badshah", "jubin", "shreya", "pritam", "t-series", "filmi", "singh", "kapoor", "khan"),
-                pattern = MeshPattern.BOLLYWOOD
+                keywords = listOf("bollywood", "hindi", "arijit", "neha", "badshah", "jubin", "shreya", "pritam", "t-series", "filmi", "singh", "kapoor", "khan")
             ),
             SearchCategory(
                 title = "Hindi Music",
-                keywords = listOf("hindi", "arijit", "sonu nigam", "shreya ghoshal", "kk", "atif", "mohit chauhan", "ar rahman", "pritam", "mithoon"),
-                pattern = MeshPattern.HINDI
+                keywords = listOf("hindi", "arijit", "sonu nigam", "shreya ghoshal", "kk", "atif", "mohit chauhan", "ar rahman", "pritam", "mithoon")
             ),
             SearchCategory(
                 title = "Punjabi",
-                keywords = listOf("punjabi", "sidhu", "diljit", "karan", "aujla", "ap dhillon", "bhangra", "desi", "jatt", "honey singh", "randhawa", "b praak"),
-                pattern = MeshPattern.PUNJABI
+                keywords = listOf("punjabi", "sidhu", "diljit", "karan", "aujla", "ap dhillon", "bhangra", "desi", "jatt", "honey singh", "randhawa", "b praak")
             ),
             SearchCategory(
                 title = "Indie",
-                keywords = listOf("indie", "prateek kuhad", "anuv jain", "zaeden", "ritviz", "when chai met toast", "the local train", "jasleen royal"),
-                pattern = MeshPattern.INDIE
+                keywords = listOf("indie", "prateek kuhad", "anuv jain", "zaeden", "ritviz", "when chai met toast", "the local train", "jasleen royal")
             ),
             SearchCategory(
                 title = "Classical",
-                keywords = listOf("classical", "sufi", "ghazal", "qawwali", "raag", "classic", "retro", "90s", "80s", "kishore", "lata", "rafi", "jagjit"),
-                pattern = MeshPattern.CLASSICAL
+                keywords = listOf("classical", "sufi", "ghazal", "qawwali", "raag", "classic", "retro", "90s", "80s", "kishore", "lata", "rafi", "jagjit")
             ),
             SearchCategory(
                 title = "Chill",
-                keywords = listOf("chill", "lofi", "soft", "acoustic", "relax", "peace", "sleep", "night", "rain", "calm", "study", "ambient"),
-                pattern = MeshPattern.CHILL
+                keywords = listOf("chill", "lofi", "soft", "acoustic", "relax", "peace", "sleep", "night", "rain", "calm", "study", "ambient")
             )
         )
     }
@@ -952,33 +921,27 @@ fun CategoryCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cardShape = RoundedCornerShape(24.dp)
+    val cardShape = RoundedCornerShape(22.dp)
 
-    Card(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(130.dp)
             .clip(cardShape)
-            .clickable(onClick = onClick),
-        shape = cardShape,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            .background(MaterialTheme.colorScheme.surface, cardShape)
+            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), cardShape)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = category.title,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 17.5.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.2).sp,
-                textAlign = TextAlign.Center
-            )
-        }
+        Text(
+            text = category.title,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 17.5.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.2).sp,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
