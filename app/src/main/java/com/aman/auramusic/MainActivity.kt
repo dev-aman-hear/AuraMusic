@@ -288,8 +288,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                 source: NestedScrollSource
             ): Offset {
                 when {
-                    available.y < -1f -> isBottomCollapsed = true
-                    available.y > 1f -> isBottomCollapsed = false
+                    consumed.y + available.y < -1f -> isBottomCollapsed = true
+                    consumed.y + available.y > 1f -> isBottomCollapsed = false
                 }
                 return Offset.Zero
             }
@@ -1062,20 +1062,11 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
                     ) {
-                        // Monochrome scrim backdrop to prevent underlying content from bleeding through
+                        // Solid monochrome backdrop keeps content legible without gradients.
                         Box(
                             modifier = Modifier
                                 .matchParentSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
-                                            MaterialTheme.colorScheme.background,
-                                            MaterialTheme.colorScheme.background
-                                        )
-                                    )
-                                )
+                                .background(MaterialTheme.colorScheme.background)
                         )
 
                         Column(
