@@ -14,30 +14,17 @@ object ArtworkExtractor {
         songUri: String
     ): Bitmap? {
 
+        val retriever = MediaMetadataRetriever()
         return try {
-
-            val retriever =
-                MediaMetadataRetriever()
-
-            retriever.setDataSource(
-                context,
-                songUri.toUri()
-            )
-
-            val bytes =
-                retriever.embeddedPicture
-
-            retriever.release()
-
+            retriever.setDataSource(context, songUri.toUri())
+            val bytes = retriever.embeddedPicture
             bytes?.let {
-                BitmapFactory.decodeByteArray(
-                    it,
-                    0,
-                    it.size
-                )
+                BitmapFactory.decodeByteArray(it, 0, it.size)
             }
         } catch (_: Exception) {
             null
+        } finally {
+            runCatching { retriever.release() }
         }
     }
 

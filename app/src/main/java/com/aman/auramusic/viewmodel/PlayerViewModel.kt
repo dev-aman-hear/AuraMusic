@@ -204,8 +204,10 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun refreshQueueFromIds(ids: List<Long>) {
-        val allSongs = musicRepository.getAllSongs()
+    private suspend fun refreshQueueFromIds(ids: List<Long>) {
+        val allSongs = kotlinx.coroutines.withContext(Dispatchers.IO) {
+            musicRepository.getAllSongs()
+        }
         val songs = ids.mapNotNull { id -> allSongs.find { it.id == id } }
         
         // Update originalQueue but try to keep current _queue if shuffled
@@ -682,7 +684,7 @@ class PlayerViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         if (isServiceBound) {
-            getApplication<Application>().unbindService(serviceConnection)
+            runCatching { getApplication<Application>().unbindService(serviceConnection) }
         }
         
         if (!appSettings.keepPlayingOnClose || !isPlaying) {

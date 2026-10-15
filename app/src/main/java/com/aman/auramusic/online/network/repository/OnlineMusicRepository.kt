@@ -27,7 +27,8 @@ class OnlineMusicRepository(
         private val searchCache = LruCache<String, List<OnlineSong>>(100)
         private val playlistSongsCache = LruCache<String, List<OnlineSong>>(50)
         private val streamCache = LruCache<String, OnlineSong>(100)
-        private val playlistsCache = mutableMapOf<AudioSource, Pair<Long, List<com.aman.auramusic.online.model.OnlinePlaylist>>>()
+        private val playlistsCache = java.util.concurrent.ConcurrentHashMap<AudioSource, Pair<Long, List<com.aman.auramusic.online.model.OnlinePlaylist>>>()
+        @Volatile
         private var songFeedCache: Pair<Long, List<OnlineSong>>? = null
         private const val CACHE_TTL_MS = 15 * 60 * 1000L // 15 minutes
     }
