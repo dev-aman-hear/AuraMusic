@@ -1,7 +1,6 @@
 package com.aman.auramusic.data.model
 
 data class AppSettings(
-    val blurIntensity: Int = 42,
     val karaokeMode: Boolean = true,
     val lyricFontScale: Float = 1.0f,
     val crossfadeEnabled: Boolean = false,

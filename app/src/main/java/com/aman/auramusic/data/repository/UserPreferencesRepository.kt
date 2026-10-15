@@ -36,7 +36,6 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
 
     val settingsFlow: Flow<AppSettings> = dataStore.data.map { prefs ->
         AppSettings(
-            blurIntensity = prefs[Keys.blurIntensity] ?: 40,
             karaokeMode = prefs[Keys.karaokeMode] ?: false,
             lyricFontScale = prefs[Keys.lyricFontScale] ?: 1.0f,
             crossfadeEnabled = prefs[Keys.crossfadeEnabled] ?: false,
@@ -85,10 +84,6 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setUsername(name: String) {
         dataStore.edit { it[Keys.username] = name }
-    }
-
-    suspend fun setBlurIntensity(intensity: Int) {
-        dataStore.edit { it[Keys.blurIntensity] = intensity }
     }
 
     suspend fun setKaraokeMode(enabled: Boolean) {
@@ -448,7 +443,6 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
     companion object {
         private object Keys {
             val username = stringPreferencesKey("username")
-            val blurIntensity = intPreferencesKey("blur_intensity")
             val karaokeMode = booleanPreferencesKey("karaoke_mode")
             val lyricFontScale = floatPreferencesKey("lyric_font_scale")
             val crossfadeEnabled = booleanPreferencesKey("crossfade_enabled")

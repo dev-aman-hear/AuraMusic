@@ -58,7 +58,6 @@ fun SettingsScreen(
     appSettings: AppSettings,
     onUsernameChange: (String) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit = {},
-    onBlurIntensityChange: (Int) -> Unit = {},
     onKaraokeChange: (Boolean) -> Unit = {},
     onLyricFontScaleChange: (Float) -> Unit,
     onCrossfadeChange: (Boolean) -> Unit,

@@ -232,7 +232,6 @@ fun PlayerScreen(
             artworkModel = artworkModel,
             dominantColor = animatedColor,
             accentColor = animatedAccentColor,
-            blurIntensity = appSettings.blurIntensity,
             onPaletteExtracted = { dom, acc ->
                 onlineDominantColor = dom
                 onlineAccentColor = acc
@@ -316,7 +315,6 @@ private fun PlayerBackground(
     artworkModel: Any?,
     dominantColor: Color,
     accentColor: Color,
-    blurIntensity: Int,
     onPaletteExtracted: ((Int, Int) -> Unit)? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current

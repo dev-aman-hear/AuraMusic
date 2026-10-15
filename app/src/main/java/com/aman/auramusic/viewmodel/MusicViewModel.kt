@@ -260,12 +260,6 @@ class MusicViewModel @Inject constructor(
         }
     }
 
-    fun setBlurIntensity(intensity: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.setBlurIntensity(intensity)
-        }
-    }
-
     fun setKaraokeMode(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setKaraokeMode(enabled)
