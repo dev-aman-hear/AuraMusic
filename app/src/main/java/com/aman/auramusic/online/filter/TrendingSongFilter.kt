@@ -266,16 +266,22 @@ class TrendingSongFilter(
         for (song in songs) {
             val key = if (config.deduplicateAcrossProviders) {
                 // Conservative cross-provider deduplication: normalized title + artist
-                val normTitle = normalizeTitle(song.title).lowercase(Locale.ROOT)
-                val normArtist = normalizeTitle(song.artist).lowercase(Locale.ROOT)
-                "$normTitle|$normArtist"
+                val normTitle = normalizeTitle(song.title).lowercase(Locale.ROOT).trim()
+                val normArtist = normalizeTitle(song.artist).lowercase(Locale.ROOT).trim()
+                if (normTitle.isNotBlank() && normArtist.isNotBlank()) {
+                    "$normTitle|$normArtist"
+                } else if (song.id.isNotBlank()) {
+                    "${song.source.name}:${song.id.trim()}"
+                } else {
+                    "${song.source.name}:${song.hashCode()}"
+                }
             } else {
                 // Provider-isolated deduplication: source + ID
                 if (song.id.isNotBlank()) {
                     "${song.source.name}:${song.id.trim()}"
                 } else {
-                    val normTitle = normalizeTitle(song.title).lowercase(Locale.ROOT)
-                    val normArtist = normalizeTitle(song.artist).lowercase(Locale.ROOT)
+                    val normTitle = normalizeTitle(song.title).lowercase(Locale.ROOT).trim()
+                    val normArtist = normalizeTitle(song.artist).lowercase(Locale.ROOT).trim()
                     "${song.source.name}:$normTitle|$normArtist"
                 }
             }
