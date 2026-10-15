@@ -467,13 +467,15 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     fun toggleSongFavorite(song: Song) {
         val isFav = song.id in favoriteIds
         val onlineMatch = favoriteOnlineSongs.find { 
-            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title == song.title 
+            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title.equals(song.title, ignoreCase = true) 
         } ?: playbackHistory.mapNotNull { entry ->
             entry.onlineSongJson?.let { runCatching { Gson().fromJson(it, OnlineSong::class.java) }.getOrNull() }
         }.find {
-            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title == song.title
+            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title.equals(song.title, ignoreCase = true)
         } ?: playlists.flatMap { it.onlineSongs }.find {
-            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title == song.title
+            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title.equals(song.title, ignoreCase = true)
+        } ?: (onlinePlaybackState.currentSong ?: activeOnlineSong)?.takeIf {
+            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title.equals(song.title, ignoreCase = true)
         } ?: if (song.album == "Online Stream" || song.filePath.isNullOrBlank() || !File(song.filePath).exists()) {
             OnlineSong(
                 id = song.id.toString(),
@@ -824,7 +826,21 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onAddToQueue = { playerViewModel.addToQueue(it) },
                                     onAddCollectionToQueue = { playerViewModel.addToQueue(playlistSongs) },
                                     onAddCollectionToPlaylist = { songsToAddToPlaylist = playlistSongs },
-                                    onFavoriteCollection = { playlistSongs.forEach { musicViewModel.toggleFavorite(it.id, true) } }
+                                    onFavoriteCollection = {
+                                        val items = playlistSongs.map { song ->
+                                            val match = p.onlineSongs.find {
+                                                (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
+                                                it.id == song.id.toString() ||
+                                                it.title.equals(song.title, ignoreCase = true)
+                                            } ?: favoriteOnlineSongs.find {
+                                                (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
+                                                it.id == song.id.toString() ||
+                                                it.title.equals(song.title, ignoreCase = true)
+                                            }
+                                            song.id to match
+                                        }
+                                        musicViewModel.toggleFavorites(items, true)
+                                    }
                                 )
                             }
                         }
@@ -874,14 +890,30 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 currentSongId = playerViewModel.currentSong?.id,
                                 onBack = { selectedAlbumName = null },
                                 onSongSelected = { song ->
-                                    val onlineMatch = onlineAlbumSongs.find { it.id == song.id.toString() || it.title == song.title }
+                                    val onlineMatch = onlineAlbumSongs.find {
+                                        (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
+                                        it.id == song.id.toString() ||
+                                        it.title.equals(song.title, ignoreCase = true)
+                                    }
                                     if (onlineMatch != null) {
                                         playOnlineSong(onlineMatch, onlineAlbumSongs)
                                     } else {
                                         playSong(song, displaySongs)
                                     }
                                 },
-                                onToggleFavorite = { song -> musicViewModel.toggleFavorite(song.id, song.id !in favoriteIds) },
+                                onToggleFavorite = { song ->
+                                    val isFav = song.id in favoriteIds
+                                    val onlineMatch = onlineAlbumSongs.find {
+                                        (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
+                                        it.id == song.id.toString() ||
+                                        it.title.equals(song.title, ignoreCase = true)
+                                    } ?: favoriteOnlineSongs.find {
+                                        (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
+                                        it.id == song.id.toString() ||
+                                        it.title.equals(song.title, ignoreCase = true)
+                                    }
+                                    musicViewModel.toggleFavorite(song.id, !isFav, onlineMatch)
+                                },
                                 onAddToPlaylist = { songToAddToPlaylist = it },
                                 onAddToQueue = { playerViewModel.addToQueue(it) },
                                 onAddCollectionToQueue = {
@@ -892,7 +924,21 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     }
                                 },
                                 onAddCollectionToPlaylist = { songsToAddToPlaylist = displaySongs },
-                                onFavoriteCollection = { displaySongs.forEach { musicViewModel.toggleFavorite(it.id, true) } },
+                                onFavoriteCollection = {
+                                    val items = displaySongs.map { song ->
+                                        val match = onlineAlbumSongs.find {
+                                            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
+                                            it.id == song.id.toString() ||
+                                            it.title.equals(song.title, ignoreCase = true)
+                                        } ?: favoriteOnlineSongs.find {
+                                            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
+                                            it.id == song.id.toString() ||
+                                            it.title.equals(song.title, ignoreCase = true)
+                                        }
+                                        song.id to match
+                                    }
+                                    musicViewModel.toggleFavorites(items, true)
+                                },
                                 showShareButton = false,
                                 showMenuButton = false,
                                 showAddButton = false

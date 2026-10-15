@@ -26,9 +26,9 @@ import org.json.JSONObject
 
 val Context.appDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-class UserPreferencesRepository(private val context: Context) {
+class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
 
-    private val dataStore = context.appDataStore
+    constructor(context: Context) : this(context.appDataStore)
 
     val usernameFlow: Flow<String> = dataStore.data.map { prefs ->
         prefs[Keys.username] ?: "Master"
@@ -127,31 +127,50 @@ class UserPreferencesRepository(private val context: Context) {
         dataStore.edit { it[Keys.themeMode] = mode.name }
     }
 
-    suspend fun setFavorite(songId: Long, isFavorite: Boolean, onlineSong: OnlineSong? = null) {
+    suspend fun setFavorites(items: List<Pair<Long, OnlineSong?>>, isFavorite: Boolean) {
+        if (items.isEmpty()) return
         dataStore.edit { prefs ->
             val ids = prefs[Keys.favoriteIds].decodeLongSet().toMutableSet()
-            if (isFavorite) ids.add(songId) else ids.remove(songId)
-            prefs[Keys.favoriteIds] = ids.encodeLongSet()
-
             val onlineList = prefs[Keys.favoriteOnlineSongs].decodeOnlineSongs().toMutableList()
-            if (onlineSong != null) {
-                onlineList.removeAll { 
-                    it.id == onlineSong.id || 
-                    (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == songId 
-                }
+
+            val songsToRemove = mutableSetOf<Long>()
+            val onlineIdsToRemove = mutableSetOf<String>()
+            val onlineSongsToAdd = mutableListOf<OnlineSong>()
+
+            for ((songId, onlineSong) in items) {
                 if (isFavorite) {
-                    onlineList.add(0, onlineSong.copy(streamUrl = ""))
-                }
-                prefs[Keys.favoriteOnlineSongs] = onlineList.encodeOnlineSongs()
-            } else if (!isFavorite) {
-                val removed = onlineList.removeAll { 
-                    (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == songId 
-                }
-                if (removed) {
-                    prefs[Keys.favoriteOnlineSongs] = onlineList.encodeOnlineSongs()
+                    ids.add(songId)
+                    if (onlineSong != null) {
+                        songsToRemove.add(songId)
+                        onlineIdsToRemove.add(onlineSong.id)
+                        onlineSongsToAdd.add(onlineSong.copy(streamUrl = ""))
+                    }
+                } else {
+                    ids.remove(songId)
+                    songsToRemove.add(songId)
+                    if (onlineSong != null) {
+                        onlineIdsToRemove.add(onlineSong.id)
+                    }
                 }
             }
+
+            onlineList.removeAll {
+                onlineIdsToRemove.contains(it.id) ||
+                songsToRemove.contains((it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L))
+            }
+
+            if (onlineSongsToAdd.isNotEmpty()) {
+                val distinctToAdd = onlineSongsToAdd.distinctBy { it.id }
+                onlineList.addAll(0, distinctToAdd)
+            }
+
+            prefs[Keys.favoriteIds] = ids.encodeLongSet()
+            prefs[Keys.favoriteOnlineSongs] = onlineList.encodeOnlineSongs()
         }
+    }
+
+    suspend fun setFavorite(songId: Long, isFavorite: Boolean, onlineSong: OnlineSong? = null) {
+        setFavorites(listOf(songId to onlineSong), isFavorite)
     }
 
     suspend fun recordRecentSearch(query: String) {

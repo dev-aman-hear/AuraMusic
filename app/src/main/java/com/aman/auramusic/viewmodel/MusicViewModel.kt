@@ -144,6 +144,12 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    fun toggleFavorites(items: List<Pair<Long, OnlineSong?>>, isFavorite: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setFavorites(items, isFavorite)
+        }
+    }
+
     fun recordPlayback(songId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.recordPlayback(songId, System.currentTimeMillis())
