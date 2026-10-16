@@ -79,7 +79,8 @@ data class ArtistProfileData(
     val onlineAlbums: List<OnlinePlaylist> = emptyList(),
     val audienceText: String? = null,
     val similarArtists: List<ArtistItem> = emptyList(),
-    val bio: com.aman.auramusic.online.network.repository.ArtistBioData? = null
+    val bio: com.aman.auramusic.online.network.repository.ArtistBioData? = null,
+    val loadErrorMessage: String? = null
 )
 
 data class CategoryDiscoverItem(
@@ -860,7 +861,8 @@ class HomeViewModel @Inject constructor(
             onlineAlbums = catalogue.albums,
             audienceText = audienceText,
             similarArtists = similarArtistItems,
-            bio = catalogue.bio
+            bio = catalogue.bio,
+            loadErrorMessage = catalogue.loadErrorMessage
         )
     }
 
