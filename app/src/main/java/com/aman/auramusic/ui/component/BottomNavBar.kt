@@ -74,12 +74,11 @@ fun BottomNavBar(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val compactTab = if (selectedTab == AppTab.Search) AppTab.Home else selectedTab
-            val isCompactSelected = selectedTab == compactTab
-            val compactTint by animateColorAsState(
-                targetValue = if (isCompactSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            val isHomeSelected = selectedTab == AppTab.Home
+            val homeTint by animateColorAsState(
+                targetValue = if (isHomeSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 animationSpec = tween(220),
-                label = "compactTint"
+                label = "compactHomeTint"
             )
             Box(
                 modifier = Modifier
@@ -87,21 +86,21 @@ fun BottomNavBar(
                     .clip(navShape)
                     .background(MaterialTheme.colorScheme.surface, navShape)
                     .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), navShape)
-                    .clickable { onTabSelected(compactTab) },
+                    .clickable { onTabSelected(AppTab.Home) },
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     Icon(
-                        imageVector = compactTab.selectedIcon,
-                        contentDescription = compactTab.label,
-                        tint = compactTint,
+                        imageVector = AppTab.Home.selectedIcon,
+                        contentDescription = AppTab.Home.label,
+                        tint = homeTint,
                         modifier = Modifier.size(19.dp)
                     )
                     Text(
-                        text = compactTab.label,
+                        text = AppTab.Home.label,
                         fontSize = 8.5.sp,
-                        fontWeight = if (isCompactSelected) FontWeight.SemiBold else FontWeight.Medium,
-                        color = compactTint,
+                        fontWeight = if (isHomeSelected) FontWeight.SemiBold else FontWeight.Medium,
+                        color = homeTint,
                         maxLines = 1
                     )
                 }
@@ -119,7 +118,7 @@ fun BottomNavBar(
                         .clip(navShape)
                         .background(MaterialTheme.colorScheme.surface, navShape)
                         .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), navShape)
-                        .clickable { onTabSelected(compactTab) },
+                        .clickable { onTabSelected(AppTab.Home) },
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Text(
@@ -132,6 +131,12 @@ fun BottomNavBar(
                 }
             }
 
+            val isSearchSelected = selectedTab == AppTab.Search
+            val searchTint by animateColorAsState(
+                targetValue = if (isSearchSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                animationSpec = tween(220),
+                label = "compactSearchTint"
+            )
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -144,7 +149,7 @@ fun BottomNavBar(
                 Icon(
                     imageVector = AppTab.Search.selectedIcon,
                     contentDescription = "Search",
-                    tint = if (selectedTab == AppTab.Search) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = searchTint,
                     modifier = Modifier.size(20.dp)
                 )
             }
