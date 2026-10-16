@@ -1,6 +1,7 @@
 package com.aman.auramusic.ui.screen.home
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -10,6 +11,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -700,6 +703,7 @@ fun ArtistDetailSheet(
             .sortedByDescending { it.value.size }
     }
     var showArtistMenu by remember(artist.artistId, artist.name) { mutableStateOf(false) }
+    val listState = rememberLazyListState()
 
     androidx.activity.compose.BackHandler(onBack = onDismiss)
 
@@ -707,138 +711,62 @@ fun ArtistDetailSheet(
         modifier = Modifier.fillMaxSize(),
         color = pageBackground
     ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding(),
-            contentPadding = PaddingValues(bottom = 176.dp)
-        ) {
-            item(key = "artist_hero") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(340.dp)
-                ) {
-                    val initial = artist.name.trim().firstOrNull()?.uppercaseChar()?.toString().orEmpty()
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding(),
+                contentPadding = PaddingValues(bottom = 176.dp)
+            ) {
+                item(key = "artist_hero") {
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (initial.isNotBlank()) {
-                            Text(
-                                text = initial,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 76.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    if (artist.artworkModel != null) {
-                        AsyncImage(
-                            model = artist.artworkModel,
-                            contentDescription = "${artist.name} artist artwork",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    0f to Color.Transparent,
-                                    0.50f to Color.Transparent,
-                                    0.78f to pageBackground.copy(alpha = 0.70f),
-                                    1f to pageBackground
-                                )
-                            )
-                    )
-
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
                             .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .height(340.dp)
                     ) {
+                        val initial = artist.name.trim().firstOrNull()?.uppercaseChar()?.toString().orEmpty()
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                                .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    shape = CircleShape
-                                ),
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                         ) {
-                            IconButton(onClick = onDismiss) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back",
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(23.dp)
+                            if (initial.isNotBlank()) {
+                                Text(
+                                    text = initial,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 76.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
 
-                        Box {
-                            Box(
-                                modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                                .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    shape = CircleShape
-                                ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                IconButton(onClick = { showArtistMenu = true }) {
-                                    Icon(
-                                        imageVector = Icons.Default.MoreHoriz,
-                                        contentDescription = "Artist options",
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-                            DropdownMenu(
-                                expanded = showArtistMenu,
-                                onDismissRequest = { showArtistMenu = false }
-                            ) {
-                                if (onToggleSaveToLibrary != null) {
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(if (isSavedInLibrary) "Remove from Artist" else "Save to Artist")
-                                        },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = if (isSavedInLibrary) Icons.Default.BookmarkAdded else Icons.Default.BookmarkAdd,
-                                                contentDescription = null
-                                            )
-                                        },
-                                        onClick = {
-                                            showArtistMenu = false
-                                            onToggleSaveToLibrary()
-                                        }
-                                    )
-                                }
-                            }
+                        if (artist.artworkModel != null) {
+                            AsyncImage(
+                                model = artist.artworkModel,
+                                contentDescription = "${artist.name} artist artwork",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
                         }
-                    }
 
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        0f to Color.Transparent,
+                                        0.50f to Color.Transparent,
+                                        0.78f to pageBackground.copy(alpha = 0.70f),
+                                        1f to pageBackground
+                                    )
+                                )
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
                             .fillMaxWidth()
                             .padding(start = 22.dp, end = 22.dp, bottom = 22.dp),
                         verticalAlignment = Alignment.Bottom
@@ -1077,6 +1005,114 @@ fun ArtistDetailSheet(
                                     Text("${entry.value.size} songs · Local library", color = secondaryColor, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+            val isScrolled by remember {
+                derivedStateOf {
+                    listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 16
+                }
+            }
+            val scrimAlpha by animateFloatAsState(
+                targetValue = if (isScrolled) 1f else 0f,
+                animationSpec = tween(durationMillis = 200),
+                label = "artistTopScrimAlpha"
+            )
+
+            if (scrimAlpha > 0f) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .height(64.dp)
+                        .graphicsLayer { alpha = scrimAlpha }
+                        .background(
+                            Brush.verticalGradient(
+                                0.0f to pageBackground.copy(alpha = 0.96f),
+                                0.70f to pageBackground.copy(alpha = 0.80f),
+                                1.0f to Color.Transparent
+                            )
+                        )
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline,
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(23.dp)
+                        )
+                    }
+                }
+
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outline,
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        IconButton(onClick = { showArtistMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreHoriz,
+                                contentDescription = "Artist options",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = showArtistMenu,
+                        onDismissRequest = { showArtistMenu = false }
+                    ) {
+                        if (onToggleSaveToLibrary != null) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(if (isSavedInLibrary) "Remove from Artist" else "Save to Artist")
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = if (isSavedInLibrary) Icons.Default.BookmarkAdded else Icons.Default.BookmarkAdd,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = {
+                                    showArtistMenu = false
+                                    onToggleSaveToLibrary()
+                                }
+                            )
                         }
                     }
                 }
