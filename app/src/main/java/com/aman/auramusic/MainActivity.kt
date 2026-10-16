@@ -14,11 +14,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -1138,7 +1142,23 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         val localMiniSong = playerViewModel.currentSong
                         val hasMiniSong = (isOnlinePlaybackActive && onlineAsSong != null) || (!isOnlinePlaybackActive && localMiniSong != null)
 
-                        if (isBottomCollapsed && hasMiniSong) {
+                        AnimatedContent(
+                            targetState = isBottomCollapsed && hasMiniSong,
+                            transitionSpec = {
+                                (fadeIn(animationSpec = tween(220)) +
+                                    slideInVertically(
+                                        animationSpec = tween(260),
+                                        initialOffsetY = { height -> height / 8 }
+                                    )) togetherWith
+                                    (fadeOut(animationSpec = tween(160)) +
+                                        slideOutVertically(
+                                            animationSpec = tween(180),
+                                            targetOffsetY = { height -> height / 10 }
+                                        ))
+                            },
+                            label = "bottomPlaybackNavigationTransition"
+                        ) { compactLayout ->
+                            if (compactLayout) {
                                 BottomNavBar(
                                     selectedTab = selectedTab,
                                     compact = true,
@@ -1182,6 +1202,46 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     }
                                 )
                             } else {
+                                if (isOnlinePlaybackActive && onlineAsSong != null) {
+                                    MiniPlayer(
+                                        song = onlineAsSong,
+                                        isPlaying = onlinePlaybackState.isPlaying,
+                                        position = onlinePlaybackState.currentPositionMs,
+                                        duration = onlinePlaybackState.durationMs,
+                                        onPlayPause = { onlinePlaybackManager.togglePlayPause() },
+                                        onNext = { onlinePlaybackManager.playNext() },
+                                        onPrevious = { onlinePlaybackManager.playPrevious() },
+                                        onOpen = { showPlayer = true }
+                                    )
+                                } else {
+                                    localMiniSong?.let { song ->
+                                        MiniPlayer(
+                                            song = song,
+                                            isPlaying = playerViewModel.isPlaying,
+                                            position = playerViewModel.currentPosition,
+                                            duration = playerViewModel.duration,
+                                            onPlayPause = { playerViewModel.togglePlayPause() },
+                                            onNext = { playerViewModel.playNext() },
+                                            onPrevious = { playerViewModel.playPrevious() },
+                                            onOpen = { showPlayer = true }
+                                        )
+                                    }
+                                }
+
+                                BottomNavBar(
+                                    selectedTab = selectedTab,
+                                    compact = false,
+                                    onTabSelected = {
+                                        if (it == AppTab.Home && selectedTab == AppTab.Home) homeReselectKey++
+                                        selectedTab = it
+                                        showSettings = false
+                                        selectedPlaylistId = null
+                                        selectedAlbumName = null
+                                        selectedArtistName = null
+                                    }
+                                )
+                            }
+                        } else {
                                 if (isOnlinePlaybackActive && onlineAsSong != null) {
                                     MiniPlayer(
                                         song = onlineAsSong,
