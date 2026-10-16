@@ -191,11 +191,10 @@ fun LibraryScreen(
                             emptyList()
                         }
                     }
-                    val found = searchResults.firstOrNull { 
-                        it.name.equals(artist.name, ignoreCase = true) ||
-                        it.name.contains(artist.name, ignoreCase = true) ||
-                        artist.name.contains(it.name, ignoreCase = true)
-                    } ?: searchResults.firstOrNull()
+                    val targetArtistKey = artist.name.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }
+                    val found = searchResults.firstOrNull {
+                        it.name.lowercase(java.util.Locale.ROOT).filter { ch -> ch.isLetterOrDigit() } == targetArtistKey
+                    }
                     if (found != null && found.id.isNotBlank() && !found.id.startsWith("local_")) {
                         browseId = found.id
                         if (!found.subscriberCountText.isNullOrBlank()) {
@@ -211,32 +210,15 @@ fun LibraryScreen(
                         val idToUse = if (browseId.isNotBlank() && !browseId.startsWith("local_") && !browseId.startsWith("artist_")) browseId else ""
                         youtubeArtistRepository.getArtistCatalogue(artist.name, idToUse)
                     } catch (_: Exception) {
-                        com.aman.auramusic.online.network.repository.ArtistCatalogue()
+                        com.aman.auramusic.online.network.repository.ArtistCatalogue(
+                            loadErrorMessage = "Unable to load this artist's catalogue. Check your connection and try again."
+                        )
                     }
                 }
                 
-                var songs = catalogue.songs
-                if (songs.isEmpty()) {
-                    songs = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        try {
-                            val directOnline = onlineRepository.search(artist.name, AudioSource.ALL)
-                            if (directOnline.isNotEmpty()) directOnline else onlineRepository.search(artist.name, AudioSource.YOUTUBE)
-                        } catch (_: Exception) {
-                            emptyList()
-                        }
-                    }
-                }
-                var albums = catalogue.albums
-                if (albums.isEmpty()) {
-                    albums = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        try {
-                            val piped = com.aman.auramusic.online.network.piped.PipedService()
-                            piped.searchMusicCollections(artist.name, 10)
-                        } catch (_: Exception) {
-                            emptyList()
-                        }
-                    }
-                }
+                val songs = catalogue.songs
+                val albums = catalogue.albums
+                artistDetailErrorMessage = catalogue.loadErrorMessage
                 val similarItems = catalogue.similarArtists.map {
                     ArtistItem(
                         name = it.name,
@@ -253,11 +235,13 @@ fun LibraryScreen(
                 if (!catalogue.subscriberCountText.isNullOrBlank()) {
                     onlineArtistAudiences = onlineArtistAudiences + (artist.name to catalogue.subscriberCountText)
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 artistDetailSongs = emptyList()
                 artistDetailAlbums = emptyList()
                 artistDetailSimilarArtists = emptyList()
                 artistDetailBioData = null
+                artistDetailErrorMessage = "Unable to load this artist's catalogue. Check your connection and try again."
             } finally {
                 isArtistDetailLoading = false
             }
@@ -366,6 +350,7 @@ fun LibraryScreen(
             similarArtists = artistDetailSimilarArtists,
             bioData = artistDetailBioData,
             isLoading = isArtistDetailLoading,
+            errorMessage = artistDetailErrorMessage,
             isSavedInLibrary = isSaved,
             onToggleSaveToLibrary = {
                 if (isSaved) {
@@ -387,6 +372,7 @@ fun LibraryScreen(
                 artistDetailAlbums = emptyList()
                 artistDetailSimilarArtists = emptyList()
                 artistDetailBioData = null
+                artistDetailErrorMessage = null
             },
             onPlaySong = onSongSelected,
             onPlayOnlineSong = onOnlineSongSelected,
