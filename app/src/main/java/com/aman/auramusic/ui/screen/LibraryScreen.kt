@@ -149,6 +149,7 @@ fun LibraryScreen(
     var artistDetailAlbums by remember { mutableStateOf<List<OnlinePlaylist>>(emptyList()) }
     var artistDetailSimilarArtists by remember { mutableStateOf<List<ArtistItem>>(emptyList()) }
     var artistDetailBioData by remember { mutableStateOf<ArtistBioData?>(null) }
+    var artistDetailErrorMessage by remember { mutableStateOf<String?>(null) }
     var isArtistDetailLoading by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedOnlinePlaylist) {
@@ -179,6 +180,7 @@ fun LibraryScreen(
         val artist = selectedArtist
         if (artist != null) {
             isArtistDetailLoading = true
+            artistDetailErrorMessage = null
             try {
                 var browseId = artist.artistId
                 if (browseId.isBlank() || browseId.startsWith("local_") || browseId.startsWith("artist_")) {
