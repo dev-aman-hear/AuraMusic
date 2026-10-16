@@ -77,7 +77,9 @@ data class ArtistProfileData(
     val onlineSongs: List<OnlineSong> = emptyList(),
     val localSongs: List<Song> = emptyList(),
     val onlineAlbums: List<OnlinePlaylist> = emptyList(),
-    val audienceText: String? = null
+    val audienceText: String? = null,
+    val similarArtists: List<ArtistItem> = emptyList(),
+    val bio: com.aman.auramusic.online.network.repository.ArtistBioData? = null
 )
 
 data class CategoryDiscoverItem(
@@ -842,11 +844,23 @@ class HomeViewModel @Inject constructor(
             ?: (localArtistMetadataCache[normalizeArtistComparable(artistName)] ?: cachedDiscoveredArtists.firstOrNull { matchesArtistName(it.name, artistName) })?.subscriberCountText?.takeIf { it.isNotBlank() }
             ?: (if (artist.isOnline && artist.songCountText.isNotBlank()) artist.songCountText else null)
 
+        val similarArtistItems = catalogue.similarArtists.map {
+            ArtistItem(
+                name = it.name,
+                songCountText = it.subscriberCountText.orEmpty(),
+                artworkModel = it.profileImageUrl,
+                isOnline = true,
+                artistId = it.id
+            )
+        }
+
         ArtistProfileData(
             onlineSongs = catalogue.songs.filter { it.source == AudioSource.YOUTUBE }.distinctBy { it.id },
             localSongs = localFiltered,
             onlineAlbums = catalogue.albums,
-            audienceText = audienceText
+            audienceText = audienceText,
+            similarArtists = similarArtistItems,
+            bio = catalogue.bio
         )
     }
 

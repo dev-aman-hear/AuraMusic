@@ -31,13 +31,22 @@ data class YouTubeArtist(
     val isLocal: Boolean = false
 )
 
+data class ArtistBioData(
+    val description: String? = null,
+    val origin: String? = null,
+    val born: String? = null,
+    val genre: String? = null
+)
+
 /**
- * Holds songs, genuine releases, and monthly audience extracted from an artist's browse page.
+ * Holds songs, genuine releases, monthly audience, similar artists, and bio extracted from an artist's browse page.
  */
 data class ArtistCatalogue(
     val songs: List<OnlineSong> = emptyList(),
     val albums: List<OnlinePlaylist> = emptyList(),
-    val subscriberCountText: String? = null
+    val subscriberCountText: String? = null,
+    val similarArtists: List<YouTubeArtist> = emptyList(),
+    val bio: ArtistBioData? = null
 )
 
 /**
@@ -226,10 +235,13 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
                 val tracks = parseArtistBrowseTracks(json, artistName)
                 val albums = parseArtistBrowseAlbums(json)
                 val audience = parseArtistBrowseAudience(json)
+                val similarArtists = parseArtistBrowseSimilarArtists(json)
+                val browseBio = parseArtistBrowseBio(json)
                 if (!audience.isNullOrBlank()) {
                     putCachedAudience(artistName, audience)
                 }
-                ArtistCatalogue(tracks, albums, audience)
+                val bio = resolveArtistExtraMetadata(artistName, browseBio)
+                ArtistCatalogue(tracks, albums, audience, similarArtists, bio)
             }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -251,6 +263,14 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
             if (fallbackAlbums.isNotEmpty()) {
                 catalogue = catalogue.copy(albums = fallbackAlbums)
             }
+        }
+        if (catalogue.bio == null) {
+            val bio = resolveArtistExtraMetadata(artistName, null)
+            catalogue = catalogue.copy(bio = bio)
+        }
+        if (catalogue.similarArtists.isEmpty()) {
+            val fallbackSimilar = getTrendingArtists().filter { !it.name.equals(artistName, ignoreCase = true) }.take(8)
+            catalogue = catalogue.copy(similarArtists = fallbackSimilar)
         }
 
         if (catalogue.songs.isNotEmpty() || catalogue.albums.isNotEmpty()) {
@@ -308,10 +328,103 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
                 val cleanTitle = song.title.lowercase()
                     .replace(Regex("""\(.*?(official|video|audio|lyrics|hd|4k).*?\)"""), "")
                     .replace(Regex("""\[.*?(official|video|audio|lyrics|hd|4k).*?\]"""), "")
-                    .trim()
-                seenTitles.add(cleanTitle)
+                seenTitles.add(cleanTitle.trim())
             }
             .take(25)
+    }
+
+    private suspend fun resolveArtistExtraMetadata(
+        artistName: String,
+        browseBio: String?
+    ): ArtistBioData = withContext(Dispatchers.IO) {
+        var desc = browseBio?.takeIf { it.isNotBlank() }
+        var origin: String? = null
+        var born: String? = null
+        var genre: String? = null
+
+        // 1. Wikipedia summary fallback if browseBio is null
+        if (desc == null) {
+            try {
+                val encoded = URLEncoder.encode(artistName.trim(), "UTF-8")
+                val wikiReq = Request.Builder()
+                    .url("https://en.wikipedia.org/api/rest_v1/page/summary/$encoded")
+                    .header("User-Agent", "AuraMusic/1.0 (contact@auramusic.app)")
+                    .build()
+                httpClient.newCall(wikiReq).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val body = resp.body?.string().orEmpty()
+                        val root = JsonParser.parseString(body).asJsonObject
+                        desc = root.get("extract")?.asString?.takeIf { it.isNotBlank() }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 2. MusicBrainz for origin and born
+        try {
+            val encoded = URLEncoder.encode(artistName.trim(), "UTF-8")
+            val mbReq = Request.Builder()
+                .url("https://musicbrainz.org/ws/2/artist/?query=artist:$encoded&fmt=json")
+                .header("User-Agent", "AuraMusic/1.0 (aman@auramusic.app)")
+                .build()
+            httpClient.newCall(mbReq).execute().use { resp ->
+                if (resp.isSuccessful) {
+                    val body = resp.body?.string().orEmpty()
+                    val root = JsonParser.parseString(body).asJsonObject
+                    val artists = root.getAsJsonArray("artists")
+                    if (artists != null && artists.size() > 0) {
+                        val a = artists[0].asJsonObject
+                        origin = a.get("country")?.asString?.takeIf { it.isNotBlank() }
+                        val life = a.getAsJsonObject("life-span")
+                        val begin = life?.get("begin")?.asString
+                        if (!begin.isNullOrBlank()) {
+                            born = formatBirthDate(begin)
+                        }
+                        val tags = a.getAsJsonArray("tags")
+                        if (tags != null && tags.size() > 0) {
+                            val tagName = tags[0].asJsonObject.get("name")?.asString.orEmpty()
+                            if (tagName.isNotBlank()) {
+                                genre = tagName.split(" ")
+                                    .joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 3. iTunes for genre if still missing
+        if (genre.isNullOrBlank()) {
+            try {
+                val encoded = URLEncoder.encode(artistName.trim(), "UTF-8")
+                val itunesReq = Request.Builder()
+                    .url("https://itunes.apple.com/search?term=$encoded&entity=musicArtist")
+                    .header("User-Agent", "Mozilla/5.0")
+                    .build()
+                httpClient.newCall(itunesReq).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val body = resp.body?.string().orEmpty()
+                        val root = JsonParser.parseString(body).asJsonObject
+                        val results = root.getAsJsonArray("results")
+                        if (results != null && results.size() > 0) {
+                            genre = results[0].asJsonObject.get("primaryGenreName")?.asString
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        val cleanDesc = desc?.let {
+            val idx = it.indexOf("\n\nFrom Wikipedia")
+            if (idx > 0) it.substring(0, idx).trim() else it.trim()
+        }
+
+        ArtistBioData(
+            description = cleanDesc,
+            origin = origin,
+            born = born,
+            genre = genre
+        )
     }
 
     companion object {
@@ -647,6 +760,147 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
                 return foundAudience
             } catch (_: Exception) {
                 return null
+            }
+        }
+
+        /**
+         * Extracts "Fans might also like" / Similar artists from the artist browse response.
+         */
+        fun parseArtistBrowseSimilarArtists(jsonString: String): List<YouTubeArtist> {
+            val result = mutableListOf<YouTubeArtist>()
+            val seenNames = mutableSetOf<String>()
+            try {
+                val root = JsonParser.parseString(jsonString)
+                fun textOf(element: com.google.gson.JsonElement?): String {
+                    if (element == null || !element.isJsonObject) return ""
+                    val obj = element.asJsonObject
+                    obj.get("simpleText")?.let { return it.asString.replace('\u00A0', ' ').trim() }
+                    return obj.getAsJsonArray("runs")?.mapNotNull { run ->
+                        run.asJsonObject.get("text")?.asString
+                    }?.joinToString("")?.replace('\u00A0', ' ')?.trim().orEmpty()
+                }
+
+                fun walk(element: com.google.gson.JsonElement) {
+                    if (element.isJsonArray) {
+                        element.asJsonArray.forEach(::walk)
+                        return
+                    }
+                    if (!element.isJsonObject) return
+                    val obj = element.asJsonObject
+
+                    val shelf = obj.getAsJsonObject("musicCarouselShelfRenderer")
+                    if (shelf != null) {
+                        val header = shelf.getAsJsonObject("header")
+                        val headerText = textOf(header)
+                        if (headerText.contains("Fans might also like", ignoreCase = true) ||
+                            headerText.contains("Similar", ignoreCase = true)
+                        ) {
+                            val contents = shelf.getAsJsonArray("contents") ?: return
+                            for (c in contents) {
+                                val twoRow = c.asJsonObject.getAsJsonObject("musicTwoRowItemRenderer") ?: continue
+                                val name = textOf(twoRow.getAsJsonObject("title"))
+                                val sub = textOf(twoRow.getAsJsonObject("subtitle"))
+                                val nav = twoRow.getAsJsonObject("navigationEndpoint")?.getAsJsonObject("browseEndpoint")
+                                    ?: twoRow.getAsJsonObject("title")?.getAsJsonArray("runs")?.firstOrNull()?.asJsonObject
+                                        ?.getAsJsonObject("navigationEndpoint")?.getAsJsonObject("browseEndpoint")
+                                val bId = nav?.get("browseId")?.asString.orEmpty()
+                                val thumbs = twoRow.getAsJsonObject("thumbnailRenderer")
+                                    ?.getAsJsonObject("musicThumbnailRenderer")
+                                    ?.getAsJsonObject("thumbnail")
+                                    ?.getAsJsonArray("thumbnails")
+                                val artwork = try { thumbs?.lastOrNull()?.asJsonObject?.get("url")?.asString.orEmpty() } catch (_: Exception) { "" }
+
+                                if (name.isNotBlank() && bId.isNotBlank() && seenNames.add(name.lowercase())) {
+                                    result.add(
+                                        YouTubeArtist(
+                                            id = bId,
+                                            name = name,
+                                            profileImageUrl = ArtworkQualityOptimizer.optimizeUrl(artwork),
+                                            subscriberCountText = sub.takeIf { it.isNotBlank() }
+                                        )
+                                    )
+                                }
+                            }
+                            return
+                        }
+                    }
+
+                    obj.entrySet().forEach { (_, child) -> walk(child) }
+                }
+
+                walk(root)
+            } catch (_: Exception) {
+                return emptyList()
+            }
+            return result
+        }
+
+        /**
+         * Extracts bio description from the artist browse response.
+         */
+        fun parseArtistBrowseBio(jsonString: String): String? {
+            try {
+                val root = JsonParser.parseString(jsonString)
+                fun textOf(element: com.google.gson.JsonElement?): String {
+                    if (element == null || !element.isJsonObject) return ""
+                    val obj = element.asJsonObject
+                    obj.get("simpleText")?.let { return it.asString.replace('\u00A0', ' ').trim() }
+                    return obj.getAsJsonArray("runs")?.mapNotNull { run ->
+                        run.asJsonObject.get("text")?.asString
+                    }?.joinToString("")?.replace('\u00A0', ' ')?.trim().orEmpty()
+                }
+
+                var foundBio: String? = null
+                fun walk(element: com.google.gson.JsonElement) {
+                    if (foundBio != null) return
+                    if (element.isJsonArray) {
+                        element.asJsonArray.forEach(::walk)
+                        return
+                    }
+                    if (!element.isJsonObject) return
+                    val obj = element.asJsonObject
+
+                    val descShelf = obj.getAsJsonObject("musicDescriptionShelfRenderer")
+                    if (descShelf != null) {
+                        val desc = textOf(descShelf.getAsJsonObject("description"))
+                        if (desc.isNotBlank()) {
+                            foundBio = desc
+                            return
+                        }
+                    }
+
+                    obj.entrySet().forEach { (_, child) -> walk(child) }
+                }
+
+                walk(root)
+                return foundBio
+            } catch (_: Exception) {
+                return null
+            }
+        }
+
+        fun formatBirthDate(raw: String): String {
+            val trimmed = raw.trim()
+            return try {
+                val parts = trimmed.split("-")
+                val months = listOf(
+                    "January", "February", "March", "April", "May", "June",
+                    "July", "August", "September", "October", "November", "December"
+                )
+                if (parts.size == 3) {
+                    val year = parts[0]
+                    val month = parts[1].toIntOrNull() ?: return trimmed
+                    val day = parts[2].toIntOrNull() ?: return trimmed
+                    if (month in 1..12) "$day ${months[month - 1]} $year" else trimmed
+                } else if (parts.size == 2) {
+                    val year = parts[0]
+                    val month = parts[1].toIntOrNull() ?: return trimmed
+                    if (month in 1..12) "${months[month - 1]} $year" else trimmed
+                } else {
+                    trimmed
+                }
+            } catch (_: Exception) {
+                trimmed
             }
         }
 

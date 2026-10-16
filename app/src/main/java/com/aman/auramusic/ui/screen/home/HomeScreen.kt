@@ -28,6 +28,7 @@ import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.model.SavedOnlineArtist
 import com.aman.auramusic.online.model.toSong
+import com.aman.auramusic.online.network.repository.ArtistBioData
 import com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl
 import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.SongOptionsDialog
@@ -86,7 +87,30 @@ fun HomeScreen(
     var artistLocalSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
     var artistOnlineAlbums by remember { mutableStateOf<List<OnlinePlaylist>>(emptyList()) }
     var artistAudienceText by remember { mutableStateOf<String?>(null) }
+    var artistSimilarArtists by remember { mutableStateOf<List<ArtistItem>>(emptyList()) }
+    var artistBioData by remember { mutableStateOf<ArtistBioData?>(null) }
     var isArtistLoading by remember { mutableStateOf(false) }
+
+    val openArtistDetail: (ArtistItem) -> Unit = { artistItem ->
+        selectedArtist = artistItem
+        artistOnlineSongs = emptyList()
+        artistLocalSongs = emptyList()
+        artistOnlineAlbums = emptyList()
+        artistSimilarArtists = emptyList()
+        artistBioData = null
+        artistAudienceText = null
+        coroutineScope.launch {
+            isArtistLoading = true
+            val catalogue = viewModel.fetchArtistCatalogue(artistItem, songs)
+            artistOnlineSongs = catalogue.onlineSongs
+            artistLocalSongs = catalogue.localSongs
+            artistOnlineAlbums = catalogue.onlineAlbums
+            artistAudienceText = catalogue.audienceText
+            artistSimilarArtists = catalogue.similarArtists
+            artistBioData = catalogue.bio
+            isArtistLoading = false
+        }
+    }
 
     var selectedOnlineAlbum by remember { mutableStateOf<OnlinePlaylist?>(null) }
     var selectedOnlineAlbumSongs by remember { mutableStateOf<List<OnlineSong>>(emptyList()) }
@@ -107,6 +131,8 @@ fun HomeScreen(
             artistLocalSongs = emptyList()
             artistOnlineAlbums = emptyList()
             artistAudienceText = null
+            artistSimilarArtists = emptyList()
+            artistBioData = null
             selectedOnlineAlbum = null
             selectedOnlineAlbumSongs = emptyList()
             selectedCategory = null
@@ -169,18 +195,7 @@ fun HomeScreen(
     if (showAllArtistsSheet) {
         AllArtistsSheet(
             artists = uiState.artists,
-            onArtistClick = { artistItem ->
-                selectedArtist = artistItem
-                coroutineScope.launch {
-                    isArtistLoading = true
-                    val catalogue = viewModel.fetchArtistCatalogue(artistItem, songs)
-                    artistOnlineSongs = catalogue.onlineSongs
-                    artistLocalSongs = catalogue.localSongs
-                    artistOnlineAlbums = catalogue.onlineAlbums
-                    artistAudienceText = catalogue.audienceText
-                    isArtistLoading = false
-                }
-            },
+            onArtistClick = openArtistDetail,
             onDismiss = { showAllArtistsSheet = false }
         )
     }
@@ -377,18 +392,7 @@ fun HomeScreen(
                         item(key = "home_artists_section") {
                             ArtistsSection(
                                 artists = uiState.artists,
-                                onArtistClick = { artistItem ->
-                                    selectedArtist = artistItem
-                                    coroutineScope.launch {
-                                        isArtistLoading = true
-                                        val catalogue = viewModel.fetchArtistCatalogue(artistItem, songs)
-                                        artistOnlineSongs = catalogue.onlineSongs
-                                        artistLocalSongs = catalogue.localSongs
-                                        artistOnlineAlbums = catalogue.onlineAlbums
-                                        artistAudienceText = catalogue.audienceText
-                                        isArtistLoading = false
-                                    }
-                                },
+                                onArtistClick = openArtistDetail,
                                 onSeeAllClick = { showAllArtistsSheet = true }
                             )
                         }
@@ -494,6 +498,8 @@ fun HomeScreen(
                 onlineSongs = artistOnlineSongs,
                 localSongs = artistLocalSongs,
                 onlineAlbums = artistOnlineAlbums,
+                similarArtists = artistSimilarArtists,
+                bioData = artistBioData,
                 isLoading = isArtistLoading,
                 isSavedInLibrary = isArtistSaved,
                 audienceText = artistAudienceText,
@@ -516,6 +522,9 @@ fun HomeScreen(
                     artistOnlineSongs = emptyList()
                     artistLocalSongs = emptyList()
                     artistOnlineAlbums = emptyList()
+                    artistSimilarArtists = emptyList()
+                    artistBioData = null
+                    artistAudienceText = null
                 },
                 onPlaySong = onSongSelected,
                 onPlayOnlineSong = onOnlineSongSelected,
@@ -544,7 +553,8 @@ fun HomeScreen(
                         selectedOnlineAlbumSongs = viewModel.fetchAlbumTracks(album)
                         isAlbumLoading = false
                     }
-                }
+                },
+                onSelectSimilarArtist = openArtistDetail
             )
         }
     }

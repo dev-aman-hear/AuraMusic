@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.aman.auramusic.online.network.repository.ArtistBioData
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -690,7 +691,10 @@ fun ArtistDetailSheet(
     onPlayAll: () -> Unit = onShuffleAll,
     isSavedInLibrary: Boolean = false,
     onToggleSaveToLibrary: (() -> Unit)? = null,
-    audienceText: String? = null
+    audienceText: String? = null,
+    similarArtists: List<ArtistItem> = emptyList(),
+    bioData: ArtistBioData? = null,
+    onSelectSimilarArtist: ((ArtistItem) -> Unit)? = null
 ) {
     val pageBackground = MaterialTheme.colorScheme.background
     val titleColor = MaterialTheme.colorScheme.onBackground
@@ -1002,6 +1006,182 @@ fun ArtistDetailSheet(
                                     Spacer(modifier = Modifier.height(7.dp))
                                     Text(entry.key, color = titleColor, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text("${entry.value.size} songs · Local library", color = secondaryColor, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (bioData != null && (!bioData.description.isNullOrBlank() || !bioData.origin.isNullOrBlank() || !bioData.born.isNullOrBlank() || !bioData.genre.isNullOrBlank())) {
+                    item(key = "artist_about_section") {
+                        var isBioExpanded by remember { mutableStateOf(false) }
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 24.dp)
+                        ) {
+                            Text(
+                                text = "About ${artist.name}",
+                                color = titleColor,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+
+                            if (!bioData.description.isNullOrBlank()) {
+                                val fullBio = bioData.description
+                                Column {
+                                    Text(
+                                        text = fullBio,
+                                        color = titleColor.copy(alpha = 0.88f),
+                                        fontSize = 15.sp,
+                                        lineHeight = 22.sp,
+                                        maxLines = if (isBioExpanded) Int.MAX_VALUE else 3,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    if (fullBio.length > 120) {
+                                        Text(
+                                            text = if (isBioExpanded) "LESS" else "MORE",
+                                            color = titleColor,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier
+                                                .padding(top = 4.dp)
+                                                .clickable { isBioExpanded = !isBioExpanded }
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(20.dp))
+                            }
+
+                            if (!bioData.origin.isNullOrBlank()) {
+                                Text(
+                                    text = "From",
+                                    color = secondaryColor,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Normal
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = bioData.origin,
+                                    color = titleColor,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.height(14.dp))
+                            }
+
+                            if (!bioData.born.isNullOrBlank()) {
+                                Text(
+                                    text = "Born",
+                                    color = secondaryColor,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Normal
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = bioData.born,
+                                    color = titleColor,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.height(14.dp))
+                            }
+
+                            if (!bioData.genre.isNullOrBlank()) {
+                                Text(
+                                    text = "Genre",
+                                    color = secondaryColor,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Normal
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = bioData.genre,
+                                    color = titleColor,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (similarArtists.isNotEmpty()) {
+                    item(key = "artist_similar_artists_heading") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Similar Artists",
+                                color = titleColor,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = secondaryColor,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    item(key = "artist_similar_artists_rail") {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(similarArtists, key = { "similar_${it.artistId.ifBlank { it.name }}" }) { simArtist ->
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier
+                                        .width(100.dp)
+                                        .clickable { onSelectSimilarArtist?.invoke(simArtist) }
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(100.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        val init = simArtist.name.trim().firstOrNull()?.uppercaseChar()?.toString().orEmpty()
+                                        if (init.isNotBlank()) {
+                                            Text(
+                                                text = init,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                fontSize = 32.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                        if (simArtist.artworkModel != null) {
+                                            AsyncImage(
+                                                model = simArtist.artworkModel,
+                                                contentDescription = "${simArtist.name} profile",
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .clip(CircleShape),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = simArtist.name,
+                                        color = titleColor,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
                             }
                         }
