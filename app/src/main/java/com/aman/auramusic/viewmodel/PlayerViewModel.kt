@@ -118,7 +118,6 @@ class PlayerViewModel @Inject constructor(
         
         val song = service.currentSong
         if (song != null) {
-            hasTriggeredEarlyNext = false
             currentSong = song
             currentSongId = song.id
             isPlaying = pm.isPlaying()
@@ -208,29 +207,20 @@ class PlayerViewModel @Inject constructor(
         val allSongs = kotlinx.coroutines.withContext(Dispatchers.IO) {
             musicRepository.getAllSongs()
         }
-        val songs = ids.mapNotNull { id -> allSongs.find { it.id == id } }
-        
-        // Update originalQueue but try to keep current _queue if shuffled
-        val newOriginal = songs.map { QueueEntry(song = it) }
-        originalQueue = newOriginal
-        
-        if (isShuffled) {
-            // Keep current song if it's still in the new list
-            val current = _queue.value.find { it.song.id == currentSongId }
-            if (current != null && songs.any { it.id == currentSongId }) {
-                val remaining = songs.filter { it.id != currentSongId }.shuffled()
-                _queue.value = listOf(current) + remaining.map { s -> QueueEntry(song = s) }
-            } else {
-                _queue.value = originalQueue.shuffled()
-            }
-        } else {
-            _queue.value = originalQueue
-        }
+        val songs = ids.mapNotNull { id -> allSongs.find { it.id == id } }.distinctBy { it.id }
+        originalQueue = songs.map { QueueEntry(song = it) }
+
+        val targetSongs = if (isShuffled) {
+            val current = songs.firstOrNull { it.id == currentSongId }
+            if (current != null) listOf(current) + songs.filterNot { it.id == current.id }.shuffled()
+            else songs.shuffled()
+        } else songs
+
+        playbackService?.queue = targetSongs
+        _queue.value = targetSongs.map { QueueEntry(song = it) }
     }
 
     private var playerListener: VlcPlayerManager.PlayerListener? = null
-    private var hasTriggeredEarlyNext = false
-
     private fun setupListeners() {
         val pm = playerManager ?: return
         // Let the service handle these by default, they are set up in PlaybackService.setupActions()
@@ -245,18 +235,8 @@ class PlayerViewModel @Inject constructor(
                 currentPosition = position
                 this@PlayerViewModel.duration = duration
                 
-                if (duration > 0) {
-                    val remaining = duration - position
-                    if (appSettings.skipSilence && remaining in 1..800L && !hasTriggeredEarlyNext) {
-                        hasTriggeredEarlyNext = true
-                        playNext()
-                    }
-                    if (appSettings.crossfadeEnabled && remaining in 1..3000L && !hasTriggeredEarlyNext) {
-                        hasTriggeredEarlyNext = true
-                        playNext()
-                    }
-                }
-
+                // Crossfade and silence skipping need actual audio processing. Never
+                // approximate them by advancing the queue near the end of a track.
                 if (position > 0 && position % 5000 < 1000) {
                     currentSong?.let { saveLastSong(it, position) }
                 }
@@ -288,57 +268,45 @@ class PlayerViewModel @Inject constructor(
         private set
 
     fun setQueue(songs: List<Song>, playlistId: Long? = null) {
-        playbackService?.let { service ->
-            service.currentPlaylistId = playlistId
-            val uniqueSongs = songs.distinctBy { it.id }
-            service.queue = uniqueSongs
-            
-            // If shuffled was already on, we should shuffle the new queue
-            if (service.isShuffled) {
-                service.queue = uniqueSongs.shuffled()
-            }
-        }
-        
-        // Also update local for immediate feedback if not bound yet (though it should be)
-        if (playbackService == null) {
-            currentPlaylistId = playlistId
-            val uniqueSongs = songs.distinctBy { it.id }
-            originalQueue = uniqueSongs.map { QueueEntry(song = it) }
-            _queue.value = originalQueue
-        }
+        val uniqueSongs = songs.distinctBy { it.id }
+        currentPlaylistId = playlistId
+        originalQueue = uniqueSongs.map { QueueEntry(song = it) }
+
+        val service = playbackService
+        if (service != null) service.currentPlaylistId = playlistId
+        val targetSongs = if (service?.isShuffled == true || (service == null && isShuffled)) {
+            val current = uniqueSongs.firstOrNull { it.id == currentSongId }
+            if (current != null) listOf(current) + uniqueSongs.filterNot { it.id == current.id }.shuffled()
+            else uniqueSongs.shuffled()
+        } else uniqueSongs
+
+        service?.queue = targetSongs
+        _queue.value = targetSongs.map { QueueEntry(song = it) }
     }
 
-    fun addToQueue(song: Song) {
-        val currentList = playbackService?.queue ?: _queue.value.map { it.song }
-        if (currentList.none { it.id == song.id }) {
-            val updated = currentList + song
-            playbackService?.let { service ->
-                service.queue = updated
-            }
-            val newEntries = updated.map { QueueEntry(song = it) }
-            originalQueue = newEntries
-            _queue.value = newEntries
-        }
-    }
+    fun addToQueue(song: Song) = addToQueue(listOf(song))
 
     fun addToQueue(songs: List<Song>) {
         if (songs.isEmpty()) return
         val currentList = playbackService?.queue ?: _queue.value.map { it.song }
-        val newSongs = songs.filter { s -> currentList.none { it.id == s.id } }
-        if (newSongs.isNotEmpty()) {
-            val updated = currentList + newSongs
-            playbackService?.let { service ->
-                service.queue = updated
-            }
-            val newEntries = updated.map { QueueEntry(song = it) }
-            originalQueue = newEntries
-            _queue.value = newEntries
-        }
+        val newSongs = songs.distinctBy { it.id }
+            .filter { candidate -> currentList.none { it.id == candidate.id } }
+        if (newSongs.isEmpty()) return
+
+        val canonical = originalQueue.map { it.song }
+        val canonicalIds = canonical.mapTo(mutableSetOf()) { it.id }
+        val canonicalBase = if (canonical.isEmpty()) currentList
+            else canonical + currentList.filterNot { it.id in canonicalIds }
+        originalQueue = (canonicalBase + newSongs)
+            .distinctBy { it.id }
+            .map { QueueEntry(song = it) }
+
+        val updated = currentList + newSongs
+        playbackService?.queue = updated
+        _queue.value = updated.map { QueueEntry(song = it) }
     }
 
-
     fun play(song: Song, startPosition: Long = 0L) {
-        hasTriggeredEarlyNext = false
         val pm = playerManager ?: return
         val service = playbackService ?: return
         
@@ -349,9 +317,9 @@ class PlayerViewModel @Inject constructor(
         currentSong = song
         currentSongId = song.id
         
-        val finalStartPosition = if (startPosition == 0L && appSettings.skipSilence) 500L else startPosition
-        if (finalStartPosition > 0) {
-            pm.seekTo(finalStartPosition)
+        // Do not skip an arbitrary 500 ms as a substitute for silence detection.
+        if (startPosition > 0) {
+            pm.seekTo(startPosition)
         }
         
         loadLyrics(song)
@@ -518,19 +486,23 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun toggleShuffle() {
-        playbackService?.let { service ->
-            val newShuffled = !service.isShuffled
-            service.isShuffled = newShuffled
-            if (newShuffled) {
-                val current = service.queue.find { it.id == currentSongId }
-                val remaining = service.queue.filter { it.id != currentSongId }.shuffled()
-                service.queue = if (current != null) listOf(current) + remaining else service.queue.shuffled()
-            } else {
-                // To restore original order, we'd need to keep it. 
-                // For now, just keep as is or we can improve this.
-            }
+        val service = playbackService
+        val newShuffled = !(service?.isShuffled ?: isShuffled)
+        val activeQueue = service?.queue ?: _queue.value.map { it.song }
+        val canonical = originalQueue.map { it.song }.ifEmpty { activeQueue }
+
+        val targetQueue = if (newShuffled) {
+            val current = canonical.firstOrNull { it.id == currentSongId }
+            if (current != null) listOf(current) + canonical.filterNot { it.id == current.id }.shuffled()
+            else canonical.shuffled()
+        } else {
+            canonical.distinctBy { it.id }
         }
-        isShuffled = playbackService?.isShuffled ?: !isShuffled
+
+        service?.queue = targetQueue
+        service?.isShuffled = newShuffled
+        _queue.value = targetQueue.map { QueueEntry(song = it) }
+        isShuffled = newShuffled
     }
 
     fun toggleRepeat() {
@@ -580,28 +552,27 @@ class PlayerViewModel @Inject constructor(
         q.add(toIndex, item)
         _queue.value = q
         playbackService?.queue = q.map { it.song }
-        if (!isShuffled) {
-            originalQueue = q
-        }
+        if (!isShuffled) originalQueue = q
     }
 
     fun removeQueueItem(songId: Long) {
         val q = _queue.value.filterNot { it.song.id == songId }
         _queue.value = q
         playbackService?.queue = q.map { it.song }
-        if (!isShuffled) {
-            originalQueue = q
-        }
-        if (currentSongId == songId) {
-            playNext()
-        }
+
+        val canonical = originalQueue.map { it.song }.ifEmpty { q.map { it.song } }
+        originalQueue = canonical.filterNot { it.id == songId }.map { QueueEntry(song = it) }
+
+        if (currentSongId == songId) playNext()
     }
 
     fun clearQueueExceptCurrent() {
         val current = currentSong ?: return
         val q = listOf(QueueEntry(song = current))
-        _queue.value = emptyList() // The filtered queue will be empty
+        _queue.value = q
         playbackService?.queue = listOf(current)
+        playbackService?.currentPlaylistId = null
+        currentPlaylistId = null
         originalQueue = q
     }
 
