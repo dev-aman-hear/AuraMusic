@@ -57,7 +57,7 @@ fun CollectionDetailScreen(
     onFavoriteCollection: (() -> Unit)? = null,
     showShareButton: Boolean = false,
     showMenuButton: Boolean = true,
-    showAddButton: Boolean = true,
+    showAddButton: Boolean = false,
 ) {
     val context = LocalContext.current
     val isDark = LocalIsDark.current
@@ -205,8 +205,6 @@ fun CollectionDetailScreen(
                                     tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(22.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Play", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = onPrimary)
                             }
 
                             DropdownMenu(
