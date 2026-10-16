@@ -54,7 +54,7 @@ class OnlinePlaybackManager(
     interface PlaybackEventListener {
         fun onSongChanged(song: OnlineSong) {}
         fun onPlaybackStateChanged(song: OnlineSong, isPlaying: Boolean, positionMs: Long) {}
-        fun onProgressUpdate(song: OnlineSong, positionMs: Long) {}
+        fun onProgressUpdate(song: OnlineSong, positionMs: Long, durationMs: Long = 0L) {}
         fun onSeek(song: OnlineSong, positionMs: Long) {}
         fun onLyricsLoaded(song: OnlineSong, lyrics: com.aman.auramusic.online.lyrics.model.SongLyrics) {}
         fun onPlaybackStopped(song: OnlineSong?) {}
@@ -187,16 +187,21 @@ class OnlinePlaybackManager(
                 if (!isUsingIFramePlayer) return
                 val lyrics = _playbackState.value.currentLyrics
                 val activeLine = lyrics?.findActiveLineIndex(currentMs) ?: -1
+                val effectiveDur = if (durationMs > 0) durationMs else _playbackState.value.durationMs
                 _playbackState.update {
+                    val updatedSong = if (it.currentSong != null && it.currentSong.durationSeconds <= 0L && effectiveDur > 0L) {
+                        it.currentSong.copy(durationSeconds = effectiveDur / 1000L)
+                    } else it.currentSong
                     it.copy(
+                        currentSong = updatedSong,
                         currentPositionMs = currentMs,
-                        durationMs = if (durationMs > 0) durationMs else it.durationMs,
+                        durationMs = effectiveDur,
                         activeLyricsLineIndex = activeLine,
-                        bufferedPositionMs = (currentMs + 20000).coerceAtMost(durationMs)
+                        bufferedPositionMs = (currentMs + 20000).coerceAtMost(effectiveDur)
                     )
                 }
                 _playbackState.value.currentSong?.let { song ->
-                    eventListener?.onProgressUpdate(song, currentMs)
+                    eventListener?.onProgressUpdate(song, currentMs, effectiveDur)
                     if (currentMs > 0 && currentMs % 5000 < 300) {
                         LastPlayedStore.updatePosition(context, currentMs)
                     }
@@ -620,6 +625,15 @@ class OnlinePlaybackManager(
             Log.d("AuraPlaybackDebug", "handleSongEnded debounced duplicate trigger within 500ms")
             return
         }
+
+        val state = _playbackState.value
+        val curPos = state.currentPositionMs
+        val duration = state.durationMs
+        if (duration > 20_000L && curPos < 15_000L && curPos < (duration * 0.85).toLong()) {
+            Log.w("AuraPlaybackDebug", "handleSongEnded ignored: premature end event at pos=${curPos}ms (duration=${duration}ms)")
+            return
+        }
+
         lastEndHandledTimeMs = now
         Log.d("AuraPlaybackDebug", "handleSongEnded triggered: isRepeatEnabled=${_playbackState.value.isRepeatEnabled}")
 
@@ -640,16 +654,21 @@ class OnlinePlaybackManager(
                     val lyrics = _playbackState.value.currentLyrics
                     val activeLine = lyrics?.findActiveLineIndex(currentPos) ?: -1
 
+                    val exoDur = exoPlayer.duration.coerceAtLeast(0L)
                     _playbackState.update {
+                        val updatedSong = if (it.currentSong != null && it.currentSong.durationSeconds <= 0L && exoDur > 0L) {
+                            it.currentSong.copy(durationSeconds = exoDur / 1000L)
+                        } else it.currentSong
                         it.copy(
+                            currentSong = updatedSong,
                             currentPositionMs = currentPos,
-                            durationMs = exoPlayer.duration.coerceAtLeast(0L),
+                            durationMs = exoDur,
                             bufferedPositionMs = exoPlayer.bufferedPosition.coerceAtLeast(0L),
                             activeLyricsLineIndex = activeLine
                         )
                     }
                     _playbackState.value.currentSong?.let { song ->
-                        eventListener?.onProgressUpdate(song, currentPos)
+                        eventListener?.onProgressUpdate(song, currentPos, exoDur)
                         if (currentPos > 0 && currentPos % 5000 < 200) {
                             LastPlayedStore.updatePosition(context, currentPos)
                         }

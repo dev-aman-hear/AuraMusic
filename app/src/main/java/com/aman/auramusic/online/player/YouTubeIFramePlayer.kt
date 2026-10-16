@@ -106,7 +106,11 @@ class YouTubeIFramePlayer(
                                 listener.onPlaybackStateChanged(isPlaying = false, isBuffering = true)
                             }
                             PlayerConstants.PlayerState.ENDED -> {
-                                listener.onSongEnded()
+                                if (currentDurationSec > 15f && currentPosSec < (currentDurationSec - 10f)) {
+                                    Log.d(tag, "Ignoring premature ENDED event at ${currentPosSec}s (duration=${currentDurationSec}s) - pre-roll ad ended")
+                                } else {
+                                    listener.onSongEnded()
+                                }
                             }
                             else -> {}
                         }
@@ -155,6 +159,8 @@ class YouTubeIFramePlayer(
             currentVideoId = videoId
             pendingVideoId = videoId
             pendingStartSeconds = startSeconds
+            currentPosSec = startSeconds
+            currentDurationSec = 0f
 
             if (forceWebController) {
                 switchToDirectWebPlayer(videoId, startSeconds)
@@ -274,7 +280,11 @@ class YouTubeIFramePlayer(
                                     val isEnded = parts[3].toBoolean()
 
                                     if (isEnded) {
-                                        listener.onSongEnded()
+                                        if (dur > 15f && cur < (dur - 10f)) {
+                                            Log.d(tag, "Ignoring direct web player premature isEnded at ${cur}s (dur=${dur}s)")
+                                        } else {
+                                            listener.onSongEnded()
+                                        }
                                     } else {
                                         listener.onPlaybackStateChanged(isPlaying = !isPaused, isBuffering = false)
                                         listener.onProgressUpdate((cur * 1000).toLong(), (dur * 1000).toLong())

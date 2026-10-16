@@ -412,8 +412,8 @@ class PlayerViewModel @Inject constructor(
         playbackService?.updateOnlineLyrics(song, lyrics)
     }
 
-    fun onOnlineProgressUpdate(song: OnlineSong, positionMs: Long) {
-        playbackService?.updateOnlinePosition(positionMs)
+    fun onOnlineProgressUpdate(song: OnlineSong, positionMs: Long, durationMs: Long = 0L) {
+        playbackService?.updateOnlinePosition(positionMs, durationMs)
     }
 
     fun onOnlineSeek(song: OnlineSong, positionMs: Long) {

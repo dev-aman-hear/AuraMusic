@@ -349,6 +349,14 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
             override fun onSongChanged(song: OnlineSong) {
                 activeOnlineSong = song
                 playerViewModel.extractColor(song.toSong())
+                if (isOnlinePlaybackActive) {
+                    playerViewModel.updateOnlinePlaybackState(
+                        song = song,
+                        isPlaying = true,
+                        positionMs = 0L,
+                        durationMs = song.durationSeconds * 1000L
+                    )
+                }
             }
 
             override fun onPlaybackStateChanged(song: OnlineSong, isPlaying: Boolean, positionMs: Long) {
@@ -357,9 +365,9 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                 }
             }
 
-            override fun onProgressUpdate(song: OnlineSong, positionMs: Long) {
+            override fun onProgressUpdate(song: OnlineSong, positionMs: Long, durationMs: Long) {
                 if (isOnlinePlaybackActive) {
-                    playerViewModel.onOnlineProgressUpdate(song, positionMs)
+                    playerViewModel.onOnlineProgressUpdate(song, positionMs, durationMs)
                 }
             }
 
@@ -400,7 +408,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
         }
     }
 
-    LaunchedEffect(onlinePlaybackState.currentSong, onlinePlaybackState.isPlaying, isOnlinePlaybackActive) {
+    LaunchedEffect(onlinePlaybackState.currentSong, onlinePlaybackState.isPlaying, onlinePlaybackState.durationMs, isOnlinePlaybackActive) {
         if (isOnlinePlaybackActive) {
             val songToSync = onlinePlaybackState.currentSong ?: activeOnlineSong
             if (songToSync != null) {

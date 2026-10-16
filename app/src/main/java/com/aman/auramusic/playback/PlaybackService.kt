@@ -199,6 +199,13 @@ class PlaybackService : Service() {
     private var cachedOnlineLyrics: List<LyricLine> = emptyList()
     private var isOnlinePlaying: Boolean = false
     private var currentOnlinePosition: Long = 0L
+    private var currentOnlineDuration: Long = 0L
+
+    private fun getOnlineDisplaySong(song: OnlineSong? = currentOnlineSong): Song? {
+        val target = song ?: currentOnlineSong ?: return null
+        val baseSong = target.toSong()
+        return if (currentOnlineDuration > 0L) baseSong.copy(duration = currentOnlineDuration) else baseSong
+    }
 
     fun startOnlinePlayback(
         song: OnlineSong,
@@ -213,19 +220,21 @@ class PlaybackService : Service() {
         currentSong = null
         isOnlinePlaying = isPlaying
         currentOnlinePosition = 0L
+        currentOnlineDuration = (song.durationSeconds * 1000L).coerceAtLeast(0L)
         cachedOnlineLyrics = emptyList()
 
         // Stop offline player if running
         playerManager.pause()
 
-        val displaySong = song.toSong()
+        val displaySong = getOnlineDisplaySong(song) ?: song.toSong()
 
         PlaybackActionRegistry.onPlayPause = onPlayPause
         PlaybackActionRegistry.onNext = onNext
         PlaybackActionRegistry.onPrevious = onPrevious
         PlaybackActionRegistry.onSeekTo = { pos ->
             currentOnlinePosition = pos
-            colorOSBridge.onSeek(displaySong, pos, isOnlinePlaying)
+            val curDisplay = getOnlineDisplaySong() ?: displaySong
+            colorOSBridge.onSeek(curDisplay, pos, isOnlinePlaying)
             onSeekTo?.invoke(pos)
         }
 
@@ -243,7 +252,7 @@ class PlaybackService : Service() {
     fun updateOnlineLyrics(song: OnlineSong, lyrics: List<LyricLine>) {
         if (!isOnlinePlaybackActive || currentOnlineSong?.id != song.id) return
         cachedOnlineLyrics = lyrics
-        val displaySong = song.toSong()
+        val displaySong = getOnlineDisplaySong(song) ?: song.toSong()
 
         colorOSBridge.onLyricsLoaded(displaySong, lyrics, isPlaying = isOnlinePlaying, positionMs = currentOnlinePosition)
 
@@ -258,7 +267,8 @@ class PlaybackService : Service() {
                 retryJob = launch {
                     kotlinx.coroutines.delay(800)
                     if (currentOnlineSong?.id == song.id) {
-                        playerManager.setMetadata(displaySong.title, displaySong.artist, displaySong.album, displaySong.duration, artwork, lyricInfoJson)
+                        val currentDisplay = getOnlineDisplaySong(song) ?: displaySong
+                        playerManager.setMetadata(currentDisplay.title, currentDisplay.artist, currentDisplay.album, currentDisplay.duration, artwork, lyricInfoJson)
                     }
                 }
             }
@@ -278,7 +288,15 @@ class PlaybackService : Service() {
         isOnlinePlaying = isPlaying
         currentOnlinePosition = positionMs
 
-        val displaySong = song.toSong()
+        var durationChanged = false
+        if (durationMs > 0L && durationMs != currentOnlineDuration) {
+            currentOnlineDuration = durationMs
+            durationChanged = true
+        } else if (songChanged) {
+            currentOnlineDuration = (song.durationSeconds * 1000L).coerceAtLeast(0L)
+        }
+
+        val displaySong = getOnlineDisplaySong(song) ?: song.toSong()
 
         playerManager.updateSessionPlaybackState(isPlaying, positionMs)
         colorOSBridge.onPlaybackStateChanged(displaySong, isPlaying, positionMs)
@@ -294,23 +312,31 @@ class PlaybackService : Service() {
                     updateOnlineLyrics(song, lyrics)
                 }
             }
-        } else if (playStateChanged) {
+        } else if (playStateChanged || durationChanged) {
             updateOnlineNotification(song, isPlaying)
         }
     }
 
-    fun updateOnlinePosition(positionMs: Long) {
+    fun updateOnlinePosition(positionMs: Long, durationMs: Long = 0L) {
         if (!isOnlinePlaybackActive) return
         currentOnlinePosition = positionMs
-        val displaySong = currentOnlineSong?.toSong() ?: return
+        var durationUpdated = false
+        if (durationMs > 0L && (currentOnlineDuration <= 0L || Math.abs(durationMs - currentOnlineDuration) > 2000L)) {
+            currentOnlineDuration = durationMs
+            durationUpdated = true
+        }
+        val displaySong = getOnlineDisplaySong() ?: return
         playerManager.updateSessionPlaybackState(isOnlinePlaying, positionMs)
         colorOSBridge.onPlaybackStateChanged(displaySong, isOnlinePlaying, positionMs)
+        if (durationUpdated) {
+            currentOnlineSong?.let { updateOnlineNotification(it, isOnlinePlaying) }
+        }
     }
 
     fun onOnlineSeek(positionMs: Long) {
         if (!isOnlinePlaybackActive) return
         currentOnlinePosition = positionMs
-        val displaySong = currentOnlineSong?.toSong() ?: return
+        val displaySong = getOnlineDisplaySong() ?: return
         playerManager.updateSessionPlaybackState(isOnlinePlaying, positionMs)
         colorOSBridge.onSeek(displaySong, positionMs, isOnlinePlaying)
     }
@@ -318,9 +344,10 @@ class PlaybackService : Service() {
     fun stopOnlinePlayback() {
         if (!isOnlinePlaybackActive) return
         Log.d("AuraPlaybackDebug", "stopOnlinePlayback called")
-        val displaySong = currentOnlineSong?.toSong()
+        val displaySong = getOnlineDisplaySong() ?: currentOnlineSong?.toSong()
         isOnlinePlaybackActive = false
         currentOnlineSong = null
+        currentOnlineDuration = 0L
         cachedOnlineLyrics = emptyList()
         currentOnlinePosition = 0L
         setupActions()
@@ -333,7 +360,7 @@ class PlaybackService : Service() {
         onlineSong: OnlineSong,
         isPlaying: Boolean
     ) {
-        val displaySong = onlineSong.toSong()
+        val displaySong = getOnlineDisplaySong(onlineSong) ?: onlineSong.toSong()
         Log.d("AuraPlaybackDebug", "updateOnlineNotification: song=${onlineSong.title}, isPlaying=$isPlaying, isOnlinePlaying=$isOnlinePlaying")
 
         retryJob?.cancel()
@@ -380,7 +407,7 @@ class PlaybackService : Service() {
                 customArtwork = artwork ?: fastArtwork
             )
             try {
-                if (isPlaying) {
+                if (isPlaying || isOnlinePlaying) {
                     startForeground(PlaybackNotificationManager.NOTIFICATION_ID, updatedNotification)
                 } else {
                     if (!isOnlinePlaying) {
