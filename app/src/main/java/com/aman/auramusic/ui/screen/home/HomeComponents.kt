@@ -1,7 +1,6 @@
 package com.aman.auramusic.ui.screen.home
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -12,7 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.ui.graphics.graphicsLayer
+
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -1010,35 +1009,6 @@ fun ArtistDetailSheet(
                 }
             }
         }
-
-            val isScrolled by remember {
-                derivedStateOf {
-                    listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 16
-                }
-            }
-            val scrimAlpha by animateFloatAsState(
-                targetValue = if (isScrolled) 1f else 0f,
-                animationSpec = tween(durationMillis = 200),
-                label = "artistTopScrimAlpha"
-            )
-
-            if (scrimAlpha > 0f) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .height(64.dp)
-                        .graphicsLayer { alpha = scrimAlpha }
-                        .background(
-                            Brush.verticalGradient(
-                                0.0f to pageBackground.copy(alpha = 0.96f),
-                                0.70f to pageBackground.copy(alpha = 0.80f),
-                                1.0f to Color.Transparent
-                            )
-                        )
-                )
-            }
 
             Row(
                 modifier = Modifier
