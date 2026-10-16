@@ -447,43 +447,24 @@ fun OnlinePlaylistDetailScreen(
 
             // Footer Album Metadata
             item(key = "online_collection_footer") {
-                val yearText = songs.firstOrNull { it.year.isNotBlank() }?.year ?: "2026"
+                val yearText = songs.firstOrNull { it.year.isNotBlank() }?.year.orEmpty()
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 24.dp)
                 ) {
-                    Text(
-                        text = yearText,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (yearText.isNotBlank()) {
+                        Text(
+                            text = yearText,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Text(
                         text = "${songs.size} songs, $totalMinutes minutes",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text(
-                        text = "℗ $yearText AuraMusic LLC Under Exclusive License",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "RECORD LABEL AuraMusic",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
                 }
             }
 
