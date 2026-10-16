@@ -96,86 +96,20 @@ fun OnlinePlaylistDetailScreen(
     AuraScreenBackground(
         modifier = modifier.fillMaxSize()
     ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 140.dp)
-        ) {
-            item(key = "online_collection_header") {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Top Action Header (Back, Overflow 3-dot)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 140.dp)
+            ) {
+                item(key = "online_collection_header") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onBackground
-                            )
-                        }
-
-                        if (showMenuButton) {
-                            Box {
-                                IconButton(onClick = { showTopMenu = true }) {
-                                    Icon(
-                                        imageVector = Icons.Default.MoreVert,
-                                        contentDescription = "Options",
-                                        tint = MaterialTheme.colorScheme.onBackground
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = showTopMenu,
-                                    onDismissRequest = { showTopMenu = false }
-                                ) {
-                                    if (onToggleSaveToLibrary != null) {
-                                        DropdownMenuItem(
-                                            text = { Text(if (isSavedInLibrary) "Remove from Library" else "Save to Library", fontWeight = FontWeight.SemiBold) },
-                                            leadingIcon = {
-                                                Icon(
-                                                    if (isSavedInLibrary) Icons.Default.BookmarkAdded else Icons.Default.BookmarkAdd,
-                                                    contentDescription = null,
-                                                    tint = if (isSavedInLibrary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                                )
-                                            },
-                                            onClick = {
-                                                showTopMenu = false
-                                                onToggleSaveToLibrary()
-                                            }
-                                        )
-                                    }
-                                    DropdownMenuItem(
-                                        text = { Text("Play All", fontWeight = FontWeight.SemiBold) },
-                                        leadingIcon = { Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                                        onClick = {
-                                            showTopMenu = false
-                                            if (songs.isNotEmpty()) onSongSelected(songs.first(), songs)
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Shuffle", fontWeight = FontWeight.SemiBold) },
-                                        leadingIcon = { Icon(Icons.Default.Shuffle, contentDescription = null) },
-                                        onClick = {
-                                            showTopMenu = false
-                                            if (songs.isNotEmpty()) {
-                                                val shuffled = songs.shuffled()
-                                                onSongSelected(shuffled.first(), shuffled)
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(44.dp))
 
                     // Centered Poster Art (Apple Music Style)
                     val artworkModel = playlist.artworkUrl.ifBlank {
@@ -615,6 +549,106 @@ fun OnlinePlaylistDetailScreen(
                                     )
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Floating Top Overlay Action Bar
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline,
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(23.dp)
+                        )
+                    }
+                }
+
+                if (showMenuButton) {
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            IconButton(onClick = { showTopMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreHoriz,
+                                    contentDescription = "Options",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                        DropdownMenu(
+                            expanded = showTopMenu,
+                            onDismissRequest = { showTopMenu = false }
+                        ) {
+                            if (onToggleSaveToLibrary != null) {
+                                DropdownMenuItem(
+                                    text = { Text(if (isSavedInLibrary) "Remove from Library" else "Save to Library", fontWeight = FontWeight.SemiBold) },
+                                    leadingIcon = {
+                                        Icon(
+                                            if (isSavedInLibrary) Icons.Default.BookmarkAdded else Icons.Default.BookmarkAdd,
+                                            contentDescription = null,
+                                            tint = if (isSavedInLibrary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    },
+                                    onClick = {
+                                        showTopMenu = false
+                                        onToggleSaveToLibrary()
+                                    }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("Play All", fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = { Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                                onClick = {
+                                    showTopMenu = false
+                                    if (songs.isNotEmpty()) onSongSelected(songs.first(), songs)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Shuffle", fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = { Icon(Icons.Default.Shuffle, contentDescription = null) },
+                                onClick = {
+                                    showTopMenu = false
+                                    if (songs.isNotEmpty()) {
+                                        val shuffled = songs.shuffled()
+                                        onSongSelected(shuffled.first(), shuffled)
+                                    }
+                                }
+                            )
                         }
                     }
                 }
