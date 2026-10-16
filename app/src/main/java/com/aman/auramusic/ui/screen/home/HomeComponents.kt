@@ -837,6 +837,16 @@ fun ArtistDetailSheet(
                     )
                 }
             } else {
+                if (!errorMessage.isNullOrBlank()) {
+                    item(key = "artist_catalogue_warning") {
+                        Text(
+                            text = errorMessage,
+                            color = secondaryColor,
+                            fontSize = 13.sp,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)
+                        )
+                    }
+                }
                 if (onlineSongs.isNotEmpty()) {
                     item(key = "artist_top_songs_heading") {
                         Text(
