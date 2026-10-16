@@ -80,6 +80,12 @@ class PlayerViewModel @Inject constructor(
 
             viewModelScope.launch {
                 serviceInstance.queueFlow.collect { songs ->
+                    // Preserve a canonical unshuffled order for the shuffle toggle.
+                    // When shuffled, queueFlow emits presentation order and must not
+                    // overwrite the canonical source list.
+                    if ((!serviceInstance.isShuffled && songs.isNotEmpty()) || originalQueue.isEmpty()) {
+                        originalQueue = songs.map { QueueEntry(song = it) }
+                    }
                     _queue.value = songs.map { QueueEntry(song = it) }
                 }
             }
