@@ -143,7 +143,7 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
                 it.name.trim().equals(cleanName, ignoreCase = true)
             } ?: results.firstOrNull {
                 it.name.contains(cleanName, ignoreCase = true) || cleanName.contains(it.name, ignoreCase = true)
-            } ?: results.firstOrNull()
+            }
 
             val profileUrl = entity?.profileImageUrl?.takeIf { it.isNotBlank() }
             if (profileUrl != null) {
@@ -178,7 +178,7 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
             val results = searchArtists(cleanName)
             val entity = results.firstOrNull { it.name.trim().equals(cleanName, ignoreCase = true) }
                 ?: results.firstOrNull { it.name.contains(cleanName, ignoreCase = true) || cleanName.contains(it.name, ignoreCase = true) }
-                ?: results.firstOrNull()
+                ?: results.firstOrNull { normalizeArtistKeyForMatch(it.name) == normalizeArtistKeyForMatch(cleanName) }
             val aud = entity?.subscriberCountText?.takeIf {
                 !it.equals("YouTube Music", ignoreCase = true) && !it.equals("YouTube Music Artist", ignoreCase = true)
             }
@@ -201,7 +201,10 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
             val fallbackAlbums = try {
                 pipedService.searchMusicCollections(artistName, 10)
             } catch (_: Exception) { emptyList() }
-            return@withContext ArtistCatalogue(songs = fallbackTracks, albums = fallbackAlbums)
+            return@withContext ArtistCatalogue(
+                songs = filterAndRankArtistTracks(fallbackTracks, artistName),
+                albums = filterArtistAlbums(fallbackAlbums, artistName)
+            )
         }
 
         val cacheKey = "browse:$browseId"
@@ -231,9 +234,11 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
                 .build()
 
             httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@use ArtistCatalogue()
+                if (!response.isSuccessful) return@use ArtistCatalogue(
+                    loadErrorMessage = "YouTube Music returned HTTP ${response.code} while loading this artist."
+                )
                 val json = response.body?.string().orEmpty()
-                val tracks = parseArtistBrowseTracks(json, artistName)
+                val tracks = filterAndRankArtistTracks(parseArtistBrowseTracks(json, artistName), artistName)
                 val albums = parseArtistBrowseAlbums(json)
                 val audience = parseArtistBrowseAudience(json)
                 val similarArtists = parseArtistBrowseSimilarArtists(json)
@@ -246,23 +251,25 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            ArtistCatalogue()
+            ArtistCatalogue(loadErrorMessage = "Unable to load this artist's catalogue. Check your connection and try again.")
         }
 
         if (catalogue.songs.isEmpty()) {
             val fallbackTracks = try {
                 onlineRepository.search(artistName, AudioSource.ALL)
             } catch (_: Exception) { emptyList() }
-            if (fallbackTracks.isNotEmpty()) {
-                catalogue = catalogue.copy(songs = fallbackTracks)
+            val filteredTracks = filterAndRankArtistTracks(fallbackTracks, artistName)
+            if (filteredTracks.isNotEmpty()) {
+                catalogue = catalogue.copy(songs = filteredTracks)
             }
         }
         if (catalogue.albums.isEmpty()) {
             val fallbackAlbums = try {
                 pipedService.searchMusicCollections(artistName, 10)
             } catch (_: Exception) { emptyList() }
-            if (fallbackAlbums.isNotEmpty()) {
-                catalogue = catalogue.copy(albums = fallbackAlbums)
+            val filteredAlbums = filterArtistAlbums(fallbackAlbums, artistName)
+            if (filteredAlbums.isNotEmpty()) {
+                catalogue = catalogue.copy(albums = filteredAlbums)
             }
         }
         if (catalogue.bio == null) {
@@ -275,7 +282,10 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
         }
 
         if (catalogue.songs.isNotEmpty() || catalogue.albums.isNotEmpty()) {
+            catalogue = catalogue.copy(loadErrorMessage = null)
             artistCatalogueCache.put(cacheKey, catalogue)
+        } else if (catalogue.loadErrorMessage.isNullOrBlank()) {
+            catalogue = catalogue.copy(loadErrorMessage = "No verified tracks or releases were returned for this artist.")
         }
         catalogue
     }
@@ -284,7 +294,8 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
      * Filters out reaction videos, karaoke, instrumental loops, tutorials, and ranks official releases.
      */
     private fun filterAndRankArtistTracks(songs: List<OnlineSong>, artistName: String): List<OnlineSong> {
-        val nameNorm = artistName.lowercase().trim()
+        val nameNorm = artistName.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }
+        if (nameNorm.isBlank()) return emptyList()
 
         val excludedKeywords = listOf(
             "karaoke", "instrumental", "reaction", "reacting", "react to", "react ", "review",
@@ -295,7 +306,12 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
 
         val scored = songs.mapNotNull { song ->
             val titleLower = song.title.lowercase()
-            val artistLower = song.artist.lowercase()
+            val artistLower = song.artist.lowercase(java.util.Locale.ROOT)
+            val artistKey = artistLower.filter { it.isLetterOrDigit() }
+
+            // Broad search results must credit the selected artist; do not fill artist pages
+            // with unrelated songs simply because their title matched the search phrase.
+            if (!artistKey.contains(nameNorm)) return@mapNotNull null
 
             // Filter out obvious unwanted uploads
             if (excludedKeywords.any { titleLower.contains(it) }) {
@@ -305,7 +321,7 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
             var score = 0
 
             // Rank official channels or topic channels higher
-            if (artistLower.contains(nameNorm)) score += 6
+            if (artistKey.contains(nameNorm)) score += 6
             if (artistLower.contains("- topic") || artistLower.contains("vevo") || artistLower.contains("official")) score += 4
 
             // Rank official video/audio releases higher
@@ -332,6 +348,15 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
                 seenTitles.add(cleanTitle.trim())
             }
             .take(25)
+    }
+
+    private fun filterArtistAlbums(albums: List<OnlinePlaylist>, artistName: String): List<OnlinePlaylist> {
+        val target = artistName.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }
+        if (target.isBlank()) return emptyList()
+        return albums.filter { album ->
+            album.title.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }.contains(target) ||
+                album.subtitle.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }.contains(target)
+        }.distinctBy { it.id }.take(10)
     }
 
     private suspend fun resolveArtistExtraMetadata(
