@@ -496,6 +496,9 @@ class PlayerViewModel @Inject constructor(
         val newShuffled = !(service?.isShuffled ?: isShuffled)
         val activeQueue = service?.queue ?: _queue.value.map { it.song }
         val canonical = originalQueue.map { it.song }.ifEmpty { activeQueue }
+        if (originalQueue.isEmpty()) {
+            originalQueue = canonical.map { QueueEntry(song = it) }
+        }
 
         val targetQueue = if (newShuffled) {
             val current = canonical.firstOrNull { it.id == currentSongId }
@@ -505,8 +508,10 @@ class PlayerViewModel @Inject constructor(
             canonical.distinctBy { it.id }
         }
 
-        service?.queue = targetQueue
+        // Update the flag before publishing the reordered queue so the queueFlow
+        // collector knows whether this is canonical order or shuffle presentation order.
         service?.isShuffled = newShuffled
+        service?.queue = targetQueue
         _queue.value = targetQueue.map { QueueEntry(song = it) }
         isShuffled = newShuffled
     }
