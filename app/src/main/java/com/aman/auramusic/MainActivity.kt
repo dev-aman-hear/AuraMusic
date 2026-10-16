@@ -15,7 +15,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -611,20 +610,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
         }
     }
 
-    val currentOnlineMiniSong = onlinePlaybackState.currentSong ?: activeOnlineSong
-    val onlineAsSong = remember(currentOnlineMiniSong, onlinePlaybackState.durationMs) {
-        currentOnlineMiniSong?.toSong()?.let { base ->
-            if (onlinePlaybackState.durationMs > 0) base.copy(duration = onlinePlaybackState.durationMs) else base
-        }
-    }
-    val localMiniSong = playerViewModel.currentSong
-    val hasMiniSong = (isOnlinePlaybackActive && onlineAsSong != null) || (!isOnlinePlaybackActive && localMiniSong != null)
-    val homeBottomPadding by animateDpAsState(
-        targetValue = if (isBottomCollapsed && hasMiniSong) 74.dp else if (hasMiniSong) 124.dp else 74.dp,
-        animationSpec = tween(220),
-        label = "homeBottomPadding"
-    )
-
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -667,8 +652,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             onRemoveSavedOnlineArtist = { musicViewModel.removeOnlineArtistFromLibrary(it) },
                             onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
                             onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
-                            homeResetKey = homeReselectKey,
-                            bottomPadding = homeBottomPadding
+                            homeResetKey = homeReselectKey
                         )
                         AppTab.Online -> OnlineScreen(
                             onlinePlaybackManager = onlinePlaybackManager,
@@ -1080,6 +1064,15 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             .padding(top = if (isBottomCollapsed) 2.dp else 10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        val currentOnlineMiniSong = onlinePlaybackState.currentSong ?: activeOnlineSong
+                        val onlineAsSong = remember(currentOnlineMiniSong, onlinePlaybackState.durationMs) {
+                            currentOnlineMiniSong?.toSong()?.let { base ->
+                                if (onlinePlaybackState.durationMs > 0) base.copy(duration = onlinePlaybackState.durationMs) else base
+                            }
+                        }
+                        val localMiniSong = playerViewModel.currentSong
+                        val hasMiniSong = (isOnlinePlaybackActive && onlineAsSong != null) || (!isOnlinePlaybackActive && localMiniSong != null)
+
                         if (isBottomCollapsed && hasMiniSong) {
                                 BottomNavBar(
                                     selectedTab = selectedTab,
