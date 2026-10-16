@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -67,6 +68,7 @@ fun HomeScreen(
     onSaveOnlineAlbum: ((OnlinePlaylist) -> Unit)? = null,
     onRemoveSavedOnlineAlbum: ((String) -> Unit)? = null,
     homeResetKey: Int = 0,
+    bottomPadding: Dp = 120.dp,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -285,7 +287,7 @@ fun HomeScreen(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 160.dp)
+                    contentPadding = PaddingValues(bottom = bottomPadding)
                 ) {
                     item(key = "home_header") {
                         HomeHeader(

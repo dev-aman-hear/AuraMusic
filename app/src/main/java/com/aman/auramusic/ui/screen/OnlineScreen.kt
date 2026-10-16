@@ -538,7 +538,7 @@ fun OnlineScreen(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 160.dp),
+                contentPadding = PaddingValues(bottom = 124.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 item(key = "explore_header") {

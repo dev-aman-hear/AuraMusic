@@ -1269,7 +1269,7 @@ fun DiscoverCategorySection(
 ) {
     if (categories.isEmpty()) return
 
-    Column(modifier = modifier.padding(top = 26.dp, bottom = 18.dp)) {
+    Column(modifier = modifier.padding(top = 20.dp, bottom = 4.dp)) {
         HomeSectionHeader(
             title = "Discover by Category",
             actionText = "See All",
