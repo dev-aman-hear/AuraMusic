@@ -830,15 +830,15 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-        val catalogue = if (!resolvedBrowseId.isNullOrBlank()) {
-            try {
-                youtubeArtistRepository.getArtistCatalogue(artistName, resolvedBrowseId)
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                com.aman.auramusic.online.network.repository.ArtistCatalogue()
-            }
-        } else {
-            com.aman.auramusic.online.network.repository.ArtistCatalogue()
+        // The repository also has a strict, artist-verified search fallback for
+        // local artists that do not resolve to a YouTube Music browse ID.
+        val catalogue = try {
+            youtubeArtistRepository.getArtistCatalogue(artistName, resolvedBrowseId)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            com.aman.auramusic.online.network.repository.ArtistCatalogue(
+                loadErrorMessage = "Unable to load this artist's catalogue. Check your connection and try again."
+            )
         }
 
         val audienceText = catalogue.subscriberCountText?.takeIf { it.isNotBlank() }
