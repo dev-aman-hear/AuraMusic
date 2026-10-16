@@ -1156,6 +1156,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                             targetOffsetY = { height -> height / 10 }
                                         ))
                             },
+                            contentAlignment = Alignment.BottomCenter,
                             label = "bottomPlaybackNavigationTransition"
                         ) { compactLayout ->
                             if (compactLayout) {
@@ -1202,89 +1203,55 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     }
                                 )
                             } else {
-                                if (isOnlinePlaybackActive && onlineAsSong != null) {
-                                    MiniPlayer(
-                                        song = onlineAsSong,
-                                        isPlaying = onlinePlaybackState.isPlaying,
-                                        position = onlinePlaybackState.currentPositionMs,
-                                        duration = onlinePlaybackState.durationMs,
-                                        onPlayPause = { onlinePlaybackManager.togglePlayPause() },
-                                        onNext = { onlinePlaybackManager.playNext() },
-                                        onPrevious = { onlinePlaybackManager.playPrevious() },
-                                        onOpen = { showPlayer = true }
-                                    )
-                                } else {
-                                    localMiniSong?.let { song ->
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    if (isOnlinePlaybackActive && onlineAsSong != null) {
                                         MiniPlayer(
-                                            song = song,
-                                            isPlaying = playerViewModel.isPlaying,
-                                            position = playerViewModel.currentPosition,
-                                            duration = playerViewModel.duration,
-                                            onPlayPause = { playerViewModel.togglePlayPause() },
-                                            onNext = { playerViewModel.playNext() },
-                                            onPrevious = { playerViewModel.playPrevious() },
+                                            song = onlineAsSong,
+                                            isPlaying = onlinePlaybackState.isPlaying,
+                                            position = onlinePlaybackState.currentPositionMs,
+                                            duration = onlinePlaybackState.durationMs,
+                                            onPlayPause = { onlinePlaybackManager.togglePlayPause() },
+                                            onNext = { onlinePlaybackManager.playNext() },
+                                            onPrevious = { onlinePlaybackManager.playPrevious() },
                                             onOpen = { showPlayer = true }
                                         )
+                                    } else {
+                                        localMiniSong?.let { song ->
+                                            MiniPlayer(
+                                                song = song,
+                                                isPlaying = playerViewModel.isPlaying,
+                                                position = playerViewModel.currentPosition,
+                                                duration = playerViewModel.duration,
+                                                onPlayPause = { playerViewModel.togglePlayPause() },
+                                                onNext = { playerViewModel.playNext() },
+                                                onPrevious = { playerViewModel.playPrevious() },
+                                                onOpen = { showPlayer = true }
+                                            )
+                                        }
                                     }
-                                }
 
-                                BottomNavBar(
-                                    selectedTab = selectedTab,
-                                    compact = false,
-                                    onTabSelected = {
-                                        if (it == AppTab.Home && selectedTab == AppTab.Home) homeReselectKey++
-                                        selectedTab = it
-                                        showSettings = false
-                                        selectedPlaylistId = null
-                                        selectedAlbumName = null
-                                        selectedArtistName = null
-                                    }
-                                )
-                            }
-                        } else {
-                                if (isOnlinePlaybackActive && onlineAsSong != null) {
-                                    MiniPlayer(
-                                        song = onlineAsSong,
-                                        isPlaying = onlinePlaybackState.isPlaying,
-                                        position = onlinePlaybackState.currentPositionMs,
-                                        duration = onlinePlaybackState.durationMs,
-                                        onPlayPause = { onlinePlaybackManager.togglePlayPause() },
-                                        onNext = { onlinePlaybackManager.playNext() },
-                                        onPrevious = { onlinePlaybackManager.playPrevious() },
-                                        onOpen = { showPlayer = true }
+                                    BottomNavBar(
+                                        selectedTab = selectedTab,
+                                        compact = false,
+                                        onTabSelected = {
+                                            if (it == AppTab.Home && selectedTab == AppTab.Home) homeReselectKey++
+                                            selectedTab = it
+                                            showSettings = false
+                                            selectedPlaylistId = null
+                                            selectedAlbumName = null
+                                            selectedArtistName = null
+                                        }
                                     )
-                                } else {
-                                    localMiniSong?.let { song ->
-                                        MiniPlayer(
-                                            song = song,
-                                            isPlaying = playerViewModel.isPlaying,
-                                            position = playerViewModel.currentPosition,
-                                            duration = playerViewModel.duration,
-                                            onPlayPause = { playerViewModel.togglePlayPause() },
-                                            onNext = { playerViewModel.playNext() },
-                                            onPrevious = { playerViewModel.playPrevious() },
-                                            onOpen = { showPlayer = true }
-                                        )
-                                    }
                                 }
-
-                                BottomNavBar(
-                                    selectedTab = selectedTab,
-                                    compact = false,
-                                    onTabSelected = {
-                                        if (it == AppTab.Home && selectedTab == AppTab.Home) homeReselectKey++
-                                        selectedTab = it
-                                        showSettings = false
-                                        selectedPlaylistId = null
-                                        selectedAlbumName = null
-                                        selectedArtistName = null
-                                    }
-                                )
                             }
                         }
                     }
                 }
             }
+        }
 
         if (showPlayer) {
             val currentOnlineFullSong = onlinePlaybackState.currentSong ?: activeOnlineSong
