@@ -683,6 +683,7 @@ fun ArtistDetailSheet(
     localSongs: List<Song>,
     onlineAlbums: List<OnlinePlaylist> = emptyList(),
     isLoading: Boolean,
+    errorMessage: String? = null,
     onDismiss: () -> Unit,
     onPlaySong: (Song, List<Song>) -> Unit,
     onPlayOnlineSong: (OnlineSong, List<OnlineSong>) -> Unit,
@@ -828,7 +829,8 @@ fun ArtistDetailSheet(
             } else if (onlineSongs.isEmpty() && localSongs.isEmpty()) {
                 item(key = "artist_empty") {
                     Text(
-                        text = "No tracks are available for this artist yet.",
+                        text = errorMessage?.takeIf { it.isNotBlank() }
+                            ?: "No tracks are available for this artist yet.",
                         color = secondaryColor,
                         fontSize = 14.sp,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 26.dp)
