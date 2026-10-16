@@ -89,6 +89,7 @@ fun HomeScreen(
     var artistAudienceText by remember { mutableStateOf<String?>(null) }
     var artistSimilarArtists by remember { mutableStateOf<List<ArtistItem>>(emptyList()) }
     var artistBioData by remember { mutableStateOf<ArtistBioData?>(null) }
+    var artistLoadErrorMessage by remember { mutableStateOf<String?>(null) }
     var isArtistLoading by remember { mutableStateOf(false) }
 
     val openArtistDetail: (ArtistItem) -> Unit = { artistItem ->
@@ -99,16 +100,24 @@ fun HomeScreen(
         artistSimilarArtists = emptyList()
         artistBioData = null
         artistAudienceText = null
+        artistLoadErrorMessage = null
         coroutineScope.launch {
             isArtistLoading = true
-            val catalogue = viewModel.fetchArtistCatalogue(artistItem, songs)
-            artistOnlineSongs = catalogue.onlineSongs
-            artistLocalSongs = catalogue.localSongs
-            artistOnlineAlbums = catalogue.onlineAlbums
-            artistAudienceText = catalogue.audienceText
-            artistSimilarArtists = catalogue.similarArtists
-            artistBioData = catalogue.bio
-            isArtistLoading = false
+            try {
+                val catalogue = viewModel.fetchArtistCatalogue(artistItem, songs)
+                artistOnlineSongs = catalogue.onlineSongs
+                artistLocalSongs = catalogue.localSongs
+                artistOnlineAlbums = catalogue.onlineAlbums
+                artistAudienceText = catalogue.audienceText
+                artistSimilarArtists = catalogue.similarArtists
+                artistBioData = catalogue.bio
+                artistLoadErrorMessage = catalogue.loadErrorMessage
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                artistLoadErrorMessage = "Unable to load this artist's catalogue. Check your connection and try again."
+            } finally {
+                isArtistLoading = false
+            }
         }
     }
 
@@ -133,6 +142,7 @@ fun HomeScreen(
             artistAudienceText = null
             artistSimilarArtists = emptyList()
             artistBioData = null
+            artistLoadErrorMessage = null
             selectedOnlineAlbum = null
             selectedOnlineAlbumSongs = emptyList()
             selectedCategory = null
@@ -501,6 +511,7 @@ fun HomeScreen(
                 similarArtists = artistSimilarArtists,
                 bioData = artistBioData,
                 isLoading = isArtistLoading,
+                errorMessage = artistLoadErrorMessage,
                 isSavedInLibrary = isArtistSaved,
                 audienceText = artistAudienceText,
                 onToggleSaveToLibrary = {
@@ -525,6 +536,7 @@ fun HomeScreen(
                     artistSimilarArtists = emptyList()
                     artistBioData = null
                     artistAudienceText = null
+                    artistLoadErrorMessage = null
                 },
                 onPlaySong = onSongSelected,
                 onPlayOnlineSong = onOnlineSongSelected,
