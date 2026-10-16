@@ -77,7 +77,6 @@ import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -791,9 +790,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 onThemeModeChange = { mode -> musicViewModel.setThemeMode(mode) },
                                 onKaraokeChange = { musicViewModel.setKaraokeMode(it) },
                                 onLyricFontScaleChange = { musicViewModel.setLyricFontScale(it) },
-                                onCrossfadeChange = { musicViewModel.setCrossfadeEnabled(it) },
-                                onGaplessChange = { musicViewModel.setGaplessEnabled(it) },
-                                onSkipSilenceChange = { musicViewModel.setSkipSilence(it) },
                                 onSmartAudioFocusChange = { musicViewModel.setSmartAudioFocus(it) },
                                 onKeepPlayingOnCloseChange = { musicViewModel.setKeepPlayingOnClose(it) },
                                 onPlaylistGridColumnsChange = { musicViewModel.setPlaylistGridColumns(it) },
@@ -966,7 +962,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     }
                                     musicViewModel.toggleFavorites(items, true)
                                 },
-                                showShareButton = false,
                                 showMenuButton = false,
                                 showAddButton = false
                             )
@@ -988,6 +983,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             var artistSimilarArtists by remember(artistName) { mutableStateOf<List<ArtistItem>>(emptyList()) }
                             var artistBioData by remember(artistName) { mutableStateOf<ArtistBioData?>(null) }
                             var isArtistLoading by remember(artistName) { mutableStateOf(false) }
+                            var artistDetailErrorMessage by remember(artistName) { mutableStateOf<String?>(null) }
 
                             val onlineRepo = remember { OnlineMusicRepository() }
                             val ytArtistRepo = remember(onlineRepo) {
@@ -999,21 +995,37 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
 
                             LaunchedEffect(artistName) {
                                 isArtistLoading = true
+                                artistDetailErrorMessage = null
                                 try {
                                     val catalogue = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                         val searchResults = try {
                                             ytArtistRepo.searchArtists(artistName)
-                                        } catch (_: Exception) { emptyList() }
+                                        } catch (e: Exception) {
+                                            if (e is kotlinx.coroutines.CancellationException) throw e
+                                            emptyList()
+                                        }
+                                        val targetArtistKey = artistName.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }
                                         val found = searchResults.firstOrNull {
-                                            it.name.equals(artistName, ignoreCase = true) ||
-                                            it.name.contains(artistName, ignoreCase = true)
-                                        } ?: searchResults.firstOrNull()
-                                        val browseId = found?.id.orEmpty()
-                                        ytArtistRepo.getArtistCatalogue(artistName, browseId)
+                                            it.name.lowercase(java.util.Locale.ROOT).filter { ch -> ch.isLetterOrDigit() } == targetArtistKey
+                                        }
+                                        val browseId = if (found != null && found.id.isNotBlank() && !found.id.startsWith("local_") && !found.id.startsWith("artist_") && !found.id.startsWith("yt_artist_")) {
+                                            found.id
+                                        } else {
+                                            ""
+                                        }
+                                        try {
+                                            ytArtistRepo.getArtistCatalogue(artistName, browseId)
+                                        } catch (e: Exception) {
+                                            if (e is kotlinx.coroutines.CancellationException) throw e
+                                            com.aman.auramusic.online.network.repository.ArtistCatalogue(
+                                                loadErrorMessage = "Unable to load this artist's catalogue. Check your connection and try again."
+                                            )
+                                        }
                                     }
                                     artistOnlineSongs = catalogue.songs
                                     artistOnlineAlbums = catalogue.albums
                                     artistBioData = catalogue.bio
+                                    artistDetailErrorMessage = catalogue.loadErrorMessage
                                     artistSimilarArtists = catalogue.similarArtists.map {
                                         ArtistItem(
                                             name = it.name,
@@ -1023,11 +1035,13 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                             artistId = it.id
                                         )
                                     }
-                                } catch (_: Exception) {
+                                } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
                                     artistOnlineSongs = emptyList()
                                     artistOnlineAlbums = emptyList()
                                     artistSimilarArtists = emptyList()
                                     artistBioData = null
+                                    artistDetailErrorMessage = "Unable to load this artist's catalogue. Check your connection and try again."
                                 } finally {
                                     isArtistLoading = false
                                 }
@@ -1056,6 +1070,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 similarArtists = artistSimilarArtists,
                                 bioData = artistBioData,
                                 isLoading = isArtistLoading,
+                                errorMessage = artistDetailErrorMessage,
                                 isSavedInLibrary = isArtistSaved,
                                 audienceText = audience,
                                 onToggleSaveToLibrary = {
@@ -1260,7 +1275,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         }
                     },
                     onQueueClear = { onlinePlaybackManager.clearQueueExceptCurrent() },
-                    onQueueSave = {},
+                    onQueueSave = null,
                     onHistoryClear = {},
                     onAddToPlaylist = { 
                         val cur = onlinePlaybackState.currentSong ?: activeOnlineSong
@@ -1326,7 +1341,10 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         onSongSelected = { playerViewModel.play(it) },
                         onQueueRemove = { playerViewModel.removeQueueItem(it.id) },
                         onQueueClear = { playerViewModel.clearQueueExceptCurrent() },
-                        onQueueSave = { playerViewModel.saveQueueAsPlaylist("Queue") },
+                        onQueueSave = {
+                            songsToAddToPlaylist = queueState.map { it.song }
+                            showNewPlaylistDialog = true
+                        },
                         onHistoryClear = { musicViewModel.clearHistory() },
                         onAddToPlaylist = { songToAddToPlaylist = song },
                         appSettings = appSettings,

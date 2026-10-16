@@ -155,7 +155,7 @@ fun PlayerScreen(
     onSongSelected: (Song) -> Unit,
     onQueueRemove: (Song) -> Unit,
     onQueueClear: () -> Unit,
-    onQueueSave: () -> Unit,
+    onQueueSave: (() -> Unit)? = null,
     onHistoryClear: () -> Unit,
     onAddToPlaylist: () -> Unit,
     appSettings: AppSettings,
@@ -718,7 +718,7 @@ private fun LyricsPage(lyrics: List<LyricLine>, position: Long, onSeek: (Long) -
 @Composable
 private fun QueuePage(
     queue: List<QueueEntry>, history: List<Song>, currentSongId: Long?, isShuffled: Boolean, repeatMode: RepeatMode, isCurrentPage: Boolean,
-    onShuffleToggle: () -> Unit, onRepeatToggle: () -> Unit, onSongSelected: (Song) -> Unit, onQueueRemove: (Song) -> Unit, onQueueClear: () -> Unit, onQueueSave: () -> Unit, onHistoryClear: () -> Unit, onMove: (Int, Int) -> Unit
+    onShuffleToggle: () -> Unit, onRepeatToggle: () -> Unit, onSongSelected: (Song) -> Unit, onQueueRemove: (Song) -> Unit, onQueueClear: () -> Unit, onQueueSave: (() -> Unit)?, onHistoryClear: () -> Unit, onMove: (Int, Int) -> Unit
 ) {
     val listState = rememberLazyListState()
     val activeIndex = queue.indexOfFirst { it.song.id == currentSongId }.coerceAtLeast(0)
@@ -762,6 +762,19 @@ private fun QueuePage(
                         .clickable(enabled = canClear) { onQueueClear() }
                         .padding(horizontal = 8.dp, vertical = 6.dp)
                 )
+                if (onQueueSave != null) {
+                    val canSave = queue.isNotEmpty()
+                    Text(
+                        text = "Save",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = if (canSave) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable(enabled = canSave) { onQueueSave() }
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    )
+                }
                 IconButton(onClick = onShuffleToggle, modifier = Modifier.size(36.dp)) {
                     Icon(
                         imageVector = Icons.Default.Shuffle,
@@ -803,6 +816,7 @@ private fun QueuePage(
                     isDragging = isDragging,
                     elevation = elevation,
                     onSongSelected = { onSongSelected(entry.song) },
+                    onRemove = { onQueueRemove(entry.song) },
                     onMove = { change, dragAmount ->
                         change.consume(); dragOffset += dragAmount.y
                         val h = with(density) { 72.dp.toPx() }
@@ -842,6 +856,7 @@ private fun QueueItem(
     isDragging: Boolean,
     elevation: androidx.compose.ui.unit.Dp,
     onSongSelected: () -> Unit,
+    onRemove: (() -> Unit)? = null,
     onMove: (androidx.compose.ui.input.pointer.PointerInputChange, androidx.compose.ui.geometry.Offset) -> Unit,
     modifier: Modifier = Modifier,
     onDragStart: () -> Unit = {},
@@ -858,7 +873,17 @@ private fun QueueItem(
                 }
                 Text(song.artist, style = MaterialTheme.typography.labelMedium, color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Box(modifier = Modifier.size(48.dp).pointerInput(Unit) { detectDragGesturesAfterLongPress(onDragStart = { onDragStart() }, onDragEnd = { onDragEnd() }, onDragCancel = { onDragEnd() }, onDrag = { change, dragAmount -> onMove(change, dragAmount) }) }, contentAlignment = Alignment.Center) { Icon(Icons.Default.DragIndicator, "Drag", tint = if (isDragging) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), modifier = Modifier.size(24.dp)) }
+            if (onRemove != null) {
+                IconButton(onClick = onRemove, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Remove from queue",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            Box(modifier = Modifier.size(40.dp).pointerInput(Unit) { detectDragGesturesAfterLongPress(onDragStart = { onDragStart() }, onDragEnd = { onDragEnd() }, onDragCancel = { onDragEnd() }, onDrag = { change, dragAmount -> onMove(change, dragAmount) }) }, contentAlignment = Alignment.Center) { Icon(Icons.Default.DragIndicator, "Drag", tint = if (isDragging) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), modifier = Modifier.size(22.dp)) }
         }
     }
 }

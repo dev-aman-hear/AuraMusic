@@ -590,10 +590,31 @@ class OnlinePlaybackManager(
     }
 
     fun removeQueueItem(songId: String) {
+        val wasCurrent = _playbackState.value.currentSong?.id == songId
+        val currentIndex = _playbackState.value.queueIndex
+        var nextSongToPlay: OnlineSong? = null
+
         _playbackState.update { state ->
             val newQueue = state.queue.filterNot { it.id == songId }
-            val newIndex = newQueue.indexOfFirst { it.id == state.currentSong?.id }
-            state.copy(queue = newQueue, queueIndex = newIndex)
+            if (wasCurrent) {
+                if (newQueue.isNotEmpty()) {
+                    val nextIdx = currentIndex.coerceIn(0, newQueue.size - 1)
+                    nextSongToPlay = newQueue[nextIdx]
+                    state.copy(queue = newQueue, currentSong = nextSongToPlay, queueIndex = nextIdx)
+                } else {
+                    state.copy(queue = emptyList(), currentSong = null, queueIndex = -1, isPlaying = false)
+                }
+            } else {
+                val newIndex = newQueue.indexOfFirst { it.id == state.currentSong?.id }
+                state.copy(queue = newQueue, queueIndex = newIndex)
+            }
+        }
+
+        if (wasCurrent) {
+            nextSongToPlay?.let { playSong(it) } ?: run {
+                exoPlayer.stop()
+                exoPlayer.clearMediaItems()
+            }
         }
     }
 

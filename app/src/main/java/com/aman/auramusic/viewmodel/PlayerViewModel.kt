@@ -567,6 +567,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun removeQueueItem(songId: Long) {
+        val wasCurrent = currentSongId == songId
         val q = _queue.value.filterNot { it.song.id == songId }
         _queue.value = q
         playbackService?.queue = q.map { it.song }
@@ -574,7 +575,15 @@ class PlayerViewModel @Inject constructor(
         val canonical = originalQueue.map { it.song }.ifEmpty { q.map { it.song } }
         originalQueue = canonical.filterNot { it.id == songId }.map { QueueEntry(song = it) }
 
-        if (currentSongId == songId) playNext()
+        if (wasCurrent) {
+            if (q.isNotEmpty()) {
+                playNext()
+            } else {
+                currentSong = null
+                currentSongId = null
+                playerManager?.pause()
+            }
+        }
     }
 
     fun clearQueueExceptCurrent() {
