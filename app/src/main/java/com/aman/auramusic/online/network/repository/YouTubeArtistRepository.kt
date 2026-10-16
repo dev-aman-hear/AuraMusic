@@ -139,10 +139,11 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
 
         try {
             val results = searchArtists(cleanName)
+            val target = cleanName.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }
             val entity = results.firstOrNull {
                 it.name.trim().equals(cleanName, ignoreCase = true)
             } ?: results.firstOrNull {
-                it.name.contains(cleanName, ignoreCase = true) || cleanName.contains(it.name, ignoreCase = true)
+                it.name.lowercase(java.util.Locale.ROOT).filter { ch -> ch.isLetterOrDigit() } == target
             }
 
             val profileUrl = entity?.profileImageUrl?.takeIf { it.isNotBlank() }
@@ -176,9 +177,9 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
             }
 
             val results = searchArtists(cleanName)
+            val target = cleanName.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }
             val entity = results.firstOrNull { it.name.trim().equals(cleanName, ignoreCase = true) }
-                ?: results.firstOrNull { it.name.contains(cleanName, ignoreCase = true) || cleanName.contains(it.name, ignoreCase = true) }
-                ?: results.firstOrNull { normalizeArtistKeyForMatch(it.name) == normalizeArtistKeyForMatch(cleanName) }
+                ?: results.firstOrNull { it.name.lowercase(java.util.Locale.ROOT).filter { ch -> ch.isLetterOrDigit() } == target }
             val aud = entity?.subscriberCountText?.takeIf {
                 !it.equals("YouTube Music", ignoreCase = true) && !it.equals("YouTube Music Artist", ignoreCase = true)
             }
@@ -195,15 +196,31 @@ class YouTubeArtistRepositoryImpl @Inject constructor(
     override suspend fun getArtistCatalogue(artistName: String, artistId: String?): ArtistCatalogue = withContext(Dispatchers.IO) {
         val browseId = artistId?.trim().orEmpty()
         if (browseId.isBlank() || browseId.startsWith("local_") || browseId.startsWith("yt_artist_") || browseId.startsWith("artist_")) {
+            var lookupFailed = false
             val fallbackTracks = try {
                 onlineRepository.search(artistName, AudioSource.ALL)
-            } catch (_: Exception) { emptyList() }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                lookupFailed = true
+                emptyList()
+            }
             val fallbackAlbums = try {
                 pipedService.searchMusicCollections(artistName, 10)
-            } catch (_: Exception) { emptyList() }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                lookupFailed = true
+                emptyList()
+            }
+            val tracks = filterAndRankArtistTracks(fallbackTracks, artistName)
+            val albums = filterArtistAlbums(fallbackAlbums, artistName)
             return@withContext ArtistCatalogue(
-                songs = filterAndRankArtistTracks(fallbackTracks, artistName),
-                albums = filterArtistAlbums(fallbackAlbums, artistName)
+                songs = tracks,
+                albums = albums,
+                loadErrorMessage = if (tracks.isEmpty() && albums.isEmpty() && lookupFailed) {
+                    "Unable to load this artist's catalogue. Check your connection and try again."
+                } else if (tracks.isEmpty() && albums.isEmpty()) {
+                    "No verified tracks or releases were returned for this artist."
+                } else null
             )
         }
 
