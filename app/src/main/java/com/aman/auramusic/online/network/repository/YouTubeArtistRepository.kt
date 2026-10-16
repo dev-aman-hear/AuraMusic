@@ -46,7 +46,8 @@ data class ArtistCatalogue(
     val albums: List<OnlinePlaylist> = emptyList(),
     val subscriberCountText: String? = null,
     val similarArtists: List<YouTubeArtist> = emptyList(),
-    val bio: ArtistBioData? = null
+    val bio: ArtistBioData? = null,
+    val loadErrorMessage: String? = null
 )
 
 /**
