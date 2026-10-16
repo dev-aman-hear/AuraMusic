@@ -140,6 +140,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.DisposableEffect
 import com.aman.auramusic.online.player.OnlinePlaybackManager
 import com.aman.auramusic.online.model.OnlineSong
+import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.toSong
 import com.aman.auramusic.online.model.toLyricLines
 import com.aman.auramusic.online.util.LastPlayedStore
@@ -154,6 +155,7 @@ import com.aman.auramusic.ui.screen.SettingsScreen
 import com.aman.auramusic.ui.screen.CollectionDetailScreen
 import com.aman.auramusic.ui.screen.home.ArtistDetailSheet
 import com.aman.auramusic.ui.screen.home.ArtistItem
+import com.aman.auramusic.online.network.repository.ArtistBioData
 import com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
 import com.aman.auramusic.util.ArtistArtworkCache
@@ -974,15 +976,50 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             val isArtistSaved = savedArtistEntry != null
 
                             var artistOnlineSongs by remember(artistName) { mutableStateOf<List<OnlineSong>>(emptyList()) }
+                            var artistOnlineAlbums by remember(artistName) { mutableStateOf<List<OnlinePlaylist>>(emptyList()) }
+                            var artistSimilarArtists by remember(artistName) { mutableStateOf<List<ArtistItem>>(emptyList()) }
+                            var artistBioData by remember(artistName) { mutableStateOf<ArtistBioData?>(null) }
                             var isArtistLoading by remember(artistName) { mutableStateOf(false) }
+
+                            val onlineRepo = remember { OnlineMusicRepository() }
+                            val ytArtistRepo = remember(onlineRepo) {
+                                YouTubeArtistRepositoryImpl(
+                                    pipedService = com.aman.auramusic.online.network.piped.PipedService(),
+                                    onlineRepository = onlineRepo
+                                )
+                            }
 
                             LaunchedEffect(artistName) {
                                 isArtistLoading = true
                                 try {
-                                    val repo = OnlineMusicRepository()
-                                    artistOnlineSongs = repo.search(artistName, AudioSource.ALL)
+                                    val catalogue = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                        val searchResults = try {
+                                            ytArtistRepo.searchArtists(artistName)
+                                        } catch (_: Exception) { emptyList() }
+                                        val found = searchResults.firstOrNull {
+                                            it.name.equals(artistName, ignoreCase = true) ||
+                                            it.name.contains(artistName, ignoreCase = true)
+                                        } ?: searchResults.firstOrNull()
+                                        val browseId = found?.id.orEmpty()
+                                        ytArtistRepo.getArtistCatalogue(artistName, browseId)
+                                    }
+                                    artistOnlineSongs = catalogue.songs
+                                    artistOnlineAlbums = catalogue.albums
+                                    artistBioData = catalogue.bio
+                                    artistSimilarArtists = catalogue.similarArtists.map {
+                                        ArtistItem(
+                                            name = it.name,
+                                            songCountText = it.subscriberCountText.orEmpty(),
+                                            artworkModel = it.profileImageUrl,
+                                            isOnline = true,
+                                            artistId = it.id
+                                        )
+                                    }
                                 } catch (_: Exception) {
                                     artistOnlineSongs = emptyList()
+                                    artistOnlineAlbums = emptyList()
+                                    artistSimilarArtists = emptyList()
+                                    artistBioData = null
                                 } finally {
                                     isArtistLoading = false
                                 }
@@ -1007,7 +1044,9 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 ),
                                 onlineSongs = artistOnlineSongs,
                                 localSongs = artistSongs,
-                                onlineAlbums = emptyList(),
+                                onlineAlbums = artistOnlineAlbums,
+                                similarArtists = artistSimilarArtists,
+                                bioData = artistBioData,
                                 isLoading = isArtistLoading,
                                 isSavedInLibrary = isArtistSaved,
                                 audienceText = audience,
@@ -1049,6 +1088,9 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                         val shuffled = artistOnlineSongs.shuffled()
                                         playOnlineSong(shuffled.first(), shuffled)
                                     }
+                                },
+                                onSelectSimilarArtist = { simArtist ->
+                                    selectedArtistName = simArtist.name
                                 }
                             )
                         }

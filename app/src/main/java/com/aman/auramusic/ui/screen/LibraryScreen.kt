@@ -48,6 +48,7 @@ import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.model.SavedOnlineArtist
 import com.aman.auramusic.online.filter.ExplicitTitleFilter
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
+import com.aman.auramusic.online.network.repository.ArtistBioData
 import com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl
 import com.aman.auramusic.online.player.OnlinePlaybackManager
 import com.aman.auramusic.ui.component.*
@@ -146,6 +147,8 @@ fun LibraryScreen(
     var onlineArtistPortraits by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var artistDetailSongs by remember { mutableStateOf<List<OnlineSong>>(emptyList()) }
     var artistDetailAlbums by remember { mutableStateOf<List<OnlinePlaylist>>(emptyList()) }
+    var artistDetailSimilarArtists by remember { mutableStateOf<List<ArtistItem>>(emptyList()) }
+    var artistDetailBioData by remember { mutableStateOf<ArtistBioData?>(null) }
     var isArtistDetailLoading by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedOnlinePlaylist) {
@@ -201,15 +204,14 @@ fun LibraryScreen(
                         }
                     }
                 }
-                val catalogue = if (browseId.isNotBlank() && !browseId.startsWith("local_") && !browseId.startsWith("artist_")) {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        try {
-                            youtubeArtistRepository.getArtistCatalogue(artist.name, browseId)
-                        } catch (_: Exception) {
-                            com.aman.auramusic.online.network.repository.ArtistCatalogue()
-                        }
+                val catalogue = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    try {
+                        val idToUse = if (browseId.isNotBlank() && !browseId.startsWith("local_") && !browseId.startsWith("artist_")) browseId else ""
+                        youtubeArtistRepository.getArtistCatalogue(artist.name, idToUse)
+                    } catch (_: Exception) {
+                        com.aman.auramusic.online.network.repository.ArtistCatalogue()
                     }
-                } else com.aman.auramusic.online.network.repository.ArtistCatalogue()
+                }
                 
                 var songs = catalogue.songs
                 if (songs.isEmpty()) {
@@ -233,11 +235,27 @@ fun LibraryScreen(
                         }
                     }
                 }
+                val similarItems = catalogue.similarArtists.map {
+                    ArtistItem(
+                        name = it.name,
+                        songCountText = it.subscriberCountText.orEmpty(),
+                        artworkModel = it.profileImageUrl,
+                        isOnline = true,
+                        artistId = it.id
+                    )
+                }
                 artistDetailSongs = songs
                 artistDetailAlbums = albums
+                artistDetailSimilarArtists = similarItems
+                artistDetailBioData = catalogue.bio
+                if (!catalogue.subscriberCountText.isNullOrBlank()) {
+                    onlineArtistAudiences = onlineArtistAudiences + (artist.name to catalogue.subscriberCountText)
+                }
             } catch (_: Exception) {
                 artistDetailSongs = emptyList()
                 artistDetailAlbums = emptyList()
+                artistDetailSimilarArtists = emptyList()
+                artistDetailBioData = null
             } finally {
                 isArtistDetailLoading = false
             }
@@ -343,6 +361,8 @@ fun LibraryScreen(
             onlineSongs = artistDetailSongs,
             localSongs = localMatchingSongs,
             onlineAlbums = artistDetailAlbums,
+            similarArtists = artistDetailSimilarArtists,
+            bioData = artistDetailBioData,
             isLoading = isArtistDetailLoading,
             isSavedInLibrary = isSaved,
             onToggleSaveToLibrary = {
@@ -363,6 +383,8 @@ fun LibraryScreen(
                 selectedArtist = null
                 artistDetailSongs = emptyList()
                 artistDetailAlbums = emptyList()
+                artistDetailSimilarArtists = emptyList()
+                artistDetailBioData = null
             },
             onPlaySong = onSongSelected,
             onPlayOnlineSong = onOnlineSongSelected,
@@ -386,6 +408,13 @@ fun LibraryScreen(
             },
             onOpenOnlineAlbum = { album ->
                 selectedOnlinePlaylist = album
+            },
+            onSelectSimilarArtist = { simArtist ->
+                selectedArtist = simArtist
+                artistDetailSongs = emptyList()
+                artistDetailAlbums = emptyList()
+                artistDetailSimilarArtists = emptyList()
+                artistDetailBioData = null
             },
             audienceText = audience
         )

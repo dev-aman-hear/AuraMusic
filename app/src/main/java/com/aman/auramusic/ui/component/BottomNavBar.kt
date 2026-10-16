@@ -62,14 +62,14 @@ fun BottomNavBar(
     compactPlayer: (@Composable () -> Unit)? = null
 ) {
     val allTabs = remember { listOf(AppTab.Home, AppTab.Online, AppTab.Library, AppTab.Search) }
-    val navShape = RoundedCornerShape(if (compact) 24.dp else 27.dp)
+    val navShape = RoundedCornerShape(27.dp)
 
     if (compact) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 14.dp, vertical = 2.dp)
+                .padding(start = 14.dp, end = 14.dp, bottom = 6.dp, top = 2.dp)
                 .animateContentSize(animationSpec = tween(220)),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -82,7 +82,7 @@ fun BottomNavBar(
             )
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(54.dp)
                     .clip(navShape)
                     .background(MaterialTheme.colorScheme.surface, navShape)
                     .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), navShape)
@@ -94,11 +94,11 @@ fun BottomNavBar(
                         imageVector = AppTab.Home.selectedIcon,
                         contentDescription = AppTab.Home.label,
                         tint = homeTint,
-                        modifier = Modifier.size(19.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     Text(
                         text = AppTab.Home.label,
-                        fontSize = 8.5.sp,
+                        fontSize = 9.sp,
                         fontWeight = if (isHomeSelected) FontWeight.SemiBold else FontWeight.Medium,
                         color = homeTint,
                         maxLines = 1
@@ -114,7 +114,7 @@ fun BottomNavBar(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(48.dp)
+                        .height(54.dp)
                         .clip(navShape)
                         .background(MaterialTheme.colorScheme.surface, navShape)
                         .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), navShape)
@@ -139,7 +139,7 @@ fun BottomNavBar(
             )
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(54.dp)
                     .clip(navShape)
                     .background(MaterialTheme.colorScheme.surface, navShape)
                     .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), navShape)
@@ -150,7 +150,7 @@ fun BottomNavBar(
                     imageVector = AppTab.Search.selectedIcon,
                     contentDescription = "Search",
                     tint = searchTint,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(21.dp)
                 )
             }
         }
