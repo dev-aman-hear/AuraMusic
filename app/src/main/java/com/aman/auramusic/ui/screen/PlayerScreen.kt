@@ -750,9 +750,37 @@ private fun QueuePage(
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Queue", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(vertical = 12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onShuffleToggle, modifier = Modifier.padding(end = 4.dp).size(32.dp).background(if (isShuffled) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent, CircleShape)) { Icon(Icons.Default.Shuffle, "Shuffle", tint = if (isShuffled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp)) }
-                IconButton(onClick = onRepeatToggle, modifier = Modifier.padding(end = 8.dp).size(32.dp).background(if (repeatMode != RepeatMode.NONE) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent, CircleShape)) { Icon(imageVector = when (repeatMode) { RepeatMode.ONE -> Icons.Default.RepeatOne; else -> Icons.Default.Repeat }, contentDescription = "Repeat", tint = if (repeatMode != RepeatMode.NONE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp)) }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                val canClear = queue.size > 1
+                Text(
+                    text = "Clear",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = if (canClear) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable(enabled = canClear) { onQueueClear() }
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                )
+                IconButton(onClick = onShuffleToggle, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Shuffle,
+                        contentDescription = "Shuffle",
+                        tint = if (isShuffled) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(onClick = onRepeatToggle, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        imageVector = when (repeatMode) {
+                            RepeatMode.ONE -> Icons.Default.RepeatOne
+                            else -> Icons.Default.Repeat
+                        },
+                        contentDescription = "Repeat",
+                        tint = if (repeatMode != RepeatMode.NONE) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -760,7 +788,7 @@ private fun QueuePage(
                 item {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("History", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
-                        Text("Clear", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { onHistoryClear() }.padding(8.dp))
+                        Text("Clear", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { onHistoryClear() }.padding(8.dp))
                     }
                 }
                 itemsIndexed(history, key = { index, song -> "history_${index}_${song.id}" }) { _, song -> HistoryItem(song, { onSongSelected(song) }, Modifier.animateItem()) }
