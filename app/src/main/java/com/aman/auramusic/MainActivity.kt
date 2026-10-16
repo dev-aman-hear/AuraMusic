@@ -1057,24 +1057,13 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
 
                 // Floating Navigation & Playback Pod
                 if (!showPlayer) {
-                    Box(
+                    Column(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
+                            .padding(top = if (isBottomCollapsed) 2.dp else 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Solid monochrome backdrop keeps content legible without gradients.
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .background(MaterialTheme.colorScheme.background)
-                        )
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = if (isBottomCollapsed) 2.dp else 10.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
                             val currentOnlineMiniSong = onlinePlaybackState.currentSong ?: activeOnlineSong
                             val onlineAsSong = remember(currentOnlineMiniSong, onlinePlaybackState.durationMs) {
                                 currentOnlineMiniSong?.toSong()?.let { base ->
@@ -1171,7 +1160,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                     }
                 }
             }
-        }
 
         if (showPlayer) {
             val currentOnlineFullSong = onlinePlaybackState.currentSong ?: activeOnlineSong

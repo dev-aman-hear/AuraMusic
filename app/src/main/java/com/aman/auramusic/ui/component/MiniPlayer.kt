@@ -58,7 +58,7 @@ fun MiniPlayer(
     val progress = if (duration > 0) position.toFloat() / duration.toFloat() else 0f
     var dragX by remember { mutableFloatStateOf(0f) }
     var dragY by remember { mutableFloatStateOf(0f) }
-    val pillShape = RoundedCornerShape(if (compact) 28.dp else 32.dp)
+    val pillShape = RoundedCornerShape(if (compact) 24.dp else 27.dp)
     val titleColor = MaterialTheme.colorScheme.onSurface
     val subtitleColor = MaterialTheme.colorScheme.onSurfaceVariant
     val iconTint = MaterialTheme.colorScheme.onSurface
@@ -66,8 +66,11 @@ fun MiniPlayer(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = if (compact) 2.dp else 4.dp)
-            .height(if (compact) 56.dp else 64.dp)
+            .padding(
+                horizontal = if (compact) 0.dp else 14.dp,
+                vertical = if (compact) 0.dp else 3.dp
+            )
+            .height(if (compact) 48.dp else 54.dp)
             .animateContentSize(animationSpec = tween(220))
             .pointerInput(Unit) {
                 detectDragGestures(
@@ -97,17 +100,17 @@ fun MiniPlayer(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = if (compact) 9.dp else 10.dp, vertical = 6.dp),
+                .padding(horizontal = if (compact) 7.dp else 9.dp, vertical = if (compact) 4.dp else 5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             SongArtwork(
                 song = song,
-                size = if (compact) 38 else 48,
-                shape = RoundedCornerShape(if (compact) 9.dp else 12.dp),
+                size = if (compact) 34 else 40,
+                shape = RoundedCornerShape(if (compact) 8.dp else 10.dp),
                 elevation = 0.dp
             )
 
-            Spacer(modifier = Modifier.width(if (compact) 9.dp else 12.dp))
+            Spacer(modifier = Modifier.width(if (compact) 7.dp else 10.dp))
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -115,7 +118,7 @@ fun MiniPlayer(
             ) {
                 Text(
                     text = song.title,
-                    fontSize = if (compact) 13.sp else 14.5.sp,
+                    fontSize = if (compact) 12.sp else 13.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = titleColor,
                     maxLines = 1,
@@ -123,10 +126,10 @@ fun MiniPlayer(
                     letterSpacing = (-0.1).sp
                 )
                 if (!compact) {
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(1.dp))
                     Text(
                         text = song.artist,
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = subtitleColor,
                         maxLines = 1,
@@ -137,36 +140,36 @@ fun MiniPlayer(
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(if (compact) 0.dp else 2.dp)
+                horizontalArrangement = Arrangement.spacedBy(if (compact) 0.dp else 1.dp)
             ) {
                 if (!compact) {
-                    IconButton(onClick = onPrevious, modifier = Modifier.size(34.dp)) {
+                    IconButton(onClick = onPrevious, modifier = Modifier.size(30.dp)) {
                         Icon(
                             imageVector = Icons.Default.SkipPrevious,
                             contentDescription = "Previous track",
                             tint = iconTint,
-                            modifier = Modifier.size(21.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
                 IconButton(
                     onClick = onPlayPause,
-                    modifier = Modifier.size(if (compact) 38.dp else 40.dp)
+                    modifier = Modifier.size(if (compact) 32.dp else 36.dp)
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Pause" else "Play",
                         tint = iconTint,
-                        modifier = Modifier.size(if (compact) 24.dp else 26.dp)
+                        modifier = Modifier.size(if (compact) 20.dp else 22.dp)
                     )
                 }
                 if (!compact) {
-                    IconButton(onClick = onNext, modifier = Modifier.size(34.dp)) {
+                    IconButton(onClick = onNext, modifier = Modifier.size(30.dp)) {
                         Icon(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = "Next track",
                             tint = iconTint,
-                            modifier = Modifier.size(21.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -177,7 +180,7 @@ fun MiniPlayer(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = if (compact) 12.dp else 16.dp)
+                .padding(horizontal = if (compact) 10.dp else 14.dp)
                 .height(2.dp)
         ) {
             LinearProgressIndicator(
