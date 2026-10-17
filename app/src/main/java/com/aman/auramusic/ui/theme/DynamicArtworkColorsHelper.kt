@@ -102,7 +102,9 @@ data class PlayerColorScheme(
     val dialogBorder: Color,
     val dialogAccent: Color,
     val textPrimary: Color,
-    val textSecondary: Color
+    val textSecondary: Color,
+    val queueItemInactiveTitle: Color = textPrimary,
+    val queueItemInactiveArtist: Color = textSecondary
 )
 
 /**
@@ -157,7 +159,9 @@ fun resolvePlayerColorScheme(
             dialogBorder = outline,
             dialogAccent = themePrimary,
             textPrimary = onBackground,
-            textSecondary = onSurfaceVariant
+            textSecondary = onSurfaceVariant,
+            queueItemInactiveTitle = onBackground,
+            queueItemInactiveArtist = onSurfaceVariant
         )
     }
 
@@ -166,6 +170,41 @@ fun resolvePlayerColorScheme(
     val prominentIcon = if (accentLuminance > 0.55f) Color(0xFF111111) else Color.White
     val highContrastText = if (isDark) Color.White else Color(0xFF111111)
     val secondaryText = if (isDark) Color.White.copy(alpha = 0.72f) else Color.Black.copy(alpha = 0.68f)
+
+    // Ensure accent for queue item active content has adequate contrast against the ambient surface
+    val contrastSafeAccent = if (isDark) {
+        if (accentLuminance < 0.38f) {
+            val hsl = ColorHarmonizer.rgbToHsl(accentArgb)
+            Color(ColorHarmonizer.hslToRgb(hsl[0], hsl[1].coerceAtLeast(0.40f), 0.58f))
+        } else accent
+    } else {
+        if (accentLuminance > 0.65f) {
+            val hsl = ColorHarmonizer.rgbToHsl(accentArgb)
+            Color(ColorHarmonizer.hslToRgb(hsl[0], hsl[1].coerceAtLeast(0.40f), 0.40f))
+        } else accent
+    }
+
+    // Subtle dynamic ambient tinting for inactive queue titles and artists
+    val queueInactiveTitle = if (isDark) {
+        Color(
+            red = (Color.White.red * 0.85f + primary.red * 0.15f),
+            green = (Color.White.green * 0.85f + primary.green * 0.15f),
+            blue = (Color.White.blue * 0.85f + primary.blue * 0.15f),
+            alpha = 0.95f
+        )
+    } else {
+        Color(
+            red = (0.08f * 0.85f + primary.red * 0.15f).coerceIn(0f, 0.22f),
+            green = (0.08f * 0.85f + primary.green * 0.15f).coerceIn(0f, 0.22f),
+            blue = (0.08f * 0.85f + primary.blue * 0.15f).coerceIn(0f, 0.22f),
+            alpha = 1.0f
+        )
+    }
+    val queueInactiveArtist = if (isDark) {
+        queueInactiveTitle.copy(alpha = 0.70f)
+    } else {
+        queueInactiveTitle.copy(alpha = 0.65f)
+    }
 
     return PlayerColorScheme(
         isDynamic = true,
@@ -192,7 +231,7 @@ fun resolvePlayerColorScheme(
         // Queue current track highlight & dragging
         queueItemActiveSurface = primary.copy(alpha = if (isDark) 0.28f else 0.22f),
         queueItemActiveBorder = primary.copy(alpha = if (isDark) 0.45f else 0.35f),
-        queueItemActiveContent = accent,
+        queueItemActiveContent = contrastSafeAccent,
         queueItemDraggingSurface = secondary.copy(alpha = 0.65f),
         // Queue action pills (Clear, Save, Shuffle, Repeat)
         queueActionSurface = secondary.copy(alpha = 0.50f),
@@ -206,7 +245,9 @@ fun resolvePlayerColorScheme(
         dialogBorder = primary.copy(alpha = 0.35f),
         dialogAccent = accent,
         textPrimary = highContrastText,
-        textSecondary = secondaryText
+        textSecondary = secondaryText,
+        queueItemInactiveTitle = queueInactiveTitle,
+        queueItemInactiveArtist = queueInactiveArtist
     )
 }
 
@@ -409,18 +450,32 @@ object DynamicArtworkColorsHelper {
      * Converts Palette swatches into a harmonious [PlayerArtworkPalette].
      * Detects low saturation/monochrome art, excessive neon brightness, or pure darkness.
      */
+    /**
+     * Converts Palette swatches into a harmonious [PlayerArtworkPalette].
+     * Evaluates dominant, vibrant, muted, and all swatches to intelligently select
+     * Primary (ambient dominant), Secondary (supporting depth), and Accent (controlled highlight).
+     */
     fun processPalette(palette: Palette, isDark: Boolean): PlayerArtworkPalette {
-        val swatches = listOfNotNull(
+        // Collect candidate swatches with preference for high population and vibrancy
+        val targeted = listOfNotNull(
+            palette.dominantSwatch,
             palette.vibrantSwatch,
             palette.darkVibrantSwatch,
             palette.lightVibrantSwatch,
             palette.mutedSwatch,
             palette.darkMutedSwatch,
-            palette.lightMutedSwatch,
-            palette.dominantSwatch
+            palette.lightMutedSwatch
         )
+        // Combine with all palette swatches sorted by population
+        val allSwatches = (targeted + palette.swatches)
+            .distinctBy { it.rgb }
+            .sortedByDescending { it.population }
 
-        return processSwatches(swatches, isDark, palette.dominantSwatch?.rgb)
+        return processColors(
+            colors = allSwatches.map { it.rgb },
+            isDark = isDark,
+            dominantRgb = palette.dominantSwatch?.rgb
+        )
     }
 
     /**
@@ -435,7 +490,8 @@ object DynamicArtworkColorsHelper {
     }
 
     /**
-     * Process list of color integers with harmonious theme adjustments and saturation safeguards.
+     * Intelligently selects Primary, Secondary, and Accent from a list of candidate colors.
+     * Evaluates saturation, luminance, visual distinctness, and harmony for Apple Music-style ambient depth.
      */
     fun processColors(
         colors: List<Int>,
@@ -446,26 +502,115 @@ object DynamicArtworkColorsHelper {
             return PlayerArtworkPalette.neutral(isDark)
         }
 
-        // Check if artwork is predominantly grayscale/low-saturation
-        val avgSaturation = colors.map { color ->
-            ColorHarmonizer.rgbToHsl(color)[1]
-        }.average().toFloat()
+        val hslList = colors.map { ColorHarmonizer.rgbToHsl(it) }
 
-        if (avgSaturation < 0.08f) {
-            // Artwork is grayscale or monochromatic - preserve clean neutral aesthetic
+        // 1. Detect grayscale or monochromatic artwork (clean neutral fallback)
+        val maxSaturation = hslList.maxOfOrNull { it[1] } ?: 0f
+        if (maxSaturation < 0.08f) {
             return PlayerArtworkPalette.neutral(isDark)
         }
 
-        val primaryInt = colors.firstOrNull() ?: colors[0]
-        val secondaryInt = colors.getOrNull(1) ?: primaryInt
-        val tertiaryInt = colors.getOrNull(2) ?: secondaryInt
-        val accentInt = colors.getOrNull(3) ?: primaryInt
+        // 2. Detect extreme darkness or brightness across all swatches
+        val avgLuminance = colors.map { ColorHarmonizer.calculateLuminance(it) }.average().toFloat()
+        if (avgLuminance < 0.03f || avgLuminance > 0.97f) {
+            return PlayerArtworkPalette.neutral(isDark)
+        }
 
-        // Harmonize luminance and saturation for theme contrast
-        val finalPrimary = adjustColorForTheme(primaryInt, isDark, targetLightness = if (isDark) 0.38f else 0.62f)
-        val finalSecondary = adjustColorForTheme(secondaryInt, isDark, targetLightness = if (isDark) 0.28f else 0.72f)
-        val finalTertiary = adjustColorForTheme(tertiaryInt, isDark, targetLightness = if (isDark) 0.22f else 0.78f)
-        val finalAccent = adjustColorForTheme(accentInt, isDark, targetLightness = if (isDark) 0.45f else 0.58f)
+        // 3. Filter candidates for useful saturation and lightness
+        val candidates = colors.filterIndexed { index, _ ->
+            val hsl = hslList[index]
+            hsl[1] >= 0.08f && hsl[2] in 0.04f..0.96f
+        }.ifEmpty { colors }
+
+        // 4. Select PRIMARY (dominant ambient color)
+        // Balances dominant population prominence, rich saturation, and theme-appropriate lightness
+        val primaryInt = candidates.maxByOrNull { rgb ->
+            val hsl = ColorHarmonizer.rgbToHsl(rgb)
+            val s = hsl[1]
+            val l = hsl[2]
+            val targetL = if (isDark) 0.35f else 0.65f
+            val satScore = 1f - kotlin.math.abs(s - 0.55f).coerceAtMost(0.55f)
+            val lScore = 1f - kotlin.math.abs(l - targetL).coerceAtMost(0.50f)
+            val rankWeight = 1f / (1f + candidates.indexOf(rgb) * 0.20f)
+            val dominantBonus = if (dominantRgb != null && rgb == dominantRgb) 0.30f else 0f
+            (satScore * 0.35f + lScore * 0.30f + rankWeight * 0.20f + dominantBonus)
+        } ?: candidates[0]
+
+        val primaryHsl = ColorHarmonizer.rgbToHsl(primaryInt)
+
+        // 5. Select SECONDARY (complementary or closely related supporting color for gradient depth)
+        // Filter candidate colors that are distinct from Primary
+        val distinctCandidates = candidates.filter { rgb ->
+            rgb != primaryInt && calculateColorDifference(primaryHsl, ColorHarmonizer.rgbToHsl(rgb)) >= 0.16f
+        }
+
+        val secondaryInt = if (distinctCandidates.isNotEmpty()) {
+            // Select candidate with highest ambient background harmony with Primary
+            distinctCandidates.maxByOrNull { rgb ->
+                val hsl = ColorHarmonizer.rgbToHsl(rgb)
+                val hueDiff = minOf(
+                    kotlin.math.abs(primaryHsl[0] - hsl[0]),
+                    360f - kotlin.math.abs(primaryHsl[0] - hsl[0])
+                )
+                val harmonyBonus = when {
+                    hueDiff <= 85f -> 1.0f // Analogous harmony (smooth blend)
+                    hueDiff in 135f..225f -> 0.70f // Complementary harmony
+                    else -> 0.50f
+                }
+                // Ambient background suitability: prefer moderate saturation and depth
+                val ambientSat = 1f - kotlin.math.abs(hsl[1] - 0.50f).coerceAtMost(0.50f)
+                val ambientL = if (isDark) {
+                    1f - kotlin.math.abs(hsl[2] - 0.30f).coerceAtMost(0.40f)
+                } else {
+                    1f - kotlin.math.abs(hsl[2] - 0.70f).coerceAtMost(0.40f)
+                }
+                (harmonyBonus * 0.45f + ambientSat * 0.30f + ambientL * 0.25f)
+            } ?: distinctCandidates[0]
+        } else {
+            // Artwork is monochromatic (only one color hue present in candidates)
+            // Synthesize a harmonious, analogous supporting secondary to create subtle gradient depth
+            val secondaryH = (primaryHsl[0] + if (primaryHsl[0] > 180f) -25f else 25f + 360f) % 360f
+            val secondaryS = (primaryHsl[1] * 0.85f).coerceIn(0.20f, 0.70f)
+            val secondaryL = if (isDark) {
+                (primaryHsl[2] * 0.80f).coerceIn(0.14f, 0.30f)
+            } else {
+                (primaryHsl[2] * 1.10f).coerceIn(0.70f, 0.86f)
+            }
+            ColorHarmonizer.hslToRgb(secondaryH, secondaryS, secondaryL)
+        }
+
+        // 6. Select ACCENT (controlled highlight color for progress, selected queue, and important playback controls)
+        val accentCandidate = candidates.maxByOrNull { rgb ->
+            val hsl = ColorHarmonizer.rgbToHsl(rgb)
+            val s = hsl[1]
+            val l = hsl[2]
+            val satScore = s
+            val lScore = if (isDark) (1f - kotlin.math.abs(l - 0.55f)) else (1f - kotlin.math.abs(l - 0.45f))
+            satScore * 0.70f + lScore * 0.30f
+        } ?: primaryInt
+
+        // 7. Harmonize luminance, saturation, and contrast for theme roles
+        val finalPrimary = adjustColorForTheme(primaryInt, isDark, targetLightness = if (isDark) 0.32f else 0.72f)
+        val finalSecondary = adjustColorForTheme(secondaryInt, isDark, targetLightness = if (isDark) 0.22f else 0.78f)
+
+        // Tertiary provides an ambient bridge between Primary and Secondary
+        val priHsl = ColorHarmonizer.rgbToHsl(finalPrimary)
+        val secHsl = ColorHarmonizer.rgbToHsl(finalSecondary)
+        val tertH = (priHsl[0] + secHsl[0]) / 2f
+        val tertS = ((priHsl[1] + secHsl[1]) / 2f).coerceIn(0.20f, 0.65f)
+        val tertL = if (isDark) (secHsl[2] * 0.90f).coerceIn(0.14f, 0.26f) else (secHsl[2] * 1.05f).coerceIn(0.75f, 0.88f)
+        val finalTertiary = ColorHarmonizer.hslToRgb(tertH, tertS, tertL)
+
+        // Accent contrast and saturation safeguards:
+        // Must have sufficient contrast against dark or light ambient surfaces
+        val accHsl = ColorHarmonizer.rgbToHsl(accentCandidate)
+        val safeAccentS = accHsl[1].coerceIn(0.35f, 0.82f)
+        val safeAccentL = if (isDark) {
+            accHsl[2].coerceIn(0.48f, 0.72f) // Bright and luminous in dark mode
+        } else {
+            accHsl[2].coerceIn(0.30f, 0.48f) // Deep and high contrast in light mode
+        }
+        val finalAccent = ColorHarmonizer.hslToRgb(accHsl[0], safeAccentS, safeAccentL)
 
         val dominantLuminance = ColorHarmonizer.calculateLuminance(dominantRgb ?: primaryInt)
         val isLightArtwork = dominantLuminance > 0.5f
@@ -484,6 +629,19 @@ object DynamicArtworkColorsHelper {
     }
 
     /**
+     * Calculates visual perceptual distance between two colors using weighted HSL differences.
+     */
+    fun calculateColorDifference(c1Hsl: FloatArray, c2Hsl: FloatArray): Float {
+        val hDiff = minOf(
+            kotlin.math.abs(c1Hsl[0] - c2Hsl[0]),
+            360f - kotlin.math.abs(c1Hsl[0] - c2Hsl[0])
+        ) / 180f
+        val sDiff = kotlin.math.abs(c1Hsl[1] - c2Hsl[1])
+        val lDiff = kotlin.math.abs(c1Hsl[2] - c2Hsl[2])
+        return kotlin.math.sqrt(0.50f * hDiff * hDiff + 0.30f * lDiff * lDiff + 0.20f * sDiff * sDiff)
+    }
+
+    /**
      * Adjusts saturation and lightness to ensure harmonious ambient diffusion without
      * neon glare, muddy darkness, or unreadable contrast.
      */
@@ -491,13 +649,13 @@ object DynamicArtworkColorsHelper {
         val hsl = ColorHarmonizer.rgbToHsl(colorInt)
 
         // Moderate saturation to prevent harsh neon blooms
-        hsl[1] = hsl[1].coerceIn(0.25f, 0.75f)
+        hsl[1] = hsl[1].coerceIn(0.20f, 0.70f)
 
         // Adjust lightness toward harmonious ambient background range
         hsl[2] = if (isDark) {
-            hsl[2].coerceIn(0.18f, targetLightness.coerceAtMost(0.48f))
+            hsl[2].coerceIn(0.16f, targetLightness.coerceAtMost(0.42f))
         } else {
-            hsl[2].coerceIn(targetLightness.coerceAtLeast(0.55f), 0.82f)
+            hsl[2].coerceIn(targetLightness.coerceAtLeast(0.60f), 0.85f)
         }
 
         return ColorHarmonizer.hslToRgb(hsl[0], hsl[1], hsl[2])
@@ -567,5 +725,13 @@ object ColorHarmonizer {
         val g = ((rgb shr 8) and 0xFF) / 255f
         val b = (rgb and 0xFF) / 255f
         return 0.2126f * r + 0.7152f * g + 0.0722f * b
+    }
+
+    fun calculateContrastRatio(rgb1: Int, rgb2: Int): Float {
+        val lum1 = calculateLuminance(rgb1)
+        val lum2 = calculateLuminance(rgb2)
+        val brightest = maxOf(lum1, lum2)
+        val darkest = minOf(lum1, lum2)
+        return (brightest + 0.05f) / (darkest + 0.05f)
     }
 }

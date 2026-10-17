@@ -378,76 +378,61 @@ private fun PlayerBackground(
         val width = size.width
         val height = size.height
 
-        // 1. Base ambient diagonal blend
+        // 1. Restrained primary-to-secondary gradient base
         drawRect(
             brush = Brush.linearGradient(
                 colors = listOf(
-                    primaryColor.copy(alpha = if (isDark) 0.65f else 0.45f),
-                    secondaryColor.copy(alpha = if (isDark) 0.55f else 0.35f),
-                    tertiaryColor.copy(alpha = if (isDark) 0.60f else 0.40f)
+                    primaryColor.copy(alpha = if (isDark) 0.55f else 0.38f),
+                    secondaryColor.copy(alpha = if (isDark) 0.45f else 0.28f)
                 ),
                 start = Offset(0f, 0f),
-                end = Offset(width, height)
+                end = Offset(width * 0.5f, height)
             )
         )
 
-        // 2. Top-right prominent bloom (Primary)
+        // 2. Large, soft radial primary bloom near the upper/artwork region
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    primaryColor.copy(alpha = if (isDark) 0.70f else 0.50f),
-                    primaryColor.copy(alpha = if (isDark) 0.35f else 0.20f),
+                    primaryColor.copy(alpha = if (isDark) 0.60f else 0.40f),
+                    primaryColor.copy(alpha = if (isDark) 0.22f else 0.12f),
                     Color.Transparent
                 ),
-                center = Offset(width * 0.85f, height * 0.22f),
-                radius = width * 1.1f
+                center = Offset(width * 0.75f, height * 0.25f),
+                radius = width * 1.20f
             ),
-            center = Offset(width * 0.85f, height * 0.22f),
-            radius = width * 1.1f
+            center = Offset(width * 0.75f, height * 0.25f),
+            radius = width * 1.20f
         )
 
-        // 3. Middle-left counter-bloom (Secondary)
+        // 3. Large, soft radial secondary bloom in the lower-middle region for dimensional depth
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    secondaryColor.copy(alpha = if (isDark) 0.65f else 0.45f),
-                    secondaryColor.copy(alpha = if (isDark) 0.25f else 0.15f),
+                    secondaryColor.copy(alpha = if (isDark) 0.50f else 0.30f),
+                    secondaryColor.copy(alpha = if (isDark) 0.18f else 0.08f),
                     Color.Transparent
                 ),
-                center = Offset(width * 0.10f, height * 0.52f),
-                radius = width * 1.05f
+                center = Offset(width * 0.20f, height * 0.70f),
+                radius = width * 1.15f
             ),
-            center = Offset(width * 0.10f, height * 0.52f),
-            radius = width * 1.05f
+            center = Offset(width * 0.20f, height * 0.70f),
+            radius = width * 1.15f
         )
 
-        // 4. Bottom-right subtle accent bloom (Accent)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    accentColor.copy(alpha = if (isDark) 0.50f else 0.35f),
-                    Color.Transparent
-                ),
-                center = Offset(width * 0.75f, height * 0.82f),
-                radius = width * 0.95f
-            ),
-            center = Offset(width * 0.75f, height * 0.82f),
-            radius = width * 0.95f
-        )
-
-        // 5. Contrast preservation scrim
-        // Soft gradient overlay to guarantee text and controls remain legible and accessible
+        // 4. Contrast preservation scrim
+        // Soft gradient overlay to keep album artwork, lyrics, and controls visually dominant
         val scrimColors = if (isDark) {
             listOf(
-                Color.Black.copy(alpha = 0.42f),
-                Color.Black.copy(alpha = 0.55f),
-                Color.Black.copy(alpha = 0.68f)
+                Color.Black.copy(alpha = 0.35f),
+                Color.Black.copy(alpha = 0.48f),
+                Color.Black.copy(alpha = 0.62f)
             )
         } else {
             listOf(
-                Color.White.copy(alpha = 0.40f),
-                Color.White.copy(alpha = 0.50f),
-                Color.White.copy(alpha = 0.62f)
+                Color.White.copy(alpha = 0.30f),
+                Color.White.copy(alpha = 0.42f),
+                Color.White.copy(alpha = 0.55f)
             )
         }
 
@@ -1053,8 +1038,8 @@ private fun HistoryItem(song: Song, onClick: () -> Unit, playerColors: PlayerCol
         SongArtwork(song, size = 40, shape = RoundedCornerShape(8.dp))
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(song.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = playerColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(song.artist, style = MaterialTheme.typography.labelSmall, color = playerColors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(song.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = playerColors.queueItemInactiveTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(song.artist, style = MaterialTheme.typography.labelSmall, color = playerColors.queueItemInactiveArtist, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -1093,20 +1078,28 @@ private fun QueueItem(
             Spacer(modifier = Modifier.size(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (active) Icon(Icons.Default.PlayArrow, null, tint = playerColors.queueItemActiveContent, modifier = Modifier.size(16.dp).padding(end = 4.dp))
-                    Text(song.title, style = MaterialTheme.typography.titleSmall, fontWeight = if (active) FontWeight.Bold else FontWeight.SemiBold, color = if (active) playerColors.queueItemActiveContent else playerColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Text(song.artist, style = MaterialTheme.typography.labelMedium, color = if (active) playerColors.queueItemActiveContent.copy(alpha = 0.8f) else playerColors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            if (onRemove != null) {
-                IconButton(onClick = onRemove, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Remove from queue",
-                        tint = if (playerColors.isDynamic) playerColors.buttonIconTint.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.size(18.dp)
+                    if (active) Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Currently playing",
+                        tint = playerColors.queueItemActiveContent,
+                        modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                    )
+                    Text(
+                        text = song.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.SemiBold,
+                        color = if (active) playerColors.queueItemActiveContent else playerColors.queueItemInactiveTitle,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
+                Text(
+                    text = song.artist,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (active) playerColors.queueItemActiveContent.copy(alpha = 0.82f) else playerColors.queueItemInactiveArtist,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             Box(modifier = Modifier.size(40.dp).pointerInput(Unit) { detectDragGesturesAfterLongPress(onDragStart = { onDragStart() }, onDragEnd = { onDragEnd() }, onDragCancel = { onDragEnd() }, onDrag = { change, dragAmount -> onMove(change, dragAmount) }) }, contentAlignment = Alignment.Center) { Icon(Icons.Default.DragIndicator, "Drag", tint = if (isDragging) (if (playerColors.isDynamic) playerColors.buttonIconTint else MaterialTheme.colorScheme.onSurface) else (if (playerColors.isDynamic) playerColors.buttonIconTint.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)), modifier = Modifier.size(22.dp)) }
         }
