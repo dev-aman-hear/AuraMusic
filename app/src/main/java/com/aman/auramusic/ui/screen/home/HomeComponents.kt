@@ -1,7 +1,11 @@
 package com.aman.auramusic.ui.screen.home
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -567,7 +571,9 @@ fun ArtistsSection(
     artists: List<ArtistItem>,
     onArtistClick: (ArtistItem) -> Unit,
     modifier: Modifier = Modifier,
-    onSeeAllClick: (() -> Unit)? = null
+    onSeeAllClick: (() -> Unit)? = null,
+    isArtistSaved: ((ArtistItem) -> Boolean)? = null,
+    onToggleSaveArtist: ((ArtistItem) -> Unit)? = null
 ) {
     if (artists.isEmpty()) return
 
@@ -587,7 +593,9 @@ fun ArtistsSection(
             items(artists, key = { "artist_${it.artistId}_${it.name}" }) { artist ->
                 ArtistSquareCard(
                     artist = artist,
-                    onClick = { onArtistClick(artist) }
+                    onClick = { onArtistClick(artist) },
+                    isSaved = isArtistSaved?.invoke(artist) ?: false,
+                    onToggleSave = onToggleSaveArtist?.let { toggle -> { toggle(artist) } }
                 )
             }
         }
@@ -599,7 +607,9 @@ fun ArtistSquareCard(
     artist: ArtistItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    size: Dp = 94.dp
+    size: Dp = 94.dp,
+    isSaved: Boolean = false,
+    onToggleSave: (() -> Unit)? = null
 ) {
     val titleColor = MaterialTheme.colorScheme.onBackground
     var imageFailed by remember(artist.name, artist.artworkModel) { mutableStateOf(false) }
@@ -613,41 +623,93 @@ fun ArtistSquareCard(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            modifier = Modifier
-                .size(size)
-                .clip(CircleShape)
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = CircleShape
-                )
-                .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
-            if (showImage) {
-                AsyncImage(
-                    model = artist.artworkModel,
-                    contentDescription = "${artist.name} artist portrait",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    onError = { imageFailed = true }
-                )
-            } else {
-                val initial = artist.name.trim().firstOrNull()?.uppercaseChar()?.toString()
-                if (!initial.isNullOrBlank()) {
-                    Text(
-                        text = initial,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = (size.value * 0.42f).sp,
-                        fontWeight = FontWeight.Bold
+            Box(
+                modifier = Modifier
+                    .size(size)
+                    .clip(CircleShape)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        shape = CircleShape
+                    )
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                if (showImage) {
+                    AsyncImage(
+                        model = artist.artworkModel,
+                        contentDescription = "${artist.name} artist portrait",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        onError = { imageFailed = true }
                     )
                 } else {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(size * 0.42f)
-                    )
+                    val initial = artist.name.trim().firstOrNull()?.uppercaseChar()?.toString()
+                    if (!initial.isNullOrBlank()) {
+                        Text(
+                            text = initial,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = (size.value * 0.42f).sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(size * 0.42f)
+                        )
+                    }
+                }
+            }
+
+            if (onToggleSave != null) {
+                var isActionPending by remember(artist.artistId, artist.name) { mutableStateOf(false) }
+                LaunchedEffect(isSaved) {
+                    isActionPending = false
+                }
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = AuraActionButtons.BackgroundAlpha),
+                            CircleShape
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = AuraActionButtons.BorderAlpha),
+                            shape = CircleShape
+                        )
+                        .clickable(
+                            onClick = {
+                                if (!isActionPending) {
+                                    isActionPending = true
+                                    onToggleSave()
+                                }
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AnimatedContent(
+                        targetState = isSaved,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(200)) togetherWith
+                                    fadeOut(animationSpec = tween(150))
+                        },
+                        label = "ArtistCardSaveAnim"
+                    ) { saved ->
+                        Icon(
+                            imageVector = if (saved) Icons.Default.BookmarkAdded else Icons.Default.BookmarkAdd,
+                            contentDescription = if (saved) "Remove saved artist" else "Save artist",
+                            tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }
@@ -700,7 +762,6 @@ fun ArtistDetailSheet(
             .entries
             .sortedByDescending { it.value.size }
     }
-    var showArtistMenu by remember(artist.artistId, artist.name) { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
     androidx.activity.compose.BackHandler(onBack = onDismiss)
@@ -1230,50 +1291,47 @@ fun ArtistDetailSheet(
                     }
                 }
 
-                Box {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = AuraActionButtons.BackgroundAlpha),
-                                CircleShape
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = AuraActionButtons.BorderAlpha),
-                                shape = CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        IconButton(onClick = { showArtistMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreHoriz,
-                                contentDescription = "Artist options",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = AuraActionButtons.BackgroundAlpha),
+                            CircleShape
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = AuraActionButtons.BorderAlpha),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    var isActionPending by remember(artist.artistId, artist.name) { mutableStateOf(false) }
+                    LaunchedEffect(isSavedInLibrary) {
+                        isActionPending = false
                     }
-                    DropdownMenu(
-                        expanded = showArtistMenu,
-                        onDismissRequest = { showArtistMenu = false }
+
+                    IconButton(
+                        onClick = {
+                            if (!isActionPending && onToggleSaveToLibrary != null) {
+                                isActionPending = true
+                                onToggleSaveToLibrary()
+                            }
+                        }
                     ) {
-                        if (onToggleSaveToLibrary != null) {
-                            DropdownMenuItem(
-                                text = {
-                                    Text(if (isSavedInLibrary) "Remove from Artist" else "Save to Artist")
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = if (isSavedInLibrary) Icons.Default.BookmarkAdded else Icons.Default.BookmarkAdd,
-                                        contentDescription = null
-                                    )
-                                },
-                                onClick = {
-                                    showArtistMenu = false
-                                    onToggleSaveToLibrary()
-                                }
+                        AnimatedContent(
+                            targetState = isSavedInLibrary,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(200)) togetherWith
+                                        fadeOut(animationSpec = tween(150))
+                            },
+                            label = "ArtistDetailSaveAnim"
+                        ) { saved ->
+                            Icon(
+                                imageVector = if (saved) Icons.Default.BookmarkAdded else Icons.Default.BookmarkAdd,
+                                contentDescription = if (saved) "Remove saved artist" else "Save artist",
+                                tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
@@ -1685,7 +1743,9 @@ fun CategoryDetailSheet(
 fun AllArtistsSheet(
     artists: List<ArtistItem>,
     onArtistClick: (ArtistItem) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    isArtistSaved: ((ArtistItem) -> Boolean)? = null,
+    onToggleSaveArtist: ((ArtistItem) -> Unit)? = null
 ) {
     val isDark = LocalIsDark.current
 
@@ -1724,7 +1784,9 @@ fun AllArtistsSheet(
                             onArtistClick(artist)
                             onDismiss()
                         },
-                        size = 100.dp
+                        size = 100.dp,
+                        isSaved = isArtistSaved?.invoke(artist) ?: false,
+                        onToggleSave = onToggleSaveArtist?.let { toggle -> { toggle(artist) } }
                     )
                 }
             }

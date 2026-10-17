@@ -129,6 +129,36 @@ fun HomeScreen(
     var showAllQuickHitsSheet by remember { mutableStateOf(false) }
     var showAllCategoriesSheet by remember { mutableStateOf(false) }
 
+    val isArtistItemSaved: (ArtistItem) -> Boolean = remember(savedOnlineArtists) {
+        { artistItem ->
+            savedOnlineArtists.any {
+                (artistItem.artistId.isNotBlank() && it.id == artistItem.artistId) ||
+                        it.name.equals(artistItem.name, ignoreCase = true)
+            }
+        }
+    }
+
+    val toggleSaveArtistItem: (ArtistItem) -> Unit = remember(savedOnlineArtists, onSaveOnlineArtist, onRemoveSavedOnlineArtist) {
+        { artistItem ->
+            val savedEntry = savedOnlineArtists.firstOrNull {
+                (artistItem.artistId.isNotBlank() && it.id == artistItem.artistId) ||
+                        it.name.equals(artistItem.name, ignoreCase = true)
+            }
+            if (savedEntry != null) {
+                onRemoveSavedOnlineArtist?.invoke(savedEntry.id)
+            } else {
+                coroutineScope.launch {
+                    val resolved = viewModel.resolveArtistForLibrary(artistItem)
+                    if (resolved != null) {
+                        onSaveOnlineArtist?.invoke(resolved)
+                    } else {
+                        Toast.makeText(context, "Could not resolve artist for library", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
     LaunchedEffect(songs, history) {
         viewModel.loadData(songs, history)
     }
@@ -206,7 +236,9 @@ fun HomeScreen(
         AllArtistsSheet(
             artists = uiState.artists,
             onArtistClick = openArtistDetail,
-            onDismiss = { showAllArtistsSheet = false }
+            onDismiss = { showAllArtistsSheet = false },
+            isArtistSaved = isArtistItemSaved,
+            onToggleSaveArtist = toggleSaveArtistItem
         )
     }
 
@@ -403,7 +435,9 @@ fun HomeScreen(
                             ArtistsSection(
                                 artists = uiState.artists,
                                 onArtistClick = openArtistDetail,
-                                onSeeAllClick = { showAllArtistsSheet = true }
+                                onSeeAllClick = { showAllArtistsSheet = true },
+                                isArtistSaved = isArtistItemSaved,
+                                onToggleSaveArtist = toggleSaveArtistItem
                             )
                         }
                     }
@@ -514,20 +548,7 @@ fun HomeScreen(
                 errorMessage = artistLoadErrorMessage,
                 isSavedInLibrary = isArtistSaved,
                 audienceText = artistAudienceText,
-                onToggleSaveToLibrary = {
-                    if (isArtistSaved) {
-                        savedArtistEntry?.let { onRemoveSavedOnlineArtist?.invoke(it.id) }
-                    } else {
-                        coroutineScope.launch {
-                            val resolved = viewModel.resolveArtistForLibrary(curArtist)
-                            if (resolved != null) {
-                                onSaveOnlineArtist?.invoke(resolved)
-                            } else {
-                                Toast.makeText(context, "Could not resolve artist for library", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-                },
+                onToggleSaveToLibrary = { toggleSaveArtistItem(curArtist) },
                 onDismiss = {
                     selectedArtist = null
                     artistOnlineSongs = emptyList()
