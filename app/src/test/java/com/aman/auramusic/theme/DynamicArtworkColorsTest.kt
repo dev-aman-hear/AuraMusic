@@ -265,6 +265,51 @@ class DynamicArtworkColorsTest {
         // Queue item active surface is subtle translucent highlight
         assertTrue("Queue active surface must have translucent alpha", scheme.queueItemActiveSurface.alpha < 0.40f)
         assertNotEquals(androidx.compose.ui.graphics.Color.Transparent, scheme.queueItemActiveBorder)
+
+        // Queue item active content must be high-contrast white in dark mode
+        assertEquals(androidx.compose.ui.graphics.Color.White, scheme.queueItemActiveContent)
+    }
+
+    @Test
+    fun queue_item_active_content_guarantees_contrast_with_dark_accent_in_dark_mode() {
+        // Simulates dark brown/sepia artwork where accent has very low luminance
+        val darkBrownAccent = androidx.compose.ui.graphics.Color(0xFF2E1A11)
+        val scheme = com.aman.auramusic.ui.theme.resolvePlayerColorScheme(
+            isDynamic = true,
+            isDark = true,
+            primary = androidx.compose.ui.graphics.Color(0xFF4A2C1D),
+            secondary = androidx.compose.ui.graphics.Color(0xFF382216),
+            tertiary = androidx.compose.ui.graphics.Color(0xFF2B1910),
+            accent = darkBrownAccent
+        )
+
+        // In dark mode, active queue content must be crisp white, NOT dark brown
+        assertEquals(
+            "Active queue song title/text must be high contrast White in dark mode",
+            androidx.compose.ui.graphics.Color.White,
+            scheme.queueItemActiveContent
+        )
+    }
+
+    @Test
+    fun queue_item_active_content_guarantees_contrast_with_light_accent_in_light_mode() {
+        // Simulates near-white/pastel artwork where accent has very high luminance
+        val pastelAccent = androidx.compose.ui.graphics.Color(0xFFF0EAE1)
+        val scheme = com.aman.auramusic.ui.theme.resolvePlayerColorScheme(
+            isDynamic = true,
+            isDark = false,
+            primary = androidx.compose.ui.graphics.Color(0xFFE8DFD4),
+            secondary = androidx.compose.ui.graphics.Color(0xFFD8CCC0),
+            tertiary = androidx.compose.ui.graphics.Color(0xFFC4B6A6),
+            accent = pastelAccent
+        )
+
+        // In light mode, active queue content must be dark text, NOT pale pastel
+        assertEquals(
+            "Active queue song title/text must be high contrast dark in light mode",
+            androidx.compose.ui.graphics.Color(0xFF111111),
+            scheme.queueItemActiveContent
+        )
     }
 
     @Test
