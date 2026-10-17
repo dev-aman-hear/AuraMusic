@@ -192,7 +192,7 @@ fun resolvePlayerColorScheme(
         // Queue current track highlight & dragging
         queueItemActiveSurface = primary.copy(alpha = if (isDark) 0.28f else 0.22f),
         queueItemActiveBorder = primary.copy(alpha = if (isDark) 0.45f else 0.35f),
-        queueItemActiveContent = highContrastText,
+        queueItemActiveContent = accent,
         queueItemDraggingSurface = secondary.copy(alpha = 0.65f),
         // Queue action pills (Clear, Save, Shuffle, Repeat)
         queueActionSurface = secondary.copy(alpha = 0.50f),
