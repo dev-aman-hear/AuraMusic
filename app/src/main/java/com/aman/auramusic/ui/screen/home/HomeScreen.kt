@@ -233,9 +233,7 @@ fun HomeScreen(
         AllArtistsSheet(
             artists = uiState.artists,
             onArtistClick = openArtistDetail,
-            onDismiss = { showAllArtistsSheet = false },
-            isArtistSaved = isArtistItemSaved,
-            onToggleSaveArtist = toggleSaveArtistItem
+            onDismiss = { showAllArtistsSheet = false }
         )
     }
 
@@ -432,9 +430,7 @@ fun HomeScreen(
                             ArtistsSection(
                                 artists = uiState.artists,
                                 onArtistClick = openArtistDetail,
-                                onSeeAllClick = { showAllArtistsSheet = true },
-                                isArtistSaved = isArtistItemSaved,
-                                onToggleSaveArtist = toggleSaveArtistItem
+                                onSeeAllClick = { showAllArtistsSheet = true }
                             )
                         }
                     }
