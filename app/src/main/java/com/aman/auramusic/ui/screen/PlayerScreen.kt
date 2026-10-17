@@ -99,6 +99,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -1245,29 +1246,28 @@ private fun PlayerControls(
                 color = playerColors.textSecondary
             )
 
-            // Audio Quality Capsule
+            // Compact, squared-off Hi-Res/Lossless badge inspired by the supplied Figma component.
+            val badgeShape = RoundedCornerShape(5.dp)
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(playerColors.capsuleSurface, RoundedCornerShape(999.dp))
-                    .border(androidx.compose.foundation.BorderStroke(1.dp, playerColors.capsuleBorder), RoundedCornerShape(999.dp))
+                    .clip(badgeShape)
+                    .background(playerColors.capsuleSurface, badgeShape)
+                    .border(androidx.compose.foundation.BorderStroke(1.dp, playerColors.capsuleBorder), badgeShape)
                     .clickable { showQ = true }
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                    .padding(horizontal = 9.dp, vertical = 5.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (q.badge.contains("Lossless") || q.badge.contains("Stream")) {
-                        Icon(
-                            imageVector = Icons.Default.Waves,
-                            contentDescription = null,
+                    if (q.badge.contains("Lossless", ignoreCase = true) || q.badge.contains("Stream", ignoreCase = true)) {
+                        LosslessMark(
                             tint = playerColors.capsuleContent,
-                            modifier = Modifier.size(13.dp)
+                            modifier = Modifier.size(width = 13.dp, height = 11.dp)
                         )
                         Spacer(Modifier.width(5.dp))
                     }
                     Text(
                         text = q.badge,
                         style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         color = playerColors.capsuleContent
                     )
                 }
@@ -1283,63 +1283,73 @@ private fun PlayerControls(
 
         Spacer(Modifier.height(26.dp))
 
-        // Playback Controls (Previous, Play/Pause, Next) with translucent ~75% opacity surfaces
+        // Figma-matched Apple Music-inspired transport controls: standalone glyphs, no circular button backgrounds.
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Previous button in controlBackground circle
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(playerColors.buttonSurface, CircleShape)
-                    .border(androidx.compose.foundation.BorderStroke(1.dp, playerColors.buttonBorder), CircleShape)
+                    .size(68.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable(onClick = onPrevious),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.SkipPrevious,
-                    contentDescription = "Previous",
+                TransportGlyph(
+                    type = TransportGlyphType.Previous,
                     tint = playerColors.buttonIconTint,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(width = 50.dp, height = 29.dp)
                 )
             }
 
-            // Central Play/Pause in coordinated prominent surface
             Box(
                 modifier = Modifier
-                    .size(82.dp)
-                    .clip(CircleShape)
-                    .background(playerColors.prominentSurface, CircleShape)
-                    .border(androidx.compose.foundation.BorderStroke(1.dp, playerColors.prominentBorder), CircleShape)
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable(onClick = onPlayPause),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = "Play/Pause",
-                    tint = playerColors.prominentIconTint,
-                    modifier = Modifier.size(46.dp)
-                )
+                if (isPlaying) {
+                    Canvas(modifier = Modifier.size(width = 43.dp, height = 44.dp)) {
+                        val barWidth = size.width * 0.30f
+                        val barGap = size.width * 0.16f
+                        val radius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.07f)
+                        drawRoundRect(
+                            color = playerColors.prominentIconTint,
+                            topLeft = Offset(0f, 0f),
+                            size = androidx.compose.ui.geometry.Size(barWidth, size.height),
+                            cornerRadius = radius
+                        )
+                        drawRoundRect(
+                            color = playerColors.prominentIconTint,
+                            topLeft = Offset(barWidth + barGap, 0f),
+                            size = androidx.compose.ui.geometry.Size(barWidth, size.height),
+                            cornerRadius = radius
+                        )
+                    }
+                } else {
+                    TransportGlyph(
+                        type = TransportGlyphType.Play,
+                        tint = playerColors.prominentIconTint,
+                        modifier = Modifier.size(width = 43.dp, height = 44.dp)
+                    )
+                }
             }
 
-            // Next button in controlBackground circle
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(playerColors.buttonSurface, CircleShape)
-                    .border(androidx.compose.foundation.BorderStroke(1.dp, playerColors.buttonBorder), CircleShape)
+                    .size(68.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable(onClick = onNext),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.SkipNext,
-                    contentDescription = "Next",
+                TransportGlyph(
+                    type = TransportGlyphType.Next,
                     tint = playerColors.buttonIconTint,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(width = 50.dp, height = 29.dp)
                 )
             }
         }
@@ -1382,6 +1392,108 @@ private fun PlayerControls(
                     )
                 }
             }
+        }
+    }
+}
+
+private enum class TransportGlyphType { Previous, Play, Next }
+
+/**
+ * Vector-drawn transport glyphs matching the silhouettes in Figma node 2017:76.
+ * Drawing paths directly keeps the shape crisp at different screen densities.
+ */
+@Composable
+private fun TransportGlyph(
+    type: TransportGlyphType,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        when (type) {
+            TransportGlyphType.Play -> {
+                val sx = size.width / 43f
+                val sy = size.height / 44f
+                val path = Path().apply {
+                    moveTo(7.00815f, 0.791516f)
+                    cubicTo(3.10361f, -1.23592f, 0f, 0.791516f, 0f, 5.04912f)
+                    lineTo(0f, 38.9072f)
+                    cubicTo(0f, 43.1649f, 3.30384f, 45.2937f, 7.00815f, 43.1649f)
+                    lineTo(39.8463f, 25.2221f)
+                    cubicTo(44.0512f, 22.9919f, 44.0512f, 20.1535f, 39.8463f, 17.9233f)
+                    close()
+                }
+                drawContext.transform.scale(sx, sy, pivot = Offset.Zero)
+                drawPath(path, tint)
+                drawContext.transform.scale(1f / sx, 1f / sy, pivot = Offset.Zero)
+            }
+            TransportGlyphType.Previous -> {
+                val sx = size.width / 50f
+                val sy = size.height / 29f
+                val path = Path().apply {
+                    moveTo(22.1468f, 0.580642f)
+                    cubicTo(23.8562f, -0.470659f, 25.264f, 0.685773f, 25.264f, 2.68325f)
+                    lineTo(25.264f, 11.1988f)
+                    lineTo(46.0784f, 0.580642f)
+                    cubicTo(47.9889f, -0.78605f, 50f, 0.370382f, 50f, 2.89351f)
+                    lineTo(50f, 25.8119f)
+                    cubicTo(50f, 28.4401f, 47.9889f, 29.8068f, 46.0784f, 28.4401f)
+                    lineTo(25.264f, 17.1912f)
+                    lineTo(25.264f, 26.0221f)
+                    cubicTo(25.264f, 28.5453f, 23.6551f, 29.8068f, 21.644f, 28.4401f)
+                    lineTo(1.73454f, 16.7707f)
+                    cubicTo(-0.57818f, 15.404f, -0.57818f, 13.4065f, 1.73454f, 11.9347f)
+                    close()
+                }
+                drawContext.transform.scale(sx, sy, pivot = Offset.Zero)
+                drawPath(path, tint)
+                drawContext.transform.scale(1f / sx, 1f / sy, pivot = Offset.Zero)
+            }
+            TransportGlyphType.Next -> {
+                val sx = size.width / 50f
+                val sy = size.height / 29f
+                val path = Path().apply {
+                    moveTo(3.82102f, 0.439687f)
+                    cubicTo(1.91051f, -0.722481f, 0f, 0.545339f, 0f, 2.76402f)
+                    lineTo(0f, 25.9017f)
+                    cubicTo(0f, 28.4374f, 1.91051f, 29.8108f, 3.92157f, 28.4374f)
+                    lineTo(24.736f, 17.1326f)
+                    lineTo(24.736f, 26.0074f)
+                    cubicTo(24.736f, 28.543f, 26.3449f, 29.8108f, 28.356f, 28.4374f)
+                    lineTo(48.2655f, 16.71f)
+                    cubicTo(50.5782f, 15.3366f, 50.5782f, 13.3292f, 48.2655f, 11.8501f)
+                    lineTo(27.8532f, 0.439687f)
+                    cubicTo(26.1438f, -0.616829f, 24.736f, 0.545339f, 24.736f, 2.55272f)
+                    lineTo(24.736f, 11.1105f)
+                    close()
+                }
+                drawContext.transform.scale(sx, sy, pivot = Offset.Zero)
+                drawPath(path, tint)
+                drawContext.transform.scale(1f / sx, 1f / sy, pivot = Offset.Zero)
+            }
+        }
+    }
+}
+
+/** Small diagonal-stripe lossless mark from the Figma badge. */
+@Composable
+private fun LosslessMark(tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val sx = size.width / 14f
+        val sy = size.height / 11f
+        val strokes = listOf(
+            listOf(0.416f, 2.265f, 4.416f, 8.265f),
+            listOf(2.416f, 0.265f, 7.416f, 10.265f),
+            listOf(5.416f, 0.265f, 10.416f, 10.265f),
+            listOf(8.416f, 0.265f, 13.416f, 8.265f),
+            listOf(11.416f, 1.265f, 13.416f, 5.265f)
+        )
+        strokes.forEach { p ->
+            drawLine(
+                color = tint,
+                start = Offset(p[0] * sx, p[1] * sy),
+                end = Offset(p[2] * sx, p[3] * sy),
+                strokeWidth = 1.dp.toPx()
+            )
         }
     }
 }
