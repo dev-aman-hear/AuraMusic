@@ -92,6 +92,8 @@ class OnlinePlaybackManager(
             true
         )
         .setHandleAudioBecomingNoisy(true)
+        // Allow Media3 to manage the wake lock needed for reliable network audio playback.
+        .setWakeMode(C.WAKE_MODE_NETWORK)
         .build()
         .apply {
             addListener(object : Player.Listener {
@@ -712,5 +714,27 @@ class OnlinePlaybackManager(
         stopProgressTracker()
         exoPlayer.release()
         youTubeIFramePlayer.release()
+    }
+}
+
+
+/**
+ * Shares one online player between the UI and PlaybackService. The service releases it
+ * only when the service itself is destroyed; Compose disposal must not stop audio.
+ */
+object OnlinePlaybackManagerHolder {
+    @Volatile
+    private var instance: OnlinePlaybackManager? = null
+
+    @Synchronized
+    fun get(context: Context): OnlinePlaybackManager {
+        return instance ?: OnlinePlaybackManager(context.applicationContext).also { instance = it }
+    }
+
+    @Synchronized
+    fun releaseIfCreated() {
+        val current = instance ?: return
+        instance = null
+        current.release()
     }
 }
