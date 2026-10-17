@@ -29,6 +29,12 @@ object AuraShapes {
     val Control = RoundedCornerShape(999.dp)
 }
 
+object AuraActionButtons {
+    /** 25% opacity = 75% transparency for subtle Apple Music-style action & navigation buttons */
+    const val BackgroundAlpha = 0.25f
+    const val BorderAlpha = 0.25f
+}
+
 /**
  * Pure Monochrome solid background brush (no colored ambient blooms or gradients).
  */

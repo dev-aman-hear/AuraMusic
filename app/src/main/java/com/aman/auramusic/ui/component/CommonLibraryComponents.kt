@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aman.auramusic.data.model.Playlist
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.ui.theme.AuraActionButtons
 
 @Composable
 fun MadeForYouCard(
@@ -176,7 +177,7 @@ fun PlaylistPreviewCard(
                     IconButton(
                         onClick = { showMenu = true },
                         modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                            .background(Color.Black.copy(alpha = AuraActionButtons.BackgroundAlpha), CircleShape)
                             .size(32.dp)
                     ) {
                         Icon(

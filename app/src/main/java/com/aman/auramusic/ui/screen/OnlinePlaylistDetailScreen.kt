@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import com.aman.auramusic.ui.theme.AuraActionButtons
 import com.aman.auramusic.ui.theme.LocalIsDark
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -401,7 +402,10 @@ fun OnlinePlaylistDetailScreen(
                             IconButton(
                                 onClick = { itemMenuExpanded = true },
                                 modifier = Modifier
-                                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = AuraActionButtons.BackgroundAlpha),
+                                        CircleShape
+                                    )
                                     .size(34.dp)
                             ) {
                                 Icon(
@@ -550,10 +554,13 @@ fun OnlinePlaylistDetailScreen(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = AuraActionButtons.BackgroundAlpha),
+                            CircleShape
+                        )
                         .border(
                             width = 1.dp,
-                            color = MaterialTheme.colorScheme.outline,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = AuraActionButtons.BorderAlpha),
                             shape = CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -574,10 +581,13 @@ fun OnlinePlaylistDetailScreen(
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = AuraActionButtons.BackgroundAlpha),
+                                    CircleShape
+                                )
                                 .border(
                                     width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline,
+                                    color = MaterialTheme.colorScheme.outline.copy(alpha = AuraActionButtons.BorderAlpha),
                                     shape = CircleShape
                                 ),
                             contentAlignment = Alignment.Center

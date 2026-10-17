@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.ui.component.SongArtwork
+import com.aman.auramusic.ui.theme.AuraActionButtons
 import com.aman.auramusic.ui.theme.AuraPrimary
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 
@@ -381,7 +382,10 @@ fun CollectionDetailScreen(
                         IconButton(
                             onClick = { itemMenuExpanded = true },
                             modifier = Modifier
-                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = AuraActionButtons.BackgroundAlpha),
+                                    CircleShape
+                                )
                                 .size(34.dp)
                         ) {
                             Icon(
@@ -560,10 +564,13 @@ fun CollectionDetailScreen(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = AuraActionButtons.BackgroundAlpha),
+                        CircleShape
+                    )
                     .border(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outline,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = AuraActionButtons.BorderAlpha),
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -584,10 +591,13 @@ fun CollectionDetailScreen(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = AuraActionButtons.BackgroundAlpha),
+                                CircleShape
+                            )
                             .border(
                                 width = 1.dp,
-                                color = MaterialTheme.colorScheme.outline,
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = AuraActionButtons.BorderAlpha),
                                 shape = CircleShape
                             ),
                         contentAlignment = Alignment.Center
