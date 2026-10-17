@@ -110,6 +110,7 @@ import com.aman.auramusic.ui.screen.LibraryTab
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.DisposableEffect
 import com.aman.auramusic.online.player.OnlinePlaybackManager
+import com.aman.auramusic.online.player.OnlinePlaybackManagerHolder
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.toSong
@@ -294,7 +295,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
         }
     }
 
-    val onlinePlaybackManager = remember { OnlinePlaybackManager(context) }
+    val onlinePlaybackManager = OnlinePlaybackManagerHolder.get(context)
     val onlinePlaybackState by onlinePlaybackManager.playbackState.collectAsStateWithLifecycle()
     var isOnlinePlaybackActive by remember { mutableStateOf(false) }
     var activeOnlineSong by remember { mutableStateOf<OnlineSong?>(null) }
@@ -386,8 +387,9 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
             }
         }
         onDispose {
+            // Detach the UI listener only. Releasing the shared player here stops audio
+            // when the Activity/Compose content is recreated.
             onlinePlaybackManager.eventListener = null
-            onlinePlaybackManager.release()
         }
     }
 
