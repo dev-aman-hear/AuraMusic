@@ -230,4 +230,70 @@ class DynamicArtworkColorsTest {
             effectivePalette.primaryArgb
         )
     }
+
+    // --- 7. PlayerColorScheme Dynamic vs Monochrome Behavior ---
+
+    @Test
+    fun when_dynamic_colors_enabled_player_color_scheme_uses_translucent_harmonious_surfaces() {
+        val blue = androidx.compose.ui.graphics.Color(0xFF1E88E5)
+        val purple = androidx.compose.ui.graphics.Color(0xFF8E24AA)
+        val teal = androidx.compose.ui.graphics.Color(0xFF00897B)
+        val yellowAccent = androidx.compose.ui.graphics.Color(0xFFFFD600) // Light accent
+
+        val scheme = com.aman.auramusic.ui.theme.resolvePlayerColorScheme(
+            isDynamic = true,
+            isDark = true,
+            primary = blue,
+            secondary = purple,
+            tertiary = teal,
+            accent = yellowAccent
+        )
+
+        assertTrue("Scheme must be dynamic", scheme.isDynamic)
+        assertTrue("Scheme must preserve isDark", scheme.isDark)
+
+        // Validate ~75% opacity button surfaces (approx 25% transparency)
+        assertEquals(0.75f, scheme.buttonSurface.alpha, 0.05f)
+        assertEquals(0.75f, scheme.capsuleSurface.alpha, 0.05f)
+
+        // Validate prominent surface derived from accent
+        assertEquals(0.85f, scheme.prominentSurface.alpha, 0.05f)
+
+        // Yellow accent is light, so prominentIconTint must be dark for contrast
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF111111), scheme.prominentIconTint)
+
+        // Queue item active surface is subtle translucent highlight
+        assertTrue("Queue active surface must have translucent alpha", scheme.queueItemActiveSurface.alpha < 0.40f)
+        assertNotEquals(androidx.compose.ui.graphics.Color.Transparent, scheme.queueItemActiveBorder)
+    }
+
+    @Test
+    fun when_dynamic_colors_disabled_player_color_scheme_faithfully_restores_monochrome() {
+        val mockSurfaceVariant = androidx.compose.ui.graphics.Color(0xFF2A2A2A)
+        val mockOutline = androidx.compose.ui.graphics.Color(0xFF38383A)
+        val mockThemePrimary = androidx.compose.ui.graphics.Color.White
+        val mockOnPrimary = androidx.compose.ui.graphics.Color.Black
+
+        val scheme = com.aman.auramusic.ui.theme.resolvePlayerColorScheme(
+            isDynamic = false,
+            isDark = true,
+            primary = androidx.compose.ui.graphics.Color.Red,
+            secondary = androidx.compose.ui.graphics.Color.Green,
+            tertiary = androidx.compose.ui.graphics.Color.Blue,
+            accent = androidx.compose.ui.graphics.Color.Yellow,
+            surfaceVariant = mockSurfaceVariant,
+            outline = mockOutline,
+            themePrimary = mockThemePrimary,
+            onPrimary = mockOnPrimary
+        )
+
+        assertFalse("Scheme must not be dynamic", scheme.isDynamic)
+        assertEquals(mockSurfaceVariant, scheme.buttonSurface)
+        assertEquals(mockOutline, scheme.buttonBorder)
+        assertEquals(mockThemePrimary, scheme.prominentSurface)
+        assertEquals(mockOnPrimary, scheme.prominentIconTint)
+        assertEquals(mockSurfaceVariant, scheme.queueItemActiveSurface)
+        assertEquals(androidx.compose.ui.graphics.Color.Transparent, scheme.queueItemActiveBorder)
+        assertEquals(androidx.compose.ui.graphics.Color.Transparent, scheme.queueActionSurface)
+    }
 }

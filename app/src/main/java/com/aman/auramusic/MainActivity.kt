@@ -1168,7 +1168,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                                 onNext = { onlinePlaybackManager.playNext() },
                                                 onPrevious = { onlinePlaybackManager.playPrevious() },
                                                 onOpen = { showPlayer = true },
-                                                compact = true
+                                                compact = true,
+                                                dynamicColors = appSettings.dynamicArtworkColors
                                             )
                                         } else {
                                             localMiniSong?.let { song ->
@@ -1181,7 +1182,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                                     onNext = { playerViewModel.playNext() },
                                                     onPrevious = { playerViewModel.playPrevious() },
                                                     onOpen = { showPlayer = true },
-                                                    compact = true
+                                                    compact = true,
+                                                    dynamicColors = appSettings.dynamicArtworkColors
                                                 )
                                             }
                                         }
@@ -1210,7 +1212,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                             onPlayPause = { onlinePlaybackManager.togglePlayPause() },
                                             onNext = { onlinePlaybackManager.playNext() },
                                             onPrevious = { onlinePlaybackManager.playPrevious() },
-                                            onOpen = { showPlayer = true }
+                                            onOpen = { showPlayer = true },
+                                            dynamicColors = appSettings.dynamicArtworkColors
                                         )
                                     } else {
                                         localMiniSong?.let { song ->
@@ -1222,7 +1225,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                                 onPlayPause = { playerViewModel.togglePlayPause() },
                                                 onNext = { playerViewModel.playNext() },
                                                 onPrevious = { playerViewModel.playPrevious() },
-                                                onOpen = { showPlayer = true }
+                                                onOpen = { showPlayer = true },
+                                                dynamicColors = appSettings.dynamicArtworkColors
                                             )
                                         }
                                     }
