@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Branch-BETA-blue?style=flat-square" alt="Branch BETA" />
-  <img src="https://img.shields.io/badge/Version-1.0.2--beta%20(Code%2015)-informational?style=flat-square" alt="Version 1.0.2-beta" />
+  <img src="https://img.shields.io/badge/Branch-Exp01-blue?style=flat-square" alt="Branch Exp01" />
+  <img src="https://img.shields.io/badge/Version-1.0.3--beta%20(Code%2016)-informational?style=flat-square" alt="Version 1.0.3-beta" />
   <img src="https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-success?style=flat-square" alt="Android API 26-36" />
   <img src="https://img.shields.io/badge/Kotlin-2.0.21-blueviolet?style=flat-square" alt="Kotlin 2.0.21" />
   <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=flat-square" alt="Jetpack Compose" />
@@ -293,9 +293,15 @@ To verify code compilation without building APK packages:
 
 ## Versioning & Release Information
 
-* **Current Development Branch**: `BETA`
-* **Internal Application Version**: `1.0.2` (`versionCode = 15`)
+* **Current Development Branch**: `Exp01`
+* **Internal Application Version**: `1.0.3` (`versionCode = 16`)
 * **Status**: Development & Beta Testing.
+* **Changelog Highlights (v1.0.3)**:
+  * **Dynamic & Smooth Bottom Navigation**: Fluid physics-based spring animations for tab switching, subtle animated selection capsule/indicator, dynamic icon scaling, and responsive feedback.
+  * **Direct One-Tap Artist Saving**: Replaced the previous 3-dot dropdown menu in the Artist section with direct, state-aware bookmark buttons on artist cards and detail screens with animated transitions.
+  * **Subtle Action Button Transparency**: Refined action and navigation buttons across Artist, Album, and Playlist sections to 75% transparency with fully opaque icons for an Apple Music-inspired look.
+  * **Dynamic Artwork Player Colors**: Optional soft artwork-based ambient player background while maintaining strict monochrome aesthetics throughout the rest of the app.
+  * **Code Audit & Cleanup**: Pruned dead code paths and unused imports across UI modules.
 * **Changelog Highlights (v1.0.2)**:
   * **Daily Featured Playlist Badge Refinement**: Made the badge pill compact, fully rounded, and naturally sized with balanced monochrome palette tokens across dark and light modes.
   * **Concurrency & Safety Fixes**: Thread-safe playlist caching with `ConcurrentHashMap`, safe `MediaMetadataRetriever` release, and offloaded library queries.

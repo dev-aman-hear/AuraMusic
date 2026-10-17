@@ -67,7 +67,6 @@ import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.AuraLoadingState
-import com.aman.auramusic.ui.theme.AuraPrimary
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 
 @Composable

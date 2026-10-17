@@ -33,7 +33,6 @@ import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.theme.AuraActionButtons
-import com.aman.auramusic.ui.theme.AuraPrimary
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 
 @Composable

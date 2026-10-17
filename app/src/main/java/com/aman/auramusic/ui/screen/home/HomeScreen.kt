@@ -23,17 +23,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aman.auramusic.data.model.PlaybackHistoryEntry
 import com.aman.auramusic.data.model.Song
-import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.online.model.OnlinePlaylist
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.model.SavedOnlineArtist
 import com.aman.auramusic.online.model.toSong
 import com.aman.auramusic.online.network.repository.ArtistBioData
-import com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl
 import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.SongOptionsDialog
 import com.aman.auramusic.ui.screen.OnlinePlaylistDetailScreen
-import com.aman.auramusic.ui.theme.AuraPrimary
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.LocalIsDark
 import kotlinx.coroutines.launch
