@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -139,9 +138,6 @@ fun SearchScreen(
     val searchBorderColor = MaterialTheme.colorScheme.outline
     val chipBg = MaterialTheme.colorScheme.surfaceVariant
     val chipBorder = MaterialTheme.colorScheme.outline
-    val avatarBg = MaterialTheme.colorScheme.surfaceVariant
-    val avatarBorder = MaterialTheme.colorScheme.outline
-    val avatarIconTint = MaterialTheme.colorScheme.onSurfaceVariant
 
     // Active result filter state
     var internalFilter by rememberSaveable(
@@ -393,22 +389,8 @@ fun SearchScreen(
                             textAlign = TextAlign.Center
                         )
 
-                        // Top-right Profile Avatar Icon
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(avatarBg)
-                                .border(1.dp, avatarBorder, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Profile",
-                                tint = avatarIconTint,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        // Right Spacer to balance the header and keep the Search title centered
+                        Spacer(modifier = Modifier.size(36.dp))
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))

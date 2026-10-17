@@ -930,31 +930,25 @@ private fun QueuePage(
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     )
                 }
+                val queueExtractedColor = playerColors.dialogAccent
+                val queueIconActiveColor = if (playerColors.isDynamic) queueExtractedColor else MaterialTheme.colorScheme.onBackground
+                val queueIconInactiveColor = if (playerColors.isDynamic) {
+                    queueExtractedColor.copy(alpha = 0.38f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                }
+
                 Box(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(
-                            if (playerColors.isDynamic) {
-                                if (isShuffled) playerColors.queueActionActiveSurface else playerColors.queueActionSurface
-                            } else Color.Transparent,
-                            CircleShape
-                        )
-                        .border(
-                            if (playerColors.isDynamic) androidx.compose.foundation.BorderStroke(1.dp, if (isShuffled) playerColors.prominentBorder else playerColors.buttonBorder.copy(alpha = 0.4f)) else androidx.compose.foundation.BorderStroke(0.dp, Color.Transparent),
-                            CircleShape
-                        )
                         .clickable(onClick = onShuffleToggle),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Shuffle,
                         contentDescription = "Shuffle",
-                        tint = if (isShuffled) {
-                            if (playerColors.isDynamic) playerColors.queueActionActiveContent else MaterialTheme.colorScheme.onBackground
-                        } else {
-                            if (playerColors.isDynamic) playerColors.queueActionContent.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        },
+                        tint = if (isShuffled) queueIconActiveColor else queueIconInactiveColor,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -962,16 +956,6 @@ private fun QueuePage(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(
-                            if (playerColors.isDynamic) {
-                                if (repeatMode != RepeatMode.NONE) playerColors.queueActionActiveSurface else playerColors.queueActionSurface
-                            } else Color.Transparent,
-                            CircleShape
-                        )
-                        .border(
-                            if (playerColors.isDynamic) androidx.compose.foundation.BorderStroke(1.dp, if (repeatMode != RepeatMode.NONE) playerColors.prominentBorder else playerColors.buttonBorder.copy(alpha = 0.4f)) else androidx.compose.foundation.BorderStroke(0.dp, Color.Transparent),
-                            CircleShape
-                        )
                         .clickable(onClick = onRepeatToggle),
                     contentAlignment = Alignment.Center
                 ) {
@@ -981,11 +965,7 @@ private fun QueuePage(
                             else -> Icons.Default.Repeat
                         },
                         contentDescription = "Repeat",
-                        tint = if (repeatMode != RepeatMode.NONE) {
-                            if (playerColors.isDynamic) playerColors.queueActionActiveContent else MaterialTheme.colorScheme.onBackground
-                        } else {
-                            if (playerColors.isDynamic) playerColors.queueActionContent.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        },
+                        tint = if (repeatMode != RepeatMode.NONE) queueIconActiveColor else queueIconInactiveColor,
                         modifier = Modifier.size(20.dp)
                     )
                 }
