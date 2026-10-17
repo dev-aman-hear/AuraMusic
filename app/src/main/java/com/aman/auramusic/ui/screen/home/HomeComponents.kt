@@ -24,16 +24,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.BookmarkAdded
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
@@ -42,7 +37,6 @@ import com.aman.auramusic.online.network.repository.ArtistBioData
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -52,7 +46,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.online.model.OnlinePlaylist
@@ -60,7 +53,6 @@ import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.theme.LocalIsDark
-import com.aman.auramusic.util.formatDuration
 
 /**
  * Editorial top bar for the Apple Music monochrome Home experience.
@@ -173,11 +165,12 @@ fun HomeHeader(
 @Composable
 fun AuraAvatarBadge(
     initial: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
     size: Dp = 42.dp
 ) {
     val displayInitial = initial.ifBlank { "A" }
+    val clickModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
 
     Box(
         modifier = modifier
@@ -189,7 +182,7 @@ fun AuraAvatarBadge(
                 color = MaterialTheme.colorScheme.outline,
                 shape = CircleShape
             )
-            .clickable(onClick = onClick),
+            .then(clickModifier),
         contentAlignment = Alignment.Center
     ) {
         Text(

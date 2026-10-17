@@ -15,8 +15,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,7 +26,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,7 +33,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -56,51 +52,29 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -115,16 +89,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aman.auramusic.data.model.Playlist
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.data.model.ThemeMode
@@ -132,9 +102,7 @@ import com.aman.auramusic.ui.component.MiniPlayer
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.component.SongRow
 import com.aman.auramusic.ui.component.SongOptionsDialog
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.material3.Divider
 import com.aman.auramusic.ui.screen.home.HomeScreen
 import com.aman.auramusic.ui.screen.OnlineScreen
 import com.aman.auramusic.ui.screen.LibraryScreen
@@ -161,14 +129,11 @@ import com.aman.auramusic.ui.screen.home.ArtistItem
 import com.aman.auramusic.online.network.repository.ArtistBioData
 import com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
-import com.aman.auramusic.util.ArtistArtworkCache
 import com.aman.auramusic.online.model.SavedOnlineArtist
 import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.ui.component.BottomNavBar
 import com.aman.auramusic.ui.component.AppTab
 import com.aman.auramusic.ui.component.MadeForYouCard
-import com.aman.auramusic.ui.component.EmptyLibrary
-import com.aman.auramusic.ui.component.PlaylistRail
 import com.aman.auramusic.ui.component.AddToPlaylistDialog
 import com.aman.auramusic.ui.component.ExportPlaylistDialog
 import com.aman.auramusic.ui.component.ImportResultDialog
@@ -176,16 +141,14 @@ import com.aman.auramusic.ui.component.NewPlaylistDialog
 import com.aman.auramusic.ui.component.RenamePlaylistDialog
 import com.aman.auramusic.ui.screen.AboutDialog
 import com.aman.auramusic.ui.theme.AuraMusicTheme
-import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.viewmodel.MusicViewModel
 import com.aman.auramusic.viewmodel.PlayerViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.activity.viewModels
-import androidx.compose.ui.layout.ContentScale
-import androidx.lifecycle.ViewModelProvider
 import com.google.gson.Gson
 import java.io.File
+import com.aman.auramusic.util.ArtistArtworkCache
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -223,6 +186,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+sealed interface ExportTarget {
+    data object AllSongs : ExportTarget
+    data class SinglePlaylist(val playlist: Playlist) : ExportTarget
+}
+
 @Composable
 fun MusicScreen(musicViewModel: MusicViewModel) {
     val context = LocalContext.current
@@ -244,30 +212,55 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     val importFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
-        uri?.let {
-            val inputStream = context.contentResolver.openInputStream(it)
-            musicViewModel.importPlaylistFromFile(inputStream)
+        if (uri != null) {
+            val inputStream = try {
+                context.contentResolver.openInputStream(uri)
+            } catch (e: Exception) {
+                null
+            }
+            if (inputStream != null) {
+                musicViewModel.importPlaylistFromFile(inputStream)
+            } else {
+                Toast.makeText(context, "Unable to read selected file", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
-    var playlistToExport by remember { mutableStateOf<Playlist?>(null) }
-    var exportAllSongsMode by remember { mutableStateOf(false) }
+    var pendingExportTarget by remember { mutableStateOf<ExportTarget?>(null) }
 
     val exportFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri: Uri? ->
-        uri?.let { exportUri ->
-            val outputStream = context.contentResolver.openOutputStream(exportUri)
-            if (exportAllSongsMode) {
-                musicViewModel.exportCurrentSongs(songs, outputStream)
-                Toast.makeText(context, "All songs exported!", Toast.LENGTH_SHORT).show()
-                exportAllSongsMode = false
-            } else {
-                playlistToExport?.let { playlist ->
-                    musicViewModel.exportPlaylistToFile(playlist, outputStream)
-                    Toast.makeText(context, "Playlist exported!", Toast.LENGTH_SHORT).show()
+        val target = pendingExportTarget
+        pendingExportTarget = null
+        if (uri != null && target != null) {
+            val outputStream = try {
+                context.contentResolver.openOutputStream(uri)
+            } catch (e: Exception) {
+                null
+            }
+            if (outputStream == null) {
+                Toast.makeText(context, "Unable to access file destination", Toast.LENGTH_SHORT).show()
+                return@rememberLauncherForActivityResult
+            }
+            when (target) {
+                is ExportTarget.AllSongs -> {
+                    musicViewModel.exportCurrentSongs(songs, outputStream)
+                }
+                is ExportTarget.SinglePlaylist -> {
+                    musicViewModel.exportPlaylistToFile(target.playlist, outputStream)
                 }
             }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        musicViewModel.operationEvent.collect { event ->
+            val message = when (event) {
+                is MusicViewModel.OperationMessage.Success -> event.message
+                is MusicViewModel.OperationMessage.Error -> event.message
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -738,9 +731,9 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             onAddToPlaylist = { songToAddToPlaylist = it },
                             onCreatePlaylist = { showNewPlaylistDialog = true },
                             onPlaylistSelected = { selectedPlaylistId = it.id },
-                            onPlaylistExport = { 
-                                playlistToExport = it
-                                exportFileLauncher.launch("${it.name}.aura")
+                            onPlaylistExport = { playlist ->
+                                pendingExportTarget = ExportTarget.SinglePlaylist(playlist)
+                                exportFileLauncher.launch("${playlist.name}.aura")
                             },
                             onAlbumSelected = { selectedAlbumName = it },
                             onArtistSelected = { selectedArtistName = it },
@@ -801,7 +794,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     importFileLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*"))
                                 },
                                 onExportAllSongs = {
-                                    exportAllSongsMode = true
+                                    pendingExportTarget = ExportTarget.AllSongs
                                     exportFileLauncher.launch("AuraMusic_AllSongs.json")
                                 },
                                 onExportPlaylist = { showExportPlaylistDialog = true },
@@ -1466,7 +1459,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                 playlists = playlists,
                 onDismiss = { showExportPlaylistDialog = false },
                 onPlaylistSelected = { playlist ->
-                    playlistToExport = playlist
+                    pendingExportTarget = ExportTarget.SinglePlaylist(playlist)
                     exportFileLauncher.launch("${playlist.name}.aura")
                     showExportPlaylistDialog = false
                 }

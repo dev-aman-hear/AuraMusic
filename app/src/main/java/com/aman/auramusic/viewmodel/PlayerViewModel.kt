@@ -37,13 +37,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import android.content.ComponentName
 import android.content.Intent
+import android.annotation.SuppressLint
 import android.content.ServiceConnection
 import android.os.IBinder
 import com.aman.auramusic.playback.PlaybackService
 import com.aman.auramusic.playback.RepeatMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import androidx.core.content.edit
 
 import java.util.UUID
 
@@ -62,6 +62,7 @@ class PlayerViewModel @Inject constructor(
 
     private var playerManager: VlcPlayerManager? = null
     private var notificationManager: PlaybackNotificationManager? = null
+    @SuppressLint("StaticFieldLeak")
     private var playbackService: PlaybackService? = null
     private var favoriteJob: Job? = null
     var isServiceBound by mutableStateOf(false)
@@ -676,7 +677,11 @@ class PlayerViewModel @Inject constructor(
         super.onCleared()
         if (isServiceBound) {
             runCatching { getApplication<Application>().unbindService(serviceConnection) }
+            isServiceBound = false
         }
+        playbackService = null
+        playerManager = null
+        notificationManager = null
         
         if (!appSettings.keepPlayingOnClose || !isPlaying) {
             val intent = Intent(getApplication(), PlaybackService::class.java)

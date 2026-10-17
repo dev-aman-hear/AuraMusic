@@ -12,19 +12,24 @@ import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.model.SavedOnlineArtist
 import com.aman.auramusic.data.repository.MusicRepository
 import com.aman.auramusic.data.repository.UserPreferencesRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
-import java.io.OutputStream
 import java.io.InputStream
+import java.io.OutputStream
 
 @HiltViewModel
 class MusicViewModel @Inject constructor(
@@ -302,11 +307,19 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    sealed interface OperationMessage {
+        data class Success(val message: String) : OperationMessage
+        data class Error(val message: String) : OperationMessage
+    }
+
     data class ImportResult(
         val playlistName: String,
         val matchedCount: Int,
         val unmatchedSongs: List<String>
     )
+
+    private val _operationEvent = MutableSharedFlow<OperationMessage>(extraBufferCapacity = 1)
+    val operationEvent: SharedFlow<OperationMessage> = _operationEvent.asSharedFlow()
 
     private val _lastImportResult = MutableStateFlow<ImportResult?>(null)
     val lastImportResult = _lastImportResult.asStateFlow()
@@ -329,6 +342,10 @@ class MusicViewModel @Inject constructor(
 
     fun exportCurrentSongs(songs: List<Song>, outputStream: OutputStream?) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (outputStream == null) {
+                _operationEvent.tryEmit(OperationMessage.Error("Unable to write export file"))
+                return@launch
+            }
             try {
                 val songArray = JSONArray()
                 songs.forEach { song ->
@@ -347,15 +364,22 @@ class MusicViewModel @Inject constructor(
                     put("name", "All Songs")
                     put("songs", songArray)
                 }
-                outputStream?.use { it.write(json.toString().toByteArray()) }
+                outputStream.use { it.write(json.toString().toByteArray()) }
+                _operationEvent.tryEmit(OperationMessage.Success("All songs exported successfully"))
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                // Handle error
+                _operationEvent.tryEmit(OperationMessage.Error("Failed to export songs: invalid or unavailable file"))
             }
         }
     }
 
     fun exportPlaylistToFile(playlist: Playlist, outputStream: OutputStream?) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (outputStream == null) {
+                _operationEvent.tryEmit(OperationMessage.Error("Unable to write export file"))
+                return@launch
+            }
             try {
                 val songsInPlaylist = _songs.value.filter { it.id in playlist.songIds }
                 val songArray = JSONArray()
@@ -375,33 +399,52 @@ class MusicViewModel @Inject constructor(
                     put("name", playlist.name)
                     put("songs", songArray)
                 }
-                outputStream?.use { it.write(json.toString().toByteArray()) }
+                outputStream.use { it.write(json.toString().toByteArray()) }
+                _operationEvent.tryEmit(OperationMessage.Success("Playlist \"${playlist.name}\" exported successfully"))
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                // Handle error
+                _operationEvent.tryEmit(OperationMessage.Error("Failed to export playlist: invalid or unavailable file"))
             }
         }
     }
 
     fun importPlaylistFromFile(inputStream: InputStream?) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (inputStream == null) {
+                _operationEvent.tryEmit(OperationMessage.Error("Unable to read import file"))
+                return@launch
+            }
             try {
                 if (_songs.value.isEmpty()) {
                     _songs.value = repository.getAllSongs()
                 }
 
-                val content = inputStream?.bufferedReader()?.use { it.readText() } ?: return@launch
+                val content = inputStream.bufferedReader().use { it.readText() }
+                if (content.isBlank()) {
+                    _operationEvent.tryEmit(OperationMessage.Error("Import file is empty"))
+                    return@launch
+                }
                 val json = JSONObject(content)
 
                 if (json.has("playlists")) {
                     val playlistsArray = json.getJSONArray("playlists")
+                    if (playlistsArray.length() == 0) {
+                        _operationEvent.tryEmit(OperationMessage.Error("No playlists found in file"))
+                        return@launch
+                    }
                     for (i in 0 until playlistsArray.length()) {
                         processPlaylistObject(playlistsArray.getJSONObject(i))
                     }
                 } else {
                     processPlaylistObject(json)
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: JSONException) {
+                _operationEvent.tryEmit(OperationMessage.Error("Invalid or corrupted playlist file format"))
             } catch (e: Exception) {
-                // Handle error
+                _operationEvent.tryEmit(OperationMessage.Error("Failed to import playlist"))
             }
         }
     }
@@ -450,6 +493,9 @@ class MusicViewModel @Inject constructor(
         
         if (validSongIds.isNotEmpty()) {
             userRepository.savePlaylist(name, validSongIds)
+            _operationEvent.tryEmit(OperationMessage.Success("Playlist \"$name\" imported (${validSongIds.size} matched)"))
+        } else {
+            _operationEvent.tryEmit(OperationMessage.Error("No matching songs found for \"$name\""))
         }
 
         _lastImportResult.value = ImportResult(

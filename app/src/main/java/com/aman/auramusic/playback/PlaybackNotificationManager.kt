@@ -23,7 +23,7 @@ class PlaybackNotificationManager(private val context: Context) {
     fun ensureChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Playback",
+            context.getString(R.string.playback_channel_name),
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
             description = "Aura Music playback controls"
