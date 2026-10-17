@@ -12,7 +12,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Branch-Exp01-blue?style=flat-square" alt="Branch Exp01" />
-  <img src="https://img.shields.io/badge/Version-1.0.3--beta%20(Code%2016)-informational?style=flat-square" alt="Version 1.0.3-beta" />
+  <img src="https://img.shields.io/badge/Version-1.0.3%20(Code%2016)-informational?style=flat-square" alt="Version 1.0.3, version code 16" />
   <img src="https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-success?style=flat-square" alt="Android API 26-36" />
   <img src="https://img.shields.io/badge/Kotlin-2.0.21-blueviolet?style=flat-square" alt="Kotlin 2.0.21" />
   <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=flat-square" alt="Jetpack Compose" />
@@ -52,17 +52,18 @@
 
 Aura Music is an open-source Android music player developed to provide a unified listening experience across local offline files and online music catalogs. Rather than switching between a barebones offline player and proprietary streaming apps, Aura Music brings both together under a clean, cohesive, Apple Music-inspired flat monochrome interface.
 
-The application uses two specialized audio engines:
-1. **LibVLC Engine**: Manages local audio files directly on your device storage, supporting standard formats as well as lossless codecs (such as FLAC, WAV, and ALAC) with native playback handling.
-2. **AndroidX Media3 ExoPlayer Engine**: Manages online audio streaming from multi-source catalog backends (including YouTube Music and JioSaavn endpoints) with HTTP caching and network error resilience.
+The application combines local playback with online discovery:
+1. **LibVLC** handles local audio files, including supported lossless formats such as FLAC, WAV, and ALAC.
+2. **AndroidX Media3 ExoPlayer** handles compatible direct online audio streams, including JioSaavn-resolved streams.
+3. **YouTube player integration** supports the app’s YouTube Music playback paths, depending on the selected streaming engine and source availability.
 
 ---
 
 ## Interface & Screenshot Plan
 
-Aura Music centers on a clean, four-tab navigation model (`Home`, `Online`, `Library`, `Search`) paired with an expandable bottom mini-player and full-screen player sheet.
+Aura Music centers on a four-tab navigation model (`Home`, `Explore`/`Online`, `Library`, and `Search`) paired with an animated bottom navigation area, a mini-player, and an expanded player sheet.
 
-> **Note on Visual Assets**: Screenshots for the current `BETA` release are currently being prepared. To maintain documentation integrity, no placeholder or external mockup images are linked. 
+> **Screenshots**: App screenshots can be added here when release captures are available. This README intentionally avoids placeholder or mockup images. 
 
 ### Core Screen Layout Overview
 
@@ -222,7 +223,7 @@ app/src/main/java/com/aman/auramusic/
 
 1. **Clone the repository**:
    ```bash
-   git clone -b BETA https://github.com/dev-aman-hear/AuraMusic.git
+   git clone -b Exp01 https://github.com/dev-aman-hear/AuraMusic.git
    cd AuraMusic
    ```
 
@@ -275,7 +276,7 @@ Run the unit tests via Gradle:
   ./gradlew testDebugUnitTest
   ```
 
-*Verification*: All unit tests compile and execute cleanly against the current `BETA` codebase.
+Run the tests locally before merging or publishing a release. Test results depend on the current environment and are not asserted here.
 
 ### Code Style & Compilation Check
 
@@ -293,14 +294,15 @@ To verify code compilation without building APK packages:
 
 ## Versioning & Release Information
 
-* **Current Development Branch**: `Exp01`
-* **Internal Application Version**: `1.0.3` (`versionCode = 16`)
-* **Status**: Development & Beta Testing.
+* **Current branch**: `Exp01` (prepared for merge into `main`).
+* **Application version**: `1.0.3` (`versionCode = 16`).
+* **Release status**: Version metadata is set to 1.0.3; build, device testing, and release signing should be verified before publishing.
 * **Changelog Highlights (v1.0.3)**:
   * **Dynamic & Smooth Bottom Navigation**: Fluid physics-based spring animations for tab switching, subtle animated selection capsule/indicator, dynamic icon scaling, and responsive feedback.
   * **Direct One-Tap Artist Saving**: Replaced the previous 3-dot dropdown menu in the Artist section with direct, state-aware bookmark buttons on artist cards and detail screens with animated transitions.
   * **Subtle Action Button Transparency**: Refined action and navigation buttons across Artist, Album, and Playlist sections to 75% transparency with fully opaque icons for an Apple Music-inspired look.
   * **Dynamic Artwork Player Colors**: Optional soft artwork-based ambient player background while maintaining strict monochrome aesthetics throughout the rest of the app.
+  * **Online Playback Lifecycle Improvements**: Updated the shared online playback manager lifecycle so Compose UI disposal does not directly release the player; added Media3 network wake mode to help support screen-off playback. Device-level verification is still required.
   * **Code Audit & Cleanup**: Pruned dead code paths and unused imports across UI modules.
 * **Changelog Highlights (v1.0.2)**:
   * **Daily Featured Playlist Badge Refinement**: Made the badge pill compact, fully rounded, and naturally sized with balanced monochrome palette tokens across dark and light modes.
@@ -327,7 +329,7 @@ To verify code compilation without building APK packages:
 
 ## Contributing
 
-Contributions and feedback for the `BETA` branch are welcome:
+Contributions and feedback for Aura Music are welcome:
 
 1. Fork the repository.
 2. Create a feature branch:
@@ -342,7 +344,7 @@ Contributions and feedback for the `BETA` branch are welcome:
    ```bash
    ./gradlew testDebugUnitTest
    ```
-5. Push to your fork and submit a Pull Request to the `BETA` branch.
+5. Push to your fork and submit a Pull Request to `main` (or the active development branch when appropriate).
 
 To report bugs or suggest enhancements, open an issue on the [GitHub Issues tracker](https://github.com/dev-aman-hear/AuraMusic/issues).
 
