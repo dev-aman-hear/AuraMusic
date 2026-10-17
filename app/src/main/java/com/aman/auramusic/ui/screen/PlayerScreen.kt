@@ -1305,6 +1305,7 @@ private fun PlayerControls(
                 )
             }
 
+            val playPauseColor = if (LocalIsDark.current) Color.White else Color.Black
             Box(
                 modifier = Modifier
                     .size(72.dp)
@@ -1318,13 +1319,13 @@ private fun PlayerControls(
                         val barGap = size.width * 0.16f
                         val radius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.07f)
                         drawRoundRect(
-                            color = if (LocalIsDark.current) Color.White else Color.Black,
+                            color = playPauseColor,
                             topLeft = Offset(0f, 0f),
                             size = androidx.compose.ui.geometry.Size(barWidth, size.height),
                             cornerRadius = radius
                         )
                         drawRoundRect(
-                            color = if (LocalIsDark.current) Color.White else Color.Black,
+                            color = playPauseColor,
                             topLeft = Offset(barWidth + barGap, 0f),
                             size = androidx.compose.ui.geometry.Size(barWidth, size.height),
                             cornerRadius = radius
@@ -1333,7 +1334,7 @@ private fun PlayerControls(
                 } else {
                     TransportGlyph(
                         type = TransportGlyphType.Play,
-                        tint = if (LocalIsDark.current) Color.White else Color.Black,
+                        tint = playPauseColor,
                         modifier = Modifier.size(width = 43.dp, height = 44.dp)
                     )
                 }
