@@ -303,28 +303,42 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
 
     // Restore online playback if an online song was the last source played
     LaunchedEffect(Unit) {
-        val lastSource = LastPlayedStore.getLastSourceType(context)
-        if (lastSource == LastPlayedStore.SOURCE_ONLINE) {
-            val lastOnlineSong = LastPlayedStore.getLastOnlineSong(context)
-            if (lastOnlineSong != null) {
-                val lastPos = LastPlayedStore.getLastPosition(context)
-                val lastQueue = LastPlayedStore.getLastOnlineQueue(context)
+        val currentState = onlinePlaybackManager.playbackState.value
+        if (currentState.currentSong != null) {
+            isOnlinePlaybackActive = true
+            activeOnlineSong = currentState.currentSong
+            playerViewModel.updateOnlinePlaybackState(
+                song = currentState.currentSong!!,
+                isPlaying = currentState.isPlaying,
+                positionMs = currentState.currentPositionMs,
+                durationMs = currentState.durationMs
+            )
+            playerViewModel.extractColor(currentState.currentSong!!.toSong())
+            hasAttemptedRestore = true
+        } else {
+            val lastSource = LastPlayedStore.getLastSourceType(context)
+            if (lastSource == LastPlayedStore.SOURCE_ONLINE) {
+                val lastOnlineSong = LastPlayedStore.getLastOnlineSong(context)
+                if (lastOnlineSong != null) {
+                    val lastPos = LastPlayedStore.getLastPosition(context)
+                    val lastQueue = LastPlayedStore.getLastOnlineQueue(context)
 
-                isOnlinePlaybackActive = true
-                activeOnlineSong = lastOnlineSong
+                    isOnlinePlaybackActive = true
+                    activeOnlineSong = lastOnlineSong
 
-                onlinePlaybackManager.prepareSong(lastOnlineSong, lastPos, lastQueue)
+                    onlinePlaybackManager.prepareSong(lastOnlineSong, lastPos, lastQueue)
 
-                playerViewModel.restoreOnlineState(
-                    song = lastOnlineSong,
-                    onPlayPause = { onlinePlaybackManager.togglePlayPause() },
-                    onNext = { onlinePlaybackManager.playNext() },
-                    onPrevious = { onlinePlaybackManager.playPrevious() },
-                    onSeekTo = { onlinePlaybackManager.seekTo(it) }
-                )
+                    playerViewModel.restoreOnlineState(
+                        song = lastOnlineSong,
+                        onPlayPause = { onlinePlaybackManager.togglePlayPause() },
+                        onNext = { onlinePlaybackManager.playNext() },
+                        onPrevious = { onlinePlaybackManager.playPrevious() },
+                        onSeekTo = { onlinePlaybackManager.seekTo(it) }
+                    )
 
-                playerViewModel.extractColor(lastOnlineSong.toSong())
-                hasAttemptedRestore = true
+                    playerViewModel.extractColor(lastOnlineSong.toSong())
+                    hasAttemptedRestore = true
+                }
             }
         }
     }
@@ -342,7 +356,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     }
 
     DisposableEffect(onlinePlaybackManager) {
-        onlinePlaybackManager.eventListener = object : OnlinePlaybackManager.PlaybackEventListener {
+        val uiListener = object : OnlinePlaybackManager.PlaybackEventListener {
             override fun onSongChanged(song: OnlineSong) {
                 activeOnlineSong = song
                 playerViewModel.extractColor(song.toSong())
@@ -386,10 +400,11 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                 }
             }
         }
+        onlinePlaybackManager.addListener(uiListener)
         onDispose {
             // Detach the UI listener only. Releasing the shared player here stops audio
             // when the Activity/Compose content is recreated.
-            onlinePlaybackManager.eventListener = null
+            onlinePlaybackManager.removeListener(uiListener)
         }
     }
 

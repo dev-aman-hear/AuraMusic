@@ -61,6 +61,47 @@ class OnlinePlaybackManager(
     }
 
     var eventListener: PlaybackEventListener? = null
+    private val listeners = java.util.concurrent.CopyOnWriteArrayList<PlaybackEventListener>()
+
+    fun addListener(listener: PlaybackEventListener) {
+        if (!listeners.contains(listener)) {
+            listeners.add(listener)
+        }
+    }
+
+    fun removeListener(listener: PlaybackEventListener) {
+        listeners.remove(listener)
+    }
+
+    private fun dispatchSongChanged(song: OnlineSong) {
+        eventListener?.onSongChanged(song)
+        listeners.forEach { runCatching { it.onSongChanged(song) } }
+    }
+
+    private fun dispatchPlaybackStateChanged(song: OnlineSong, isPlaying: Boolean, positionMs: Long) {
+        eventListener?.onPlaybackStateChanged(song, isPlaying, positionMs)
+        listeners.forEach { runCatching { it.onPlaybackStateChanged(song, isPlaying, positionMs) } }
+    }
+
+    private fun dispatchProgressUpdate(song: OnlineSong, positionMs: Long, durationMs: Long = 0L) {
+        eventListener?.onProgressUpdate(song, positionMs, durationMs)
+        listeners.forEach { runCatching { it.onProgressUpdate(song, positionMs, durationMs) } }
+    }
+
+    private fun dispatchSeek(song: OnlineSong, positionMs: Long) {
+        eventListener?.onSeek(song, positionMs)
+        listeners.forEach { runCatching { it.onSeek(song, positionMs) } }
+    }
+
+    private fun dispatchLyricsLoaded(song: OnlineSong, lyrics: com.aman.auramusic.online.lyrics.model.SongLyrics) {
+        eventListener?.onLyricsLoaded(song, lyrics)
+        listeners.forEach { runCatching { it.onLyricsLoaded(song, lyrics) } }
+    }
+
+    private fun dispatchPlaybackStopped(song: OnlineSong?) {
+        eventListener?.onPlaybackStopped(song)
+        listeners.forEach { runCatching { it.onPlaybackStopped(song) } }
+    }
 
     private var isUsingIFramePlayer = false
     private var hasStartedPlaybackForCurrentSong = false
@@ -139,7 +180,7 @@ class OnlinePlaybackManager(
                         if (!isPlaying && isTransitioning) {
                             Log.d("AuraPlaybackDebug", "Suppressing ExoPlayer onPlaybackStateChanged(false) for ${song.title} during track transition")
                         } else {
-                            eventListener?.onPlaybackStateChanged(song, isPlaying, exoPlayer.currentPosition.coerceAtLeast(0L))
+                            dispatchPlaybackStateChanged(song, isPlaying, exoPlayer.currentPosition.coerceAtLeast(0L))
                         }
                     }
                 }
@@ -180,7 +221,7 @@ class OnlinePlaybackManager(
                     if (!isPlaying && isTransitioning) {
                         Log.d("AuraPlaybackDebug", "Suppressing YouTube onPlaybackStateChanged(false) for ${song.title} during track transition")
                     } else {
-                        eventListener?.onPlaybackStateChanged(song, isPlaying, _playbackState.value.currentPositionMs)
+                        dispatchPlaybackStateChanged(song, isPlaying, _playbackState.value.currentPositionMs)
                     }
                 }
             }
@@ -203,7 +244,7 @@ class OnlinePlaybackManager(
                     )
                 }
                 _playbackState.value.currentSong?.let { song ->
-                    eventListener?.onProgressUpdate(song, currentMs, effectiveDur)
+                    dispatchProgressUpdate(song, currentMs, effectiveDur)
                     if (currentMs > 0 && currentMs % 5000 < 300) {
                         LastPlayedStore.updatePosition(context, currentMs)
                     }
@@ -258,8 +299,8 @@ class OnlinePlaybackManager(
             )
         }
 
-        eventListener?.onSongChanged(song)
-        eventListener?.onPlaybackStateChanged(song, false, initialPositionMs)
+        dispatchSongChanged(song)
+        dispatchPlaybackStateChanged(song, false, initialPositionMs)
 
         lyricsJob?.cancel()
         lyricsJob = scope.launch {
@@ -270,7 +311,7 @@ class OnlinePlaybackManager(
                 } else it
             }
             if (_playbackState.value.currentSong?.id == song.id) {
-                eventListener?.onLyricsLoaded(song, lyrics)
+                dispatchLyricsLoaded(song, lyrics)
             }
         }
     }
@@ -296,7 +337,7 @@ class OnlinePlaybackManager(
                 )
             }
 
-            eventListener?.onSongChanged(song)
+            dispatchSongChanged(song)
 
             // Cancel any pending lyrics fetching job and fetch for current track
             lyricsJob?.cancel()
@@ -308,7 +349,7 @@ class OnlinePlaybackManager(
                     } else it
                 }
                 if (_playbackState.value.currentSong?.id == song.id) {
-                    eventListener?.onLyricsLoaded(song, lyrics)
+                    dispatchLyricsLoaded(song, lyrics)
                 }
             }
 
@@ -494,7 +535,7 @@ class OnlinePlaybackManager(
         }
         LastPlayedStore.updatePosition(context, _playbackState.value.currentPositionMs)
         _playbackState.value.currentSong?.let { song ->
-            eventListener?.onPlaybackStateChanged(song, false, _playbackState.value.currentPositionMs)
+            dispatchPlaybackStateChanged(song, false, _playbackState.value.currentPositionMs)
         }
     }
 
@@ -502,7 +543,7 @@ class OnlinePlaybackManager(
         _playbackState.update { it.copy(currentPositionMs = positionMs) }
         LastPlayedStore.updatePosition(context, positionMs)
         _playbackState.value.currentSong?.let { song ->
-            eventListener?.onSeek(song, positionMs)
+            dispatchSeek(song, positionMs)
         }
         if (!hasStartedPlaybackForCurrentSong) {
             return
@@ -691,7 +732,7 @@ class OnlinePlaybackManager(
                         )
                     }
                     _playbackState.value.currentSong?.let { song ->
-                        eventListener?.onProgressUpdate(song, currentPos, exoDur)
+                        dispatchProgressUpdate(song, currentPos, exoDur)
                         if (currentPos > 0 && currentPos % 5000 < 200) {
                             LastPlayedStore.updatePosition(context, currentPos)
                         }
@@ -710,7 +751,7 @@ class OnlinePlaybackManager(
     fun release() {
         Log.d("AuraPlaybackDebug", "OnlinePlaybackManager.release() called")
         isTransitioning = false
-        eventListener?.onPlaybackStopped(_playbackState.value.currentSong)
+        dispatchPlaybackStopped(_playbackState.value.currentSong)
         stopProgressTracker()
         exoPlayer.release()
         youTubeIFramePlayer.release()

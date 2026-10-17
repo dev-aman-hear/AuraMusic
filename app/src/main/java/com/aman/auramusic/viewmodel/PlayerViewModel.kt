@@ -145,6 +145,9 @@ class PlayerViewModel @Inject constructor(
     var isPlaying by mutableStateOf(false)
         private set
 
+    var isOnlinePlaying by mutableStateOf(false)
+        private set
+
     var dominantColor by mutableIntStateOf(0xFF1E1E1E.toInt())
         private set
 
@@ -310,6 +313,7 @@ class PlayerViewModel @Inject constructor(
         val pm = playerManager ?: return
         val service = playbackService ?: return
         
+        isOnlinePlaying = false
         service.play(song)
         
         currentPosition = startPosition
@@ -339,7 +343,21 @@ class PlayerViewModel @Inject constructor(
     ) {
         currentSong = null
         currentSongId = null
-        playbackService?.startOnlinePlayback(song, isPlaying, onPlayPause, onNext, onPrevious, onSeekTo)
+        isOnlinePlaying = isPlaying
+        if (!isServiceBound) {
+            val intent = Intent(getApplication(), PlaybackService::class.java)
+            getApplication<Application>().startService(intent)
+            viewModelScope.launch {
+                var attempts = 0
+                while (!isServiceBound && attempts < 10) {
+                    delay(100)
+                    attempts++
+                }
+                playbackService?.startOnlinePlayback(song, isPlaying, onPlayPause, onNext, onPrevious, onSeekTo)
+            }
+        } else {
+            playbackService?.startOnlinePlayback(song, isPlaying, onPlayPause, onNext, onPrevious, onSeekTo)
+        }
     }
 
     fun restoreOnlineState(
@@ -351,6 +369,7 @@ class PlayerViewModel @Inject constructor(
     ) {
         currentSong = null
         currentSongId = null
+        isOnlinePlaying = false
         if (!isServiceBound) {
             viewModelScope.launch {
                 var attempts = 0
@@ -373,6 +392,7 @@ class PlayerViewModel @Inject constructor(
         positionMs: Long = 0L,
         durationMs: Long = 0L
     ) {
+        isOnlinePlaying = isPlaying
         playbackService?.updateOnlinePlaybackState(song, isPlaying, positionMs, durationMs)
     }
 
@@ -389,6 +409,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun stopOnlinePlayback() {
+        isOnlinePlaying = false
         playbackService?.stopOnlinePlayback()
     }
 
@@ -649,7 +670,9 @@ class PlayerViewModel @Inject constructor(
         playerManager = null
         notificationManager = null
         
-        if (!appSettings.keepPlayingOnClose || !isPlaying) {
+        val isOnlineActive = playbackService?.isOnlinePlaybackActive == true
+        val isAnyPlaying = isPlaying || (isOnlineActive && isOnlinePlaying)
+        if (!appSettings.keepPlayingOnClose || !isAnyPlaying) {
             val intent = Intent(getApplication(), PlaybackService::class.java)
             getApplication<Application>().stopService(intent)
             
