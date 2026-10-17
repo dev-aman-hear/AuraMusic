@@ -251,7 +251,20 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                 is ExportTarget.SinglePlaylist -> {
                     musicViewModel.exportPlaylistToFile(target.playlist, outputStream)
                 }
+                is ExportTarget.SinglePlaylist -> {
+                    musicViewModel.exportPlaylistToFile(target.playlist, outputStream)
+                }
             }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        musicViewModel.operationEvent.collect { event ->
+            val message = when (event) {
+                is MusicViewModel.OperationMessage.Success -> event.message
+                is MusicViewModel.OperationMessage.Error -> event.message
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 
