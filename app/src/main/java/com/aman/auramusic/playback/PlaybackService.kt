@@ -21,6 +21,8 @@ import kotlinx.coroutines.withContext
 import com.aman.auramusic.coloros.ColorOSLiveLyricsBridge
 import com.aman.auramusic.coloros.ColorOSLyricPayload
 import com.aman.auramusic.data.repository.LyricsRepository
+import com.aman.auramusic.online.player.OnlinePlaybackManager
+import com.aman.auramusic.online.player.OnlinePlaybackManagerHolder
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.model.toSong
 
@@ -30,6 +32,7 @@ class PlaybackService : Service() {
     private lateinit var notificationManager: PlaybackNotificationManager
     private lateinit var userRepository: UserPreferencesRepository
     private lateinit var colorOSBridge: ColorOSLiveLyricsBridge
+    private lateinit var onlinePlaybackManager: OnlinePlaybackManager
     private val lyricsRepository = LyricsRepository()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var keepPlayingOnClose = true
@@ -69,6 +72,8 @@ class PlaybackService : Service() {
         notificationManager = PlaybackNotificationManager(this)
         userRepository = UserPreferencesRepository(this)
         colorOSBridge = ColorOSLiveLyricsBridge(this)
+        // Share the online player with the UI, but keep its lifetime tied to this service.
+        onlinePlaybackManager = OnlinePlaybackManagerHolder.get(this)
         
         setupActions()
 
@@ -530,6 +535,9 @@ class PlaybackService : Service() {
         notificationJob?.cancel()
         retryJob?.cancel()
         serviceScope.cancel()
+        if (::onlinePlaybackManager.isInitialized) {
+            OnlinePlaybackManagerHolder.releaseIfCreated()
+        }
         playerManager.release()
         super.onDestroy()
     }
