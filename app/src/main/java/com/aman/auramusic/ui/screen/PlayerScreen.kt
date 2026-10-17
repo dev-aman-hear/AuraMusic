@@ -1318,13 +1318,13 @@ private fun PlayerControls(
                         val barGap = size.width * 0.16f
                         val radius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.07f)
                         drawRoundRect(
-                            color = playerColors.prominentIconTint,
+                            color = if (LocalIsDark.current) Color.White else Color.Black,
                             topLeft = Offset(0f, 0f),
                             size = androidx.compose.ui.geometry.Size(barWidth, size.height),
                             cornerRadius = radius
                         )
                         drawRoundRect(
-                            color = playerColors.prominentIconTint,
+                            color = if (LocalIsDark.current) Color.White else Color.Black,
                             topLeft = Offset(barWidth + barGap, 0f),
                             size = androidx.compose.ui.geometry.Size(barWidth, size.height),
                             cornerRadius = radius
@@ -1333,7 +1333,7 @@ private fun PlayerControls(
                 } else {
                     TransportGlyph(
                         type = TransportGlyphType.Play,
-                        tint = playerColors.prominentIconTint,
+                        tint = if (LocalIsDark.current) Color.White else Color.Black,
                         modifier = Modifier.size(width = 43.dp, height = 44.dp)
                     )
                 }
