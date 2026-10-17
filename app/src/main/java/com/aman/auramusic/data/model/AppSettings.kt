@@ -9,6 +9,7 @@ data class AppSettings(
     val smartAudioFocus: Boolean = true,
     val keepPlayingOnClose: Boolean = true,
     val playlistGridColumns: Int = 2,
-    val themeMode: ThemeMode = ThemeMode.SYSTEM
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val dynamicArtworkColors: Boolean = false
 )
 

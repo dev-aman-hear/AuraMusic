@@ -1,12 +1,7 @@
 package com.aman.auramusic.viewmodel
 
 import android.app.Application
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.drawable.BitmapDrawable
-import coil.ImageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -14,14 +9,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.palette.graphics.Palette
 import com.aman.auramusic.data.model.LyricLine
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.data.repository.LyricsRepository
 import com.aman.auramusic.data.repository.MusicRepository
 import com.aman.auramusic.data.repository.UserPreferencesRepository
 import com.aman.auramusic.online.model.OnlineSong
-import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.aman.auramusic.online.util.LastPlayedStore
 import com.aman.auramusic.playback.PlaybackActionRegistry
 import com.aman.auramusic.playback.PlaybackNotificationManager
@@ -636,39 +629,12 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val context = getApplication<Application>()
-                val artUriStr = song.artworkUri ?: ""
-
-                val bitmap: Bitmap? = if (artUriStr.startsWith("http://") || artUriStr.startsWith("https://")) {
-                    val highResUrl = ArtworkQualityOptimizer.optimizeUrl(artUriStr)
-                    val loader = ImageLoader(context)
-                    val request = ImageRequest.Builder(context)
-                        .data(highResUrl)
-                        .allowHardware(false)
-                        .build()
-                    val result = (loader.execute(request) as? SuccessResult)?.drawable
-                    (result as? BitmapDrawable)?.bitmap
-                } else if (song.id == -1L) {
-                    com.aman.auramusic.util.ArtworkExtractor.getArtwork(context, song.uri)
-                } else {
-                    val uri = android.net.Uri.parse(artUriStr)
-                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        BitmapFactory.decodeStream(inputStream)
-                    }
-                }
-
-                if (bitmap != null) {
-                    val palette = Palette.from(bitmap).generate()
-                    dominantColor = palette.getVibrantColor(
-                        palette.getDominantColor(0xFF1E1E1E.toInt())
-                    )
-                    accentColor = palette.getMutedColor(
-                        palette.getDarkVibrantColor(0xFF1E1E1E.toInt())
-                    )
-                } else {
-                    dominantColor = 0xFF1E1E1E.toInt()
-                }
-            } catch (e: Exception) {
+                val palette = com.aman.auramusic.ui.theme.DynamicArtworkColorsHelper.extractPalette(context, song, isDark = true)
+                dominantColor = palette.primaryArgb
+                accentColor = palette.accentArgb
+            } catch (_: Exception) {
                 dominantColor = 0xFF1E1E1E.toInt()
+                accentColor = 0xFF2A2A2A.toInt()
             }
         }
     }

@@ -785,6 +785,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 appSettings = appSettings,
                                 onUsernameChange = { musicViewModel.updateUsername(it) },
                                 onThemeModeChange = { mode -> musicViewModel.setThemeMode(mode) },
+                                onDynamicArtworkColorsChange = { musicViewModel.setDynamicArtworkColors(it) },
                                 onKaraokeChange = { musicViewModel.setKaraokeMode(it) },
                                 onLyricFontScaleChange = { musicViewModel.setLyricFontScale(it) },
                                 onSmartAudioFocusChange = { musicViewModel.setSmartAudioFocus(it) },

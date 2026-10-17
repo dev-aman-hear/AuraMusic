@@ -114,9 +114,14 @@ import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.LyricLine
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.online.util.ArtworkQualityOptimizer
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
 import com.aman.auramusic.playback.RepeatMode
 import com.aman.auramusic.ui.component.SongArtwork
+import com.aman.auramusic.ui.theme.DynamicArtworkColorsHelper
 import com.aman.auramusic.ui.theme.LocalIsDark
+import com.aman.auramusic.ui.theme.PlayerArtworkPalette
 import com.aman.auramusic.util.audioQuality
 import com.aman.auramusic.util.formatDuration
 import com.aman.auramusic.viewmodel.PlayerViewModel
@@ -167,14 +172,41 @@ fun PlayerScreen(
         }
     }
 
+    val isDark = LocalIsDark.current
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val scope = rememberCoroutineScope()
 
-    var onlineDominantColor by remember(song.id, song.artworkUri) { mutableIntStateOf(0xFF1E1E1E.toInt()) }
-    var onlineAccentColor by remember(song.id, song.artworkUri) { mutableIntStateOf(0xFF2A2A2A.toInt()) }
-    val isOnlineSong = song.artworkUri?.startsWith("http") == true
-    val dominantColorInt = if (isOnlineSong && onlineDominantColor != 0xFF1E1E1E.toInt()) onlineDominantColor else playerViewModel.dominantColor
-    val accentColorInt = if (isOnlineSong && onlineAccentColor != 0xFF2A2A2A.toInt()) onlineAccentColor else playerViewModel.accentColor
+    var artworkPalette by remember(isDark) { mutableStateOf(PlayerArtworkPalette.neutral(isDark)) }
+
+    LaunchedEffect(song.id, song.artworkUri, song.uri, isDark, appSettings.dynamicArtworkColors) {
+        if (appSettings.dynamicArtworkColors) {
+            val extracted = DynamicArtworkColorsHelper.extractPalette(context, song, isDark)
+            artworkPalette = extracted
+        } else {
+            artworkPalette = PlayerArtworkPalette.neutral(isDark)
+        }
+    }
+
+    val animatedPrimary by animateColorAsState(
+        targetValue = artworkPalette.primary,
+        animationSpec = tween(750, easing = FastOutSlowInEasing),
+        label = "ambientPrimaryAnimation"
+    )
+    val animatedSecondary by animateColorAsState(
+        targetValue = artworkPalette.secondary,
+        animationSpec = tween(750, easing = FastOutSlowInEasing),
+        label = "ambientSecondaryAnimation"
+    )
+    val animatedTertiary by animateColorAsState(
+        targetValue = artworkPalette.tertiary,
+        animationSpec = tween(750, easing = FastOutSlowInEasing),
+        label = "ambientTertiaryAnimation"
+    )
+    val animatedAccent by animateColorAsState(
+        targetValue = artworkPalette.accent,
+        animationSpec = tween(750, easing = FastOutSlowInEasing),
+        label = "ambientAccentAnimation"
+    )
 
     val offsetY = remember { Animatable(0f) }
     
@@ -183,9 +215,6 @@ fun PlayerScreen(
     
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var dragStartedInHeader by remember { mutableStateOf(false) }
-    
-    val animatedColor by animateColorAsState(targetValue = Color(dominantColorInt), animationSpec = tween(800), label = "dominantColorAnimation")
-    val animatedAccentColor by animateColorAsState(targetValue = Color(accentColorInt), animationSpec = tween(800), label = "accentColorAnimation")
 
     Box(
         modifier = Modifier
@@ -214,13 +243,12 @@ fun PlayerScreen(
             }
     ) {
         PlayerBackground(
-            artworkModel = artworkModel,
-            dominantColor = animatedColor,
-            accentColor = animatedAccentColor,
-            onPaletteExtracted = { dom, acc ->
-                onlineDominantColor = dom
-                onlineAccentColor = acc
-            }
+            enabled = appSettings.dynamicArtworkColors,
+            primaryColor = animatedPrimary,
+            secondaryColor = animatedSecondary,
+            tertiaryColor = animatedTertiary,
+            accentColor = animatedAccent,
+            isDark = isDark
         )
 
         if (showSleepTimerDialog) {
@@ -297,19 +325,112 @@ fun PlayerScreen(
 
 @Composable
 private fun PlayerBackground(
-    artworkModel: Any?,
-    dominantColor: Color,
+    enabled: Boolean,
+    primaryColor: Color,
+    secondaryColor: Color,
+    tertiaryColor: Color,
     accentColor: Color,
-    onPaletteExtracted: ((Int, Int) -> Unit)? = null
+    isDark: Boolean
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val imageRequest = remember(artworkModel, context) {
-        if (artworkModel != null) {
-            ArtworkQualityOptimizer.buildImageRequest(context, artworkModel)
-        } else null
+    if (!enabled) {
+        // Strict monochrome restoration when disabled - zero residual tinting
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        )
+        return
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    // Dynamic Apple Music-style ambient background with GPU-accelerated layered radial gradients
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(if (isDark) Color(0xFF0D0D0D) else Color(0xFFF7F7F7))
+    ) {
+        val width = size.width
+        val height = size.height
+
+        // 1. Base ambient diagonal blend
+        drawRect(
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    primaryColor.copy(alpha = if (isDark) 0.65f else 0.45f),
+                    secondaryColor.copy(alpha = if (isDark) 0.55f else 0.35f),
+                    tertiaryColor.copy(alpha = if (isDark) 0.60f else 0.40f)
+                ),
+                start = Offset(0f, 0f),
+                end = Offset(width, height)
+            )
+        )
+
+        // 2. Top-right prominent bloom (Primary)
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    primaryColor.copy(alpha = if (isDark) 0.70f else 0.50f),
+                    primaryColor.copy(alpha = if (isDark) 0.35f else 0.20f),
+                    Color.Transparent
+                ),
+                center = Offset(width * 0.85f, height * 0.22f),
+                radius = width * 1.1f
+            ),
+            center = Offset(width * 0.85f, height * 0.22f),
+            radius = width * 1.1f
+        )
+
+        // 3. Middle-left counter-bloom (Secondary)
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    secondaryColor.copy(alpha = if (isDark) 0.65f else 0.45f),
+                    secondaryColor.copy(alpha = if (isDark) 0.25f else 0.15f),
+                    Color.Transparent
+                ),
+                center = Offset(width * 0.10f, height * 0.52f),
+                radius = width * 1.05f
+            ),
+            center = Offset(width * 0.10f, height * 0.52f),
+            radius = width * 1.05f
+        )
+
+        // 4. Bottom-right subtle accent bloom (Accent)
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    accentColor.copy(alpha = if (isDark) 0.50f else 0.35f),
+                    Color.Transparent
+                ),
+                center = Offset(width * 0.75f, height * 0.82f),
+                radius = width * 0.95f
+            ),
+            center = Offset(width * 0.75f, height * 0.82f),
+            radius = width * 0.95f
+        )
+
+        // 5. Contrast preservation scrim
+        // Soft gradient overlay to guarantee text and controls remain legible and accessible
+        val scrimColors = if (isDark) {
+            listOf(
+                Color.Black.copy(alpha = 0.42f),
+                Color.Black.copy(alpha = 0.55f),
+                Color.Black.copy(alpha = 0.68f)
+            )
+        } else {
+            listOf(
+                Color.White.copy(alpha = 0.40f),
+                Color.White.copy(alpha = 0.50f),
+                Color.White.copy(alpha = 0.62f)
+            )
+        }
+
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = scrimColors,
+                startY = 0f,
+                endY = height
+            )
+        )
     }
 }
 

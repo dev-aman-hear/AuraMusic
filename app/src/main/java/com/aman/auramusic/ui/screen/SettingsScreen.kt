@@ -52,6 +52,7 @@ fun SettingsScreen(
     appSettings: AppSettings,
     onUsernameChange: (String) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit = {},
+    onDynamicArtworkColorsChange: (Boolean) -> Unit = {},
     onKaraokeChange: (Boolean) -> Unit = {},
     onLyricFontScaleChange: (Float) -> Unit,
     onSmartAudioFocusChange: (Boolean) -> Unit,
@@ -136,6 +137,15 @@ fun SettingsScreen(
                         ThemeSelectionRow(
                             selectedTheme = appSettings.themeMode,
                             onThemeSelected = onThemeModeChange
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+
+                        ToggleRow(
+                            title = "Dynamic Artwork Colors",
+                            subtitle = "Adapt the player background to the current song's artwork with soft ambient colors.",
+                            checked = appSettings.dynamicArtworkColors,
+                            onCheckedChange = onDynamicArtworkColorsChange
                         )
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
@@ -340,7 +350,12 @@ fun AboutDialog(onDismiss: () -> Unit) {
 }
 
 @Composable
-fun ToggleRow(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+fun ToggleRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    subtitle: String? = null
+) {
     val colors = Monochrome
     val isDark = LocalIsDark.current
 
@@ -360,7 +375,21 @@ fun ToggleRow(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Uni
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = title, style = MaterialTheme.typography.bodyLarge)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,

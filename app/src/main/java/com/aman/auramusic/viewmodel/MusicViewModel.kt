@@ -340,6 +340,12 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    fun setDynamicArtworkColors(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setDynamicArtworkColors(enabled)
+        }
+    }
+
     fun exportCurrentSongs(songs: List<Song>, outputStream: OutputStream?) {
         viewModelScope.launch(Dispatchers.IO) {
             if (outputStream == null) {

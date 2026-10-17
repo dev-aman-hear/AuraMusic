@@ -44,6 +44,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             smartAudioFocus = prefs[Keys.smartAudioFocus] ?: true,
             keepPlayingOnClose = prefs[Keys.keepPlayingOnClose] ?: false,
             playlistGridColumns = prefs[Keys.playlistGridColumns] ?: 2,
+            dynamicArtworkColors = prefs[Keys.dynamicArtworkColors] ?: false,
             themeMode = runCatching {
                 ThemeMode.valueOf(prefs[Keys.themeMode] ?: ThemeMode.SYSTEM.name)
             }.getOrDefault(ThemeMode.SYSTEM)
@@ -120,6 +121,10 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { it[Keys.themeMode] = mode.name }
+    }
+
+    suspend fun setDynamicArtworkColors(enabled: Boolean) {
+        dataStore.edit { it[Keys.dynamicArtworkColors] = enabled }
     }
 
     suspend fun setFavorites(items: List<Pair<Long, OnlineSong?>>, isFavorite: Boolean) {
@@ -451,6 +456,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             val smartAudioFocus = booleanPreferencesKey("smart_audio_focus")
             val keepPlayingOnClose = booleanPreferencesKey("keep_playing_on_close")
             val playlistGridColumns = intPreferencesKey("playlist_grid_columns")
+            val dynamicArtworkColors = booleanPreferencesKey("dynamic_artwork_colors")
             val themeMode = stringPreferencesKey("theme_mode")
             val favoriteIds = stringPreferencesKey("favorite_ids")
             val favoriteOnlineSongs = stringPreferencesKey("favorite_online_songs")

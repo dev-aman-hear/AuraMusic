@@ -88,6 +88,10 @@ android {
             isUniversalApk = true
         }
     }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
