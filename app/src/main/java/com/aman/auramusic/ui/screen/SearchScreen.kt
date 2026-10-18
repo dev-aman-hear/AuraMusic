@@ -51,6 +51,9 @@ import com.aman.auramusic.ui.component.SectionHeader
 import com.aman.auramusic.ui.component.SongRow
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.LocalIsDark
+import com.aman.auramusic.data.model.AppSettings
+import com.aman.auramusic.ui.theme.AppArea
+import com.aman.auramusic.ui.theme.AppThemedScreen
 import kotlinx.coroutines.delay
 
 data class SearchCategory(
@@ -125,6 +128,7 @@ fun SearchScreen(
     onOnlinePlayNext: ((OnlineSong) -> Unit)? = null,
     onOnlineAddToQueue: ((OnlineSong) -> Unit)? = null,
     onAddOnlineSongToPlaylist: ((OnlineSong) -> Unit)? = null,
+    appSettings: AppSettings = AppSettings(),
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDark.current
@@ -337,9 +341,19 @@ fun SearchScreen(
     }
 
     // Base background: Adaptive Dark / Light Canvas with ambient color blooms
-    AuraScreenBackground(
-        modifier = modifier
+    val searchArtwork = remember(onlineResults, songs) {
+        onlineResults.firstOrNull { it.artworkUrl.isNotBlank() }?.artworkUrl
+            ?: songs.firstOrNull { it.artworkUri != null }?.artworkUri
+    }
+
+    AppThemedScreen(
+        area = AppArea.EXPLORE,
+        artworkModel = searchArtwork,
+        appSettings = appSettings
     ) {
+        AuraScreenBackground(
+            modifier = modifier
+        ) {
         LazyColumn(
             state = searchListState,
             modifier = Modifier.fillMaxSize(),
@@ -894,6 +908,7 @@ fun SearchScreen(
                 }
             }
         }
+    }
     }
 }
 

@@ -56,6 +56,9 @@ import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.theme.LocalIsDark
+import com.aman.auramusic.data.model.AppSettings
+import com.aman.auramusic.ui.theme.AppArea
+import com.aman.auramusic.ui.theme.AppThemedScreen
 
 /**
  * Editorial top bar for the Apple Music monochrome Home experience.
@@ -691,7 +694,8 @@ fun ArtistDetailSheet(
     audienceText: String? = null,
     similarArtists: List<ArtistItem> = emptyList(),
     bioData: ArtistBioData? = null,
-    onSelectSimilarArtist: ((ArtistItem) -> Unit)? = null
+    onSelectSimilarArtist: ((ArtistItem) -> Unit)? = null,
+    appSettings: AppSettings = AppSettings()
 ) {
     val pageBackground = MaterialTheme.colorScheme.background
     val titleColor = MaterialTheme.colorScheme.onBackground
@@ -706,10 +710,15 @@ fun ArtistDetailSheet(
 
     androidx.activity.compose.BackHandler(onBack = onDismiss)
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = pageBackground
+    AppThemedScreen(
+        area = AppArea.ARTIST_DETAIL,
+        artworkModel = artist.artworkModel,
+        appSettings = appSettings
     ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 state = listState,
@@ -1278,6 +1287,7 @@ fun ArtistDetailSheet(
                 }
             }
         }
+    }
     }
 }
 

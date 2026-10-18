@@ -69,6 +69,9 @@ import com.aman.auramusic.ui.component.AuraArtwork
 import com.aman.auramusic.ui.component.AuraEmptyState
 import com.aman.auramusic.ui.component.AuraLoadingState
 import com.aman.auramusic.ui.theme.AuraScreenBackground
+import com.aman.auramusic.data.model.AppSettings
+import com.aman.auramusic.ui.theme.AppArea
+import com.aman.auramusic.ui.theme.AppThemedScreen
 
 @Composable
 fun OnlinePlaylistDetailScreen(
@@ -86,6 +89,8 @@ fun OnlinePlaylistDetailScreen(
     onAddCollectionToQueue: ((List<OnlineSong>) -> Unit)? = null,
     showMenuButton: Boolean = false,
     showAddButton: Boolean = true,
+    appArea: AppArea? = null,
+    appSettings: AppSettings = AppSettings(),
     modifier: Modifier = Modifier
 ) {
     BackHandler(onBack = onBack)
@@ -98,9 +103,22 @@ fun OnlinePlaylistDetailScreen(
 
     var showTopMenu by remember { mutableStateOf(false) }
 
-    AuraScreenBackground(
-        modifier = modifier.fillMaxSize()
+    val isAlbum = playlist.id.startsWith("album_", ignoreCase = true) ||
+        playlist.id.startsWith("ytmusic:MPRE", ignoreCase = true) ||
+        playlist.subtitle.contains("soundtrack", ignoreCase = true) ||
+        playlist.subtitle.contains("album", ignoreCase = true)
+    val resolvedArea = appArea ?: if (isAlbum) AppArea.ALBUM_DETAIL else AppArea.PLAYLIST_DETAIL
+    val resolvedArtwork = playlist.artworkUrl.takeIf { it.isNotBlank() }
+        ?: songs.firstOrNull { it.artworkUrl.isNotBlank() }?.artworkUrl
+
+    AppThemedScreen(
+        area = resolvedArea,
+        artworkModel = resolvedArtwork,
+        appSettings = appSettings
     ) {
+        AuraScreenBackground(
+            modifier = modifier.fillMaxSize()
+        ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -693,5 +711,6 @@ fun OnlinePlaylistDetailScreen(
                 }
             }
         }
+    }
     }
 }

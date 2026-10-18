@@ -14,6 +14,30 @@ data class AppSettings(
     val colorPreset: String = "Monochrome",
     val customPaletteHexes: String = "",
     val enablePlayerColor: Boolean = true,
-    val enableMiniPlayerColor: Boolean = false
-)
+    val enableMiniPlayerColor: Boolean = false,
+    // Full-App Theming
+    val enableFullAppDynamicTheme: Boolean = false,
+    val appPaletteMode: String = "Preset",
+    val appColorPreset: String = "Midnight Indigo",
+    val appCustomPaletteHexes: String = "#1A237E,#3949AB,#0D1642",
+    val themeHomeEnabled: Boolean = true,
+    val themeExploreEnabled: Boolean = true,
+    val themeLibraryEnabled: Boolean = true,
+    val themeAlbumDetailEnabled: Boolean = true,
+    val themeArtistDetailEnabled: Boolean = true,
+    val themePlaylistDetailEnabled: Boolean = true
+) {
+    fun isAreaThemingEnabled(areaName: String): Boolean {
+        if (!enableFullAppDynamicTheme) return false
+        return when (areaName.uppercase()) {
+            "HOME" -> themeHomeEnabled
+            "EXPLORE", "SEARCH" -> themeExploreEnabled
+            "LIBRARY" -> themeLibraryEnabled
+            "ALBUM_DETAIL" -> themeAlbumDetailEnabled
+            "ARTIST_DETAIL" -> themeArtistDetailEnabled
+            "PLAYLIST_DETAIL" -> themePlaylistDetailEnabled
+            else -> false
+        }
+    }
+}
 

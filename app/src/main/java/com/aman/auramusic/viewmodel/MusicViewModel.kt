@@ -358,6 +358,36 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    fun setEnableFullAppDynamicTheme(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setEnableFullAppDynamicTheme(enabled)
+        }
+    }
+
+    fun setAppPaletteMode(mode: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setAppPaletteMode(mode)
+        }
+    }
+
+    fun setAppColorPreset(preset: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setAppColorPreset(preset)
+        }
+    }
+
+    fun setAppCustomPaletteHexes(hexes: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setAppCustomPaletteHexes(hexes)
+        }
+    }
+
+    fun setThemeAreaEnabled(areaName: String, enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setThemeAreaEnabled(areaName, enabled)
+        }
+    }
+
     fun exportCurrentSongs(songs: List<Song>, outputStream: OutputStream?) {
         viewModelScope.launch(Dispatchers.IO) {
             if (outputStream == null) {

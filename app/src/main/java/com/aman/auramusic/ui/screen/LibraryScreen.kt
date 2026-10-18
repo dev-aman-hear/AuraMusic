@@ -56,6 +56,7 @@ import com.aman.auramusic.ui.screen.home.ArtistDetailSheet
 import com.aman.auramusic.ui.screen.home.ArtistItem
 import com.aman.auramusic.util.ArtistArtworkCache
 import com.aman.auramusic.util.ArtistHelper
+import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.ui.theme.*
 
 private fun formatArtistAudience(raw: String?): String {
@@ -132,6 +133,7 @@ fun LibraryScreen(
     onAddOnlineSongsToQueue: ((List<OnlineSong>) -> Unit)? = null,
     selectedTab: LibraryTab = LibraryTab.SONGS,
     onTabSelected: (LibraryTab) -> Unit = {},
+    appSettings: AppSettings = AppSettings(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -277,7 +279,8 @@ fun LibraryScreen(
             onAddToQueue = onAddToQueue?.let { cb -> { cb(it) } },
             onPlayNextCollection = onPlayNextSongs?.let { cb -> { cb(albumSongs) } },
             onAddCollectionToQueue = onAddSongsToQueue?.let { cb -> { cb(albumSongs) } },
-            showAddButton = false
+            showAddButton = false,
+            appSettings = appSettings
         )
         return
     }
@@ -296,6 +299,7 @@ fun LibraryScreen(
             isLoading = isPlaylistDetailLoading,
             isSavedInLibrary = isSaved,
             showAddButton = true,
+            appSettings = appSettings,
             onToggleSaveToLibrary = {
                 val cur = selectedOnlinePlaylist ?: return@OnlinePlaylistDetailScreen
                 if (isSaved) {
@@ -367,6 +371,7 @@ fun LibraryScreen(
             isLoading = isArtistDetailLoading,
             errorMessage = artistDetailErrorMessage,
             isSavedInLibrary = isSaved,
+            appSettings = appSettings,
             onToggleSaveToLibrary = {
                 if (isSaved) {
                     savedArtistEntry?.let { onRemoveSavedOnlineArtist?.invoke(it.id) }
@@ -550,7 +555,18 @@ fun LibraryScreen(
     val cardBg = MaterialTheme.colorScheme.surfaceVariant
     val cardBorder = MaterialTheme.colorScheme.outline
 
-    AuraScreenBackground(modifier = modifier) {
+    val libraryArtwork = remember(playlists, songs, favoriteSongs) {
+        playlists.firstOrNull { it.onlineSongs.any { os -> os.artworkUrl.isNotBlank() } }?.onlineSongs?.firstOrNull()?.artworkUrl
+            ?: songs.firstOrNull { it.artworkUri != null }?.artworkUri
+            ?: favoriteSongs.firstOrNull { it.artworkUri != null }?.artworkUri
+    }
+
+    AppThemedScreen(
+        area = AppArea.LIBRARY,
+        artworkModel = libraryArtwork,
+        appSettings = appSettings
+    ) {
+        AuraScreenBackground(modifier = modifier) {
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -1128,6 +1144,7 @@ fun LibraryScreen(
                 }
             }
         }
+    }
     }
     }
 }

@@ -50,6 +50,16 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             customPaletteHexes = prefs[Keys.customPaletteHexes] ?: "",
             enablePlayerColor = prefs[Keys.enablePlayerColor] ?: true,
             enableMiniPlayerColor = prefs[Keys.enableMiniPlayerColor] ?: false,
+            enableFullAppDynamicTheme = prefs[Keys.enableFullAppDynamicTheme] ?: false,
+            appPaletteMode = prefs[Keys.appPaletteMode] ?: "Preset",
+            appColorPreset = prefs[Keys.appColorPreset] ?: "Midnight Indigo",
+            appCustomPaletteHexes = prefs[Keys.appCustomPaletteHexes] ?: "#1A237E,#3949AB,#0D1642",
+            themeHomeEnabled = prefs[Keys.themeHomeEnabled] ?: true,
+            themeExploreEnabled = prefs[Keys.themeExploreEnabled] ?: true,
+            themeLibraryEnabled = prefs[Keys.themeLibraryEnabled] ?: true,
+            themeAlbumDetailEnabled = prefs[Keys.themeAlbumDetailEnabled] ?: true,
+            themeArtistDetailEnabled = prefs[Keys.themeArtistDetailEnabled] ?: true,
+            themePlaylistDetailEnabled = prefs[Keys.themePlaylistDetailEnabled] ?: true,
             themeMode = runCatching {
                 ThemeMode.valueOf(prefs[Keys.themeMode] ?: ThemeMode.SYSTEM.name)
             }.getOrDefault(ThemeMode.SYSTEM)
@@ -148,6 +158,35 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         dataStore.edit {
             it[Keys.enablePlayerColor] = player
             it[Keys.enableMiniPlayerColor] = miniPlayer
+        }
+    }
+
+    suspend fun setEnableFullAppDynamicTheme(enabled: Boolean) {
+        dataStore.edit { it[Keys.enableFullAppDynamicTheme] = enabled }
+    }
+
+    suspend fun setAppPaletteMode(mode: String) {
+        dataStore.edit { it[Keys.appPaletteMode] = mode }
+    }
+
+    suspend fun setAppColorPreset(preset: String) {
+        dataStore.edit { it[Keys.appColorPreset] = preset }
+    }
+
+    suspend fun setAppCustomPaletteHexes(hexes: String) {
+        dataStore.edit { it[Keys.appCustomPaletteHexes] = hexes }
+    }
+
+    suspend fun setThemeAreaEnabled(areaName: String, enabled: Boolean) {
+        dataStore.edit { prefs ->
+            when (areaName.uppercase()) {
+                "HOME" -> prefs[Keys.themeHomeEnabled] = enabled
+                "EXPLORE", "SEARCH" -> prefs[Keys.themeExploreEnabled] = enabled
+                "LIBRARY" -> prefs[Keys.themeLibraryEnabled] = enabled
+                "ALBUM_DETAIL" -> prefs[Keys.themeAlbumDetailEnabled] = enabled
+                "ARTIST_DETAIL" -> prefs[Keys.themeArtistDetailEnabled] = enabled
+                "PLAYLIST_DETAIL" -> prefs[Keys.themePlaylistDetailEnabled] = enabled
+            }
         }
     }
 
@@ -485,6 +524,16 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             val customPaletteHexes = stringPreferencesKey("custom_palette_hexes")
             val enablePlayerColor = booleanPreferencesKey("enable_player_color")
             val enableMiniPlayerColor = booleanPreferencesKey("enable_mini_player_color")
+            val enableFullAppDynamicTheme = booleanPreferencesKey("enable_full_app_dynamic_theme")
+            val appPaletteMode = stringPreferencesKey("app_palette_mode")
+            val appColorPreset = stringPreferencesKey("app_color_preset")
+            val appCustomPaletteHexes = stringPreferencesKey("app_custom_palette_hexes")
+            val themeHomeEnabled = booleanPreferencesKey("theme_home_enabled")
+            val themeExploreEnabled = booleanPreferencesKey("theme_explore_enabled")
+            val themeLibraryEnabled = booleanPreferencesKey("theme_library_enabled")
+            val themeAlbumDetailEnabled = booleanPreferencesKey("theme_album_detail_enabled")
+            val themeArtistDetailEnabled = booleanPreferencesKey("theme_artist_detail_enabled")
+            val themePlaylistDetailEnabled = booleanPreferencesKey("theme_playlist_detail_enabled")
             val themeMode = stringPreferencesKey("theme_mode")
             val favoriteIds = stringPreferencesKey("favorite_ids")
             val favoriteOnlineSongs = stringPreferencesKey("favorite_online_songs")

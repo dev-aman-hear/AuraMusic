@@ -79,6 +79,9 @@ import com.aman.auramusic.ui.component.SectionHeader
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.AuraShapes
 import com.aman.auramusic.ui.theme.LocalIsDark
+import com.aman.auramusic.data.model.AppSettings
+import com.aman.auramusic.ui.theme.AppArea
+import com.aman.auramusic.ui.theme.AppThemedScreen
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -236,6 +239,7 @@ fun OnlineScreen(
     onAddToQueue: ((OnlineSong) -> Unit)? = null,
     onPlayNextCollection: ((List<OnlineSong>) -> Unit)? = null,
     onAddCollectionToQueue: ((List<OnlineSong>) -> Unit)? = null,
+    appSettings: AppSettings = AppSettings(),
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
@@ -522,7 +526,18 @@ fun OnlineScreen(
     val textColor = MaterialTheme.colorScheme.onBackground
     val mutedText = MaterialTheme.colorScheme.onSurfaceVariant
 
-    AuraScreenBackground(modifier = modifier) {
+    val exploreArtwork = remember(movieAlbums, feedSongs, movieSongs) {
+        movieAlbums.firstOrNull()?.artworkUrl?.takeIf { it.isNotBlank() }
+            ?: feedSongs.firstOrNull { it.artworkUrl.isNotBlank() }?.artworkUrl
+            ?: movieSongs.firstOrNull { it.artworkUrl.isNotBlank() }?.artworkUrl
+    }
+
+    AppThemedScreen(
+        area = AppArea.EXPLORE,
+        artworkModel = exploreArtwork,
+        appSettings = appSettings
+    ) {
+        AuraScreenBackground(modifier = modifier) {
         val isDark = LocalIsDark.current
         val listState = rememberLazyListState()
         val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -805,11 +820,13 @@ fun OnlineScreen(
                     onPlayNextCollection = onPlayNextCollection,
                     onAddCollectionToQueue = onAddCollectionToQueue,
                     showMenuButton = false,
+                    appSettings = appSettings,
                     modifier = Modifier.fillMaxSize()
                 )
             }
         }
     }
+}
 }
 
 @Composable

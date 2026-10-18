@@ -36,27 +36,23 @@ object AuraActionButtons {
 }
 
 /**
- * Pure Monochrome solid background brush (no colored ambient blooms or gradients).
+ * Solid screen background brush using current active AppColorScheme background.
  */
 @Composable
 fun auraScreenGradient(): Brush {
-    val isDark = LocalIsDark.current
-    val bg = if (isDark) DarkMonochromeColors.background else LightMonochromeColors.background
+    val bg = LocalAppColorScheme.current.background
     return Brush.verticalGradient(listOf(bg, bg))
 }
 
-
-
 /**
- * Solid monochrome screen background with zero ambient blooms or gradients.
+ * Solid screen background using current active AppColorScheme background.
  */
 @Composable
 fun AuraScreenBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    val isDark = LocalIsDark.current
-    val bgColor = if (isDark) DarkMonochromeColors.background else LightMonochromeColors.background
+    val bgColor = LocalAppColorScheme.current.background
     Box(
         modifier = modifier
             .fillMaxSize()
