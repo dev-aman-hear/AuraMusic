@@ -12,7 +12,8 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicArtworkColors: Boolean = false,
     val colorPreset: String = "Monochrome",
-    val customPaletteHexes: String = "",
+    val customPaletteHexes: String = "#1A237E,#3949AB,#0D1642",
+    val playerThemeMode: String = "Preset",
     val enablePlayerColor: Boolean = true,
     val enableMiniPlayerColor: Boolean = false,
     // Full-App Theming

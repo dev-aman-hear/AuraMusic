@@ -120,6 +120,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
 import com.aman.auramusic.playback.RepeatMode
 import com.aman.auramusic.ui.component.SongArtwork
+import com.aman.auramusic.ui.theme.CustomPaletteValidator
 import com.aman.auramusic.ui.theme.DynamicArtworkColorsHelper
 import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.ui.theme.PlayerArtworkPalette
@@ -182,16 +183,17 @@ fun PlayerScreen(
     val scope = rememberCoroutineScope()
 
     val paletteMode = resolvePlayerPaletteMode(
-        dynamicArtworkColors = appSettings.dynamicArtworkColors,
+        playerThemeMode = appSettings.playerThemeMode,
         colorPreset = appSettings.colorPreset,
-        customPaletteHexes = appSettings.customPaletteHexes
+        customPaletteHexes = appSettings.customPaletteHexes,
+        dynamicArtworkColors = appSettings.dynamicArtworkColors
     )
 
-    val initialPalette = remember(isDark, paletteMode, appSettings.colorPreset, appSettings.customPaletteHexes) {
+    val initialPalette = remember(isDark, paletteMode, appSettings.playerThemeMode, appSettings.colorPreset, appSettings.customPaletteHexes) {
         when (paletteMode) {
             PlayerPaletteMode.DYNAMIC_ARTWORK -> PlayerArtworkPalette.neutral(isDark)
             PlayerPaletteMode.PRESET -> PlayerArtworkPalette.fromPreset(appSettings.colorPreset, isDark)
-            PlayerPaletteMode.CUSTOM -> PlayerArtworkPalette.fromCustomColors(appSettings.customPaletteHexes.split(","), isDark)
+            PlayerPaletteMode.CUSTOM -> CustomPaletteValidator.createPaletteFromCustomHexes(appSettings.customPaletteHexes, isDark)
             PlayerPaletteMode.MONOCHROME -> PlayerArtworkPalette.neutral(isDark)
         }
     }
@@ -204,6 +206,7 @@ fun PlayerScreen(
         song.uri,
         isDark,
         paletteMode,
+        appSettings.playerThemeMode,
         appSettings.colorPreset,
         appSettings.customPaletteHexes
     ) {
@@ -216,7 +219,7 @@ fun PlayerScreen(
                 artworkPalette = PlayerArtworkPalette.fromPreset(appSettings.colorPreset, isDark)
             }
             PlayerPaletteMode.CUSTOM -> {
-                artworkPalette = PlayerArtworkPalette.fromCustomColors(appSettings.customPaletteHexes.split(","), isDark)
+                artworkPalette = CustomPaletteValidator.createPaletteFromCustomHexes(appSettings.customPaletteHexes, isDark)
             }
             PlayerPaletteMode.MONOCHROME -> {
                 artworkPalette = PlayerArtworkPalette.neutral(isDark)

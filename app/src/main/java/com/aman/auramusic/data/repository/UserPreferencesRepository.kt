@@ -45,9 +45,10 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             smartAudioFocus = prefs[Keys.smartAudioFocus] ?: true,
             keepPlayingOnClose = prefs[Keys.keepPlayingOnClose] ?: true,
             playlistGridColumns = prefs[Keys.playlistGridColumns] ?: 2,
-            dynamicArtworkColors = prefs[Keys.dynamicArtworkColors] ?: false,
+            dynamicArtworkColors = (prefs[Keys.dynamicArtworkColors] ?: false) || (prefs[Keys.playerThemeMode]?.equals("Dynamic Artwork", ignoreCase = true) == true),
             colorPreset = prefs[Keys.colorPreset] ?: "Monochrome",
-            customPaletteHexes = prefs[Keys.customPaletteHexes] ?: "",
+            customPaletteHexes = prefs[Keys.customPaletteHexes] ?: "#1A237E,#3949AB,#0D1642",
+            playerThemeMode = prefs[Keys.playerThemeMode] ?: if (prefs[Keys.dynamicArtworkColors] == true) "Dynamic Artwork" else "Preset",
             enablePlayerColor = prefs[Keys.enablePlayerColor] ?: true,
             enableMiniPlayerColor = prefs[Keys.enableMiniPlayerColor] ?: false,
             enableFullAppDynamicTheme = prefs[Keys.enableFullAppDynamicTheme] ?: false,
@@ -142,12 +143,26 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it[Keys.themeMode] = mode.name }
     }
 
+    suspend fun setPlayerThemeMode(mode: String) {
+        dataStore.edit {
+            it[Keys.playerThemeMode] = mode
+            it[Keys.dynamicArtworkColors] = mode.equals("Dynamic Artwork", ignoreCase = true)
+        }
+    }
+
     suspend fun setDynamicArtworkColors(enabled: Boolean) {
-        dataStore.edit { it[Keys.dynamicArtworkColors] = enabled }
+        dataStore.edit {
+            it[Keys.dynamicArtworkColors] = enabled
+            it[Keys.playerThemeMode] = if (enabled) "Dynamic Artwork" else "Preset"
+        }
     }
 
     suspend fun setColorPreset(preset: String) {
-        dataStore.edit { it[Keys.colorPreset] = preset }
+        dataStore.edit {
+            it[Keys.colorPreset] = preset
+            it[Keys.playerThemeMode] = "Preset"
+            it[Keys.dynamicArtworkColors] = false
+        }
     }
 
     suspend fun setCustomPaletteHexes(hexes: String) {
@@ -522,6 +537,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             val dynamicArtworkColors = booleanPreferencesKey("dynamic_artwork_colors")
             val colorPreset = stringPreferencesKey("color_preset")
             val customPaletteHexes = stringPreferencesKey("custom_palette_hexes")
+            val playerThemeMode = stringPreferencesKey("player_theme_mode")
             val enablePlayerColor = booleanPreferencesKey("enable_player_color")
             val enableMiniPlayerColor = booleanPreferencesKey("enable_mini_player_color")
             val enableFullAppDynamicTheme = booleanPreferencesKey("enable_full_app_dynamic_theme")

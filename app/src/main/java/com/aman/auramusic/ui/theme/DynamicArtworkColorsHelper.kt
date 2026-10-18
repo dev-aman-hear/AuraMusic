@@ -150,6 +150,26 @@ data class PlayerArtworkPalette(
 }
 
 /**
+ * Represents the selectable player theme modes in Settings:
+ * Dynamic Artwork, Preset, and Custom.
+ */
+enum class PlayerThemeMode(val displayName: String) {
+    DYNAMIC_ARTWORK("Dynamic Artwork"),
+    PRESET("Preset"),
+    CUSTOM("Custom");
+
+    companion object {
+        fun fromString(value: String): PlayerThemeMode {
+            return when (value.trim().lowercase()) {
+                "dynamic artwork", "dynamic_artwork", "dynamic" -> DYNAMIC_ARTWORK
+                "custom", "custom palette", "custom_palette" -> CUSTOM
+                else -> PRESET
+            }
+        }
+    }
+}
+
+/**
  * Represents the player's active palette source mode.
  */
 enum class PlayerPaletteMode {
@@ -160,6 +180,29 @@ enum class PlayerPaletteMode {
 
     val isColored: Boolean
         get() = this != MONOCHROME
+}
+
+/**
+ * Resolves the effective palette mode from unified [PlayerThemeMode], preset selection, and custom hexes.
+ */
+fun resolvePlayerPaletteMode(
+    playerThemeMode: String,
+    colorPreset: String,
+    customPaletteHexes: String = "",
+    dynamicArtworkColors: Boolean = false
+): PlayerPaletteMode {
+    val mode = PlayerThemeMode.fromString(playerThemeMode)
+    return when (mode) {
+        PlayerThemeMode.DYNAMIC_ARTWORK -> PlayerPaletteMode.DYNAMIC_ARTWORK
+        PlayerThemeMode.CUSTOM -> PlayerPaletteMode.CUSTOM
+        PlayerThemeMode.PRESET -> {
+            if (colorPreset.equals("Monochrome", ignoreCase = true)) {
+                PlayerPaletteMode.MONOCHROME
+            } else {
+                PlayerPaletteMode.PRESET
+            }
+        }
+    }
 }
 
 /**
@@ -174,12 +217,23 @@ fun resolvePlayerPaletteMode(
     colorPreset: String,
     customPaletteHexes: String = ""
 ): PlayerPaletteMode {
-    return when {
-        dynamicArtworkColors -> PlayerPaletteMode.DYNAMIC_ARTWORK
-        colorPreset.isNotBlank() && !colorPreset.equals("Monochrome", ignoreCase = true) -> PlayerPaletteMode.PRESET
-        customPaletteHexes.isNotBlank() -> PlayerPaletteMode.CUSTOM
-        else -> PlayerPaletteMode.MONOCHROME
+    val mode = if (dynamicArtworkColors) {
+        PlayerThemeMode.DYNAMIC_ARTWORK
+    } else if (customPaletteHexes.isNotBlank() && colorPreset.equals("Custom", ignoreCase = true)) {
+        PlayerThemeMode.CUSTOM
+    } else if (colorPreset.isNotBlank() && !colorPreset.equals("Monochrome", ignoreCase = true)) {
+        PlayerThemeMode.PRESET
+    } else if (customPaletteHexes.isNotBlank()) {
+        PlayerThemeMode.CUSTOM
+    } else {
+        PlayerThemeMode.PRESET
     }
+    return resolvePlayerPaletteMode(
+        playerThemeMode = mode.displayName,
+        colorPreset = colorPreset,
+        customPaletteHexes = customPaletteHexes,
+        dynamicArtworkColors = dynamicArtworkColors
+    )
 }
 
 /**

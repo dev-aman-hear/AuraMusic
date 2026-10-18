@@ -340,6 +340,12 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    fun setPlayerThemeMode(mode: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setPlayerThemeMode(mode)
+        }
+    }
+
     fun setDynamicArtworkColors(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setDynamicArtworkColors(enabled)

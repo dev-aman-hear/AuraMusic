@@ -28,8 +28,13 @@ import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.foundation.border
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.selection.selectable
@@ -44,6 +49,7 @@ import com.aman.auramusic.ui.theme.Monochrome
 import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.ui.theme.AppPaletteMode
 import com.aman.auramusic.ui.theme.CustomPaletteValidator
+import com.aman.auramusic.ui.theme.PlayerThemeMode
 
 @Composable
 fun SettingsScreen(
@@ -55,7 +61,9 @@ fun SettingsScreen(
     onUsernameChange: (String) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit = {},
     onDynamicArtworkColorsChange: (Boolean) -> Unit = {},
+    onPlayerThemeModeChange: (String) -> Unit = {},
     onColorPresetChange: (String) -> Unit = {},
+    onCustomPaletteHexesChange: (String) -> Unit = {},
     onEnableFullAppDynamicThemeChange: (Boolean) -> Unit = {},
     onAppPaletteModeChange: (String) -> Unit = {},
     onAppColorPresetChange: (String) -> Unit = {},
@@ -149,41 +157,134 @@ fun SettingsScreen(
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
 
-                        ToggleRow(
-                            title = "Player Dynamic Artwork Colors",
-                            subtitle = "Adapt expanded player background to current song artwork. Applies strictly to player screens.",
-                            checked = appSettings.dynamicArtworkColors,
-                            onCheckedChange = onDynamicArtworkColorsChange
-                        )
-
-                        val presets = listOf("Monochrome", "Midnight Indigo", "Crimson Velvet", "Emerald Pine", "Nordic Slate")
-                        Text("Player Palette Preset", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                         Text(
-                            text = if (appSettings.dynamicArtworkColors) {
-                                "Dynamic artwork colors are active. Selecting a preset switches the player to that static palette."
-                            } else {
-                                "Choose a color scheme for the player surfaces (independent of full-app theming)."
-                            },
+                            "Player Color Theme",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Choose how color schemes are applied to player surfaces (independent of full-app theming).",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        val playerModes = listOf(
+                            PlayerThemeMode.DYNAMIC_ARTWORK,
+                            PlayerThemeMode.PRESET,
+                            PlayerThemeMode.CUSTOM
                         )
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            presets.forEach { preset ->
-                                val isSelected = appSettings.colorPreset.equals(preset, ignoreCase = true)
+                            playerModes.forEach { mode ->
+                                val isSelected = PlayerThemeMode.fromString(appSettings.playerThemeMode) == mode
                                 FilterChip(
                                     selected = isSelected,
-                                    onClick = {
-                                        onColorPresetChange(preset)
-                                        if (appSettings.dynamicArtworkColors) {
-                                            onDynamicArtworkColorsChange(false)
+                                    onClick = { onPlayerThemeModeChange(mode.displayName) },
+                                    label = { Text(mode.displayName, style = MaterialTheme.typography.labelMedium) }
+                                )
+                            }
+                        }
+
+                        val activePlayerMode = PlayerThemeMode.fromString(appSettings.playerThemeMode)
+                        when (activePlayerMode) {
+                            PlayerThemeMode.DYNAMIC_ARTWORK -> {
+                                Text(
+                                    text = "Extracts a balanced color palette from the currently playing song's artwork and applies it to the expanded player background and player surfaces.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            PlayerThemeMode.PRESET -> {
+                                val presets = listOf("Monochrome", "Midnight Indigo", "Crimson Velvet", "Emerald Pine", "Nordic Slate")
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    presets.forEach { preset ->
+                                        val isSelected = appSettings.colorPreset.equals(preset, ignoreCase = true)
+                                        FilterChip(
+                                            selected = isSelected,
+                                            onClick = { onColorPresetChange(preset) },
+                                            label = { Text(preset, style = MaterialTheme.typography.labelMedium) }
+                                        )
+                                    }
+                                }
+                            }
+                            PlayerThemeMode.CUSTOM -> {
+                                Text(
+                                    text = "Enter 2 to 5 comma-separated hex colors (e.g. #1A237E, #3949AB, #0D1642).",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                var playerHexInput by remember(appSettings.customPaletteHexes) {
+                                    mutableStateOf(appSettings.customPaletteHexes)
+                                }
+                                val parsedPlayerHexes = remember(playerHexInput) {
+                                    CustomPaletteValidator.parseHexList(playerHexInput)
+                                }
+                                val isPlayerHexValid = remember(parsedPlayerHexes) {
+                                    CustomPaletteValidator.validateHexList(parsedPlayerHexes)
+                                }
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                ) {
+                                    parsedPlayerHexes.forEach { hex ->
+                                        val col = CustomPaletteValidator.parseHexToColor(hex)
+                                        if (col != null) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(28.dp)
+                                                    .clip(CircleShape)
+                                                    .background(col, CircleShape)
+                                                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                OutlinedTextField(
+                                    value = playerHexInput,
+                                    onValueChange = { newText ->
+                                        playerHexInput = newText
+                                        if (CustomPaletteValidator.validate(newText)) {
+                                            onCustomPaletteHexesChange(newText)
                                         }
                                     },
-                                    label = { Text(preset, style = MaterialTheme.typography.labelMedium) }
+                                    label = { Text("Player Hex Colors") },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(16.dp),
+                                    modifier = Modifier.fillMaxWidth()
                                 )
+
+                                if (!isPlayerHexValid) {
+                                    Text(
+                                        text = "Requires between 2 and 5 valid hex codes (e.g., #1A237E, #3949AB)",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+
+                                Row(
+                                    horizontalArrangement = Arrangement.End,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    TextButton(
+                                        onClick = {
+                                            playerHexInput = CustomPaletteValidator.DEFAULT_HEX_STRING
+                                            onCustomPaletteHexesChange(CustomPaletteValidator.DEFAULT_HEX_STRING)
+                                        }
+                                    ) {
+                                        Text("Reset to Default", style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
                             }
                         }
 
@@ -224,190 +325,193 @@ fun SettingsScreen(
                             onCheckedChange = onEnableFullAppDynamicThemeChange
                         )
 
-                        if (!appSettings.enableFullAppDynamicTheme) {
-                            Text(
-                                text = "Monochrome is currently enforced across all screens. Your saved per-area preferences are preserved and will take effect once this switch is turned ON.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-
-                        Text("Palette Mode", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                        Text(
-                            text = "Choose how full-app theme colors are resolved.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        val modes = listOf(
-                            AppPaletteMode.MONOCHROME,
-                            AppPaletteMode.DYNAMIC_ARTWORK,
-                            AppPaletteMode.PRESET,
-                            AppPaletteMode.CUSTOM
-                        )
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
+                        AnimatedVisibility(
+                            visible = appSettings.enableFullAppDynamicTheme,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
                         ) {
-                            modes.forEach { mode ->
-                                val isSelected = AppPaletteMode.fromString(appSettings.appPaletteMode) == mode
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = { onAppPaletteModeChange(mode.displayName) },
-                                    label = { Text(mode.displayName, style = MaterialTheme.typography.labelMedium) }
-                                )
-                            }
-                        }
-
-                        val activeMode = AppPaletteMode.fromString(appSettings.appPaletteMode)
-                        if (activeMode == AppPaletteMode.PRESET) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-                            Text("Built-in Palette Preset", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            val appPresets = listOf("Midnight Indigo", "Crimson Velvet", "Emerald Pine", "Nordic Slate", "Monochrome")
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                appPresets.forEach { preset ->
-                                    val isSelected = appSettings.appColorPreset.equals(preset, ignoreCase = true)
-                                    FilterChip(
-                                        selected = isSelected,
-                                        onClick = { onAppColorPresetChange(preset) },
-                                        label = { Text(preset, style = MaterialTheme.typography.labelMedium) }
-                                    )
-                                }
-                            }
-                        }
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
 
-                        if (activeMode == AppPaletteMode.CUSTOM) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-                            Text("Custom Color Editor", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Text(
-                                text = "Enter 2 to 5 comma-separated hex colors (e.g. #1A237E, #3949AB, #0D1642).",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                                Text("Palette Mode", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                                Text(
+                                    text = "Choose how full-app theme colors are resolved.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
 
-                            var hexInput by remember(appSettings.appCustomPaletteHexes) {
-                                mutableStateOf(appSettings.appCustomPaletteHexes)
-                            }
-                            val parsedHexes = remember(hexInput) {
-                                CustomPaletteValidator.parseHexList(hexInput)
-                            }
-                            val isValid = remember(parsedHexes) {
-                                CustomPaletteValidator.validateHexList(parsedHexes)
-                            }
-
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                            ) {
-                                parsedHexes.forEach { hex ->
-                                    val col = CustomPaletteValidator.parseHexToColor(hex)
-                                    if (col != null) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(28.dp)
-                                                .clip(CircleShape)
-                                                .background(col, CircleShape)
-                                                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                val modes = listOf(
+                                    AppPaletteMode.MONOCHROME,
+                                    AppPaletteMode.DYNAMIC_ARTWORK,
+                                    AppPaletteMode.PRESET,
+                                    AppPaletteMode.CUSTOM
+                                )
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    modes.forEach { mode ->
+                                        val isSelected = AppPaletteMode.fromString(appSettings.appPaletteMode) == mode
+                                        FilterChip(
+                                            selected = isSelected,
+                                            onClick = { onAppPaletteModeChange(mode.displayName) },
+                                            label = { Text(mode.displayName, style = MaterialTheme.typography.labelMedium) }
                                         )
                                     }
                                 }
-                            }
 
-                            OutlinedTextField(
-                                value = hexInput,
-                                onValueChange = { newText ->
-                                    hexInput = newText
-                                    if (CustomPaletteValidator.validate(newText)) {
-                                        onAppCustomPaletteHexesChange(newText)
+                                val activeMode = AppPaletteMode.fromString(appSettings.appPaletteMode)
+                                if (activeMode == AppPaletteMode.PRESET) {
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                                    Text("Built-in Palette Preset", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                                    val appPresets = listOf("Midnight Indigo", "Crimson Velvet", "Emerald Pine", "Nordic Slate", "Monochrome")
+                                    FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        appPresets.forEach { preset ->
+                                            val isSelected = appSettings.appColorPreset.equals(preset, ignoreCase = true)
+                                            FilterChip(
+                                                selected = isSelected,
+                                                onClick = { onAppColorPresetChange(preset) },
+                                                label = { Text(preset, style = MaterialTheme.typography.labelMedium) }
+                                            )
+                                        }
                                     }
-                                },
-                                label = { Text("Hex Colors") },
-                                singleLine = true,
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                                }
 
-                            if (!isValid) {
+                                if (activeMode == AppPaletteMode.CUSTOM) {
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                                    Text("Custom Color Editor", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                                    Text(
+                                        text = "Enter 2 to 5 comma-separated hex colors (e.g. #1A237E, #3949AB, #0D1642).",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+
+                                    var hexInput by remember(appSettings.appCustomPaletteHexes) {
+                                        mutableStateOf(appSettings.appCustomPaletteHexes)
+                                    }
+                                    val parsedHexes = remember(hexInput) {
+                                        CustomPaletteValidator.parseHexList(hexInput)
+                                    }
+                                    val isValid = remember(parsedHexes) {
+                                        CustomPaletteValidator.validateHexList(parsedHexes)
+                                    }
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                    ) {
+                                        parsedHexes.forEach { hex ->
+                                            val col = CustomPaletteValidator.parseHexToColor(hex)
+                                            if (col != null) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(28.dp)
+                                                        .clip(CircleShape)
+                                                        .background(col, CircleShape)
+                                                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    OutlinedTextField(
+                                        value = hexInput,
+                                        onValueChange = { newText ->
+                                            hexInput = newText
+                                            if (CustomPaletteValidator.validate(newText)) {
+                                                onAppCustomPaletteHexesChange(newText)
+                                            }
+                                        },
+                                        label = { Text("Hex Colors") },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(16.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+
+                                    if (!isValid) {
+                                        Text(
+                                            text = "Requires between 2 and 5 valid hex codes (e.g., #1A237E, #3949AB)",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.End,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        TextButton(
+                                            onClick = {
+                                                hexInput = CustomPaletteValidator.DEFAULT_HEX_STRING
+                                                onAppCustomPaletteHexesChange(CustomPaletteValidator.DEFAULT_HEX_STRING)
+                                            }
+                                        ) {
+                                            Text("Reset to Default", style = MaterialTheme.typography.labelMedium)
+                                        }
+                                    }
+                                }
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+
+                                Text("Themed Content Areas", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                                 Text(
-                                    text = "Requires between 2 and 5 valid hex codes (e.g., #1A237E, #3949AB)",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.error
+                                    text = "Choose which screens use theme colors when full-app theming is active.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                ToggleRow(
+                                    title = "Home Screen",
+                                    subtitle = "Featured cards and recommendations",
+                                    checked = appSettings.themeHomeEnabled,
+                                    onCheckedChange = { onThemeAreaChange("HOME", it) }
+                                )
+
+                                ToggleRow(
+                                    title = "Explore & Search",
+                                    subtitle = "Online feeds, mood charts, and search screens",
+                                    checked = appSettings.themeExploreEnabled,
+                                    onCheckedChange = { onThemeAreaChange("EXPLORE", it) }
+                                )
+
+                                ToggleRow(
+                                    title = "Library",
+                                    subtitle = "Tracks, favorites, and playlists lists",
+                                    checked = appSettings.themeLibraryEnabled,
+                                    onCheckedChange = { onThemeAreaChange("LIBRARY", it) }
+                                )
+
+                                ToggleRow(
+                                    title = "Album Details",
+                                    subtitle = "Album view and song collections",
+                                    checked = appSettings.themeAlbumDetailEnabled,
+                                    onCheckedChange = { onThemeAreaChange("ALBUM_DETAIL", it) }
+                                )
+
+                                ToggleRow(
+                                    title = "Artist Pages",
+                                    subtitle = "Artist bio, discography, and profile headers",
+                                    checked = appSettings.themeArtistDetailEnabled,
+                                    onCheckedChange = { onThemeAreaChange("ARTIST_DETAIL", it) }
+                                )
+
+                                ToggleRow(
+                                    title = "Playlist Details",
+                                    subtitle = "Local and online playlist views",
+                                    checked = appSettings.themePlaylistDetailEnabled,
+                                    onCheckedChange = { onThemeAreaChange("PLAYLIST_DETAIL", it) }
                                 )
                             }
-
-                            Row(
-                                horizontalArrangement = Arrangement.End,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                TextButton(
-                                    onClick = {
-                                        hexInput = CustomPaletteValidator.DEFAULT_HEX_STRING
-                                        onAppCustomPaletteHexesChange(CustomPaletteValidator.DEFAULT_HEX_STRING)
-                                    }
-                                ) {
-                                    Text("Reset to Default", style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
                         }
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-
-                        Text("Themed Content Areas", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                        Text(
-                            text = "Choose which screens use theme colors when full-app theming is active.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        ToggleRow(
-                            title = "Home Screen",
-                            subtitle = "Featured cards and recommendations",
-                            checked = appSettings.themeHomeEnabled,
-                            onCheckedChange = { onThemeAreaChange("HOME", it) }
-                        )
-
-                        ToggleRow(
-                            title = "Explore & Search",
-                            subtitle = "Online feeds, mood charts, and search screens",
-                            checked = appSettings.themeExploreEnabled,
-                            onCheckedChange = { onThemeAreaChange("EXPLORE", it) }
-                        )
-
-                        ToggleRow(
-                            title = "Library",
-                            subtitle = "Tracks, favorites, and playlists lists",
-                            checked = appSettings.themeLibraryEnabled,
-                            onCheckedChange = { onThemeAreaChange("LIBRARY", it) }
-                        )
-
-                        ToggleRow(
-                            title = "Album Details",
-                            subtitle = "Album view and song collections",
-                            checked = appSettings.themeAlbumDetailEnabled,
-                            onCheckedChange = { onThemeAreaChange("ALBUM_DETAIL", it) }
-                        )
-
-                        ToggleRow(
-                            title = "Artist Pages",
-                            subtitle = "Artist bio, discography, and profile headers",
-                            checked = appSettings.themeArtistDetailEnabled,
-                            onCheckedChange = { onThemeAreaChange("ARTIST_DETAIL", it) }
-                        )
-
-                        ToggleRow(
-                            title = "Playlist Details",
-                            subtitle = "Local and online playlist views",
-                            checked = appSettings.themePlaylistDetailEnabled,
-                            onCheckedChange = { onThemeAreaChange("PLAYLIST_DETAIL", it) }
-                        )
                     }
                 }
             }
