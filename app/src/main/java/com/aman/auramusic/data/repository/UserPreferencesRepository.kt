@@ -295,6 +295,21 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         }
     }
 
+    suspend fun setColorPreset(preset: String) {
+        dataStore.edit { it[Keys.colorPreset] = preset }
+    }
+
+    suspend fun setCustomPaletteHexes(hexes: String) {
+        dataStore.edit { it[Keys.customPaletteHexes] = hexes }
+    }
+
+    suspend fun setSectionColorEnabled(player: Boolean, miniPlayer: Boolean) {
+        dataStore.edit {
+            it[Keys.enablePlayerColor] = player
+            it[Keys.enableMiniPlayerColor] = miniPlayer
+        }
+    }
+
     suspend fun setFavorites(items: List<Pair<Long, OnlineSong?>>, isFavorite: Boolean) {
         if (items.isEmpty()) return
         dataStore.edit { prefs ->
