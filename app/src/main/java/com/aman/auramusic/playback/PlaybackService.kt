@@ -62,6 +62,9 @@ class PlaybackService : Service() {
         set(value) { _isShuffled.value = value }
 
     var currentPlaylistId: Long? = null
+    private val queueSyncListener: (List<QueueTrack>) -> Unit = { tracks ->
+        _queue.value = tracks.map { it.song }
+    }
 
     private var isTaskRemoved = false
 
@@ -140,8 +143,8 @@ class PlaybackService : Service() {
 
     private fun setupOnlineActions() {
         PlaybackActionRegistry.onPlayPause = { onlinePlaybackManager.togglePlayPause() }
-        PlaybackActionRegistry.onNext = { onlinePlaybackManager.playNext() }
-        PlaybackActionRegistry.onPrevious = { onlinePlaybackManager.playPrevious() }
+        PlaybackActionRegistry.onNext = { PlaybackQueueCoordinator.playNextTrack(isManual = true) }
+        PlaybackActionRegistry.onPrevious = { PlaybackQueueCoordinator.playPreviousTrack() }
         PlaybackActionRegistry.onSeekTo = { onlinePlaybackManager.seekTo(it) }
     }
 
@@ -151,6 +154,7 @@ class PlaybackService : Service() {
             isOnlinePlaybackActive = true
             currentOnlineSong = song
             currentSong = null
+            PlaybackQueueCoordinator.setCurrentOnlineSong(song)
             isOnlinePlaying = true
             currentOnlinePosition = 0L
             currentOnlineDuration = (song.durationSeconds * 1000L).coerceAtLeast(0L)
@@ -223,6 +227,29 @@ class PlaybackService : Service() {
         onlinePlaybackManager = OnlinePlaybackManagerHolder.get(this)
         onlinePlaybackManager.addListener(onlinePlayerListener)
         
+        PlaybackQueueCoordinator.registerDispatcher(object : PlaybackDispatcher {
+            override fun playLocal(song: Song) {
+                this@PlaybackService.play(song)
+            }
+            override fun playOnline(onlineSong: OnlineSong, startPositionMs: Long) {
+                this@PlaybackService.isOnlinePlaybackActive = true
+                this@PlaybackService.currentOnlineSong = onlineSong
+                this@PlaybackService.currentSong = null
+                this@PlaybackService.playerManager.pause()
+                onlinePlaybackManager.playSong(onlineSong, startPositionMs = startPositionMs)
+            }
+            override fun pauseLocal() {
+                this@PlaybackService.playerManager.pause()
+            }
+            override fun pauseOnline() {
+                onlinePlaybackManager.pause()
+            }
+            override fun isOnlineActive(): Boolean {
+                return this@PlaybackService.isOnlinePlaybackActive
+            }
+        })
+        PlaybackQueueCoordinator.addEngineSyncListener(queueSyncListener)
+
         setupActions()
 
         try {
@@ -309,47 +336,23 @@ class PlaybackService : Service() {
     }
 
     fun playNext(isManual: Boolean = false) {
-        if (queue.isEmpty()) {
-            Log.d("AuraPlaybackDebug", "playNext: Queue is empty")
-            return
-        }
-        val currentIndex = queue.indexOfFirst { it.id == currentSong?.id }
-        Log.d("AuraPlaybackDebug", "playNext: currentIndex=$currentIndex, queueSize=${queue.size}, repeatMode=$repeatMode, isManual=$isManual")
-
-        if (currentIndex == -1) {
-            play(queue[0])
-            return
-        }
-
-        val nextIndex = currentIndex + 1
-        if (nextIndex >= queue.size) {
-            when (repeatMode) {
-                RepeatMode.ALL -> {
-                    play(queue[0])
-                }
-                RepeatMode.ONE -> {
-                    currentSong?.let { play(it) } ?: play(queue[0])
-                }
-                RepeatMode.NONE -> {
-                    if (isManual) {
-                        play(queue[0])
-                    } else {
-                        Log.d("AuraPlaybackDebug", "playNext: Natural end of queue reached with RepeatMode.NONE. Cleanly pausing.")
-                        playerManager.pause()
-                    }
-                }
+        val started = PlaybackQueueCoordinator.playNextTrack(isManual)
+        if (!started && queue.isNotEmpty()) {
+            val currentIndex = queue.indexOfFirst { it.id == currentSong?.id }
+            val nextIndex = currentIndex + 1
+            if (nextIndex < queue.size) {
+                play(queue[nextIndex])
             }
-        } else {
-            play(queue[nextIndex])
         }
     }
 
     fun playPrevious() {
-        if (queue.isEmpty()) return
-        val currentIndex = queue.indexOfFirst { it.id == currentSong?.id }
-        val prevIndex = if (currentIndex <= 0) queue.size - 1 else currentIndex - 1
-        Log.d("AuraPlaybackDebug", "playPrevious: currentIndex=$currentIndex, prevIndex=$prevIndex")
-        play(queue[prevIndex])
+        val started = PlaybackQueueCoordinator.playPreviousTrack()
+        if (!started && queue.isNotEmpty()) {
+            val currentIndex = queue.indexOfFirst { it.id == currentSong?.id }
+            val prevIndex = if (currentIndex <= 0) queue.size - 1 else currentIndex - 1
+            play(queue[prevIndex])
+        }
     }
 
     fun play(song: Song) {
@@ -360,6 +363,7 @@ class PlaybackService : Service() {
         }
         setupActions()
         currentSong = song
+        PlaybackQueueCoordinator.setCurrentLocalSong(song)
         playerManager.play(song.filePath)
         startAsForeground(song, true)
     }
@@ -730,6 +734,8 @@ class PlaybackService : Service() {
             OnlinePlaybackManagerHolder.releaseIfCreated()
         }
         playerManager.release()
+        PlaybackQueueCoordinator.unregisterDispatcher()
+        PlaybackQueueCoordinator.removeEngineSyncListener(queueSyncListener)
         super.onDestroy()
     }
 }

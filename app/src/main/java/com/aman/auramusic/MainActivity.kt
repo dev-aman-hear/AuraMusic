@@ -266,11 +266,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     }
 
     LaunchedEffect(Unit) {
-        musicViewModel.operationEvent.collect { event ->
-            val message = when (event) {
-                is MusicViewModel.OperationMessage.Success -> event.message
-                is MusicViewModel.OperationMessage.Error -> event.message
-            }
+        playerViewModel.userFeedback.collect { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
@@ -701,7 +697,11 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             savedOnlineAlbums = savedOnlineAlbums,
                             onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
                             onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
-                            onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
+                            onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it },
+                            onPlayNext = { playerViewModel.playNext(it) },
+                            onAddToQueue = { playerViewModel.addToQueue(it) },
+                            onPlayNextCollection = { playerViewModel.playNextOnline(it) },
+                            onAddCollectionToQueue = { playerViewModel.addToQueueOnline(it) }
                         )
                         AppTab.Library -> LibraryScreen(
                             selectedTab = selectedLibraryTab,
@@ -779,7 +779,15 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             savedOnlineAlbums = savedOnlineAlbums,
                             onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
                             onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
-                            onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
+                            onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it },
+                            onPlayNext = { playerViewModel.playNext(it) },
+                            onAddToQueue = { playerViewModel.addToQueue(it) },
+                            onOnlinePlayNext = { playerViewModel.playNext(it) },
+                            onOnlineAddToQueue = { playerViewModel.addToQueue(it) },
+                            onPlayNextSongs = { playerViewModel.playNext(it) },
+                            onAddSongsToQueue = { playerViewModel.addToQueue(it) },
+                            onPlayNextOnlineSongs = { playerViewModel.playNextOnline(it) },
+                            onAddOnlineSongsToQueue = { playerViewModel.addToQueueOnline(it) }
                         )
                         AppTab.Search -> SearchScreen(
                             songs = songs,
@@ -792,6 +800,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             onSongSelected = { song, queue -> playSong(song, queue) },
                             onFavoriteToggle = { song -> toggleSongFavorite(song) },
                             onAddToPlaylist = { songToAddToPlaylist = it },
+                            onPlayNext = { playerViewModel.playNext(it) },
                             onAddToQueue = { playerViewModel.addToQueue(it) },
                             onAlbumSelected = { selectedAlbumName = it },
                             onArtistSelected = { selectedArtistName = it },
@@ -799,6 +808,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             onOnlineSongSelected = { onlineSong, queue ->
                                 playOnlineSong(onlineSong, queue)
                             },
+                            onOnlinePlayNext = { playerViewModel.playNext(it) },
+                            onOnlineAddToQueue = { playerViewModel.addToQueue(it) },
                             onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
                         )
                     }
@@ -870,7 +881,9 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onRenamePlaylist = { playlistToRename = p },
                                     onToggleFavorite = { song -> toggleSongFavorite(song) },
                                     onAddToPlaylist = { songToAddToPlaylist = it },
+                                    onPlayNext = { playerViewModel.playNext(it) },
                                     onAddToQueue = { playerViewModel.addToQueue(it) },
+                                    onPlayNextCollection = { playerViewModel.playNext(playlistSongs) },
                                     onAddCollectionToQueue = { playerViewModel.addToQueue(playlistSongs) },
                                     onAddCollectionToPlaylist = { songsToAddToPlaylist = playlistSongs },
                                     onFavoriteCollection = {
@@ -957,7 +970,15 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     musicViewModel.toggleFavorite(song.id, !isFav, onlineMatch)
                                 },
                                 onAddToPlaylist = { songToAddToPlaylist = it },
+                                onPlayNext = { playerViewModel.playNext(it) },
                                 onAddToQueue = { playerViewModel.addToQueue(it) },
+                                onPlayNextCollection = {
+                                    if (localAlbumSongs.isNotEmpty()) {
+                                        playerViewModel.playNext(localAlbumSongs)
+                                    } else {
+                                        playerViewModel.playNext(displaySongs)
+                                    }
+                                },
                                 onAddCollectionToQueue = {
                                     if (localAlbumSongs.isNotEmpty()) {
                                         playerViewModel.addToQueue(localAlbumSongs)
@@ -1389,6 +1410,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         },
                         onHistoryClear = { musicViewModel.clearHistory() },
                         onAddToPlaylist = { songToAddToPlaylist = song },
+                        onAddToQueue = { playerViewModel.addToQueue(it) },
+                        onMoveQueueItem = { from, to -> playerViewModel.moveQueueItem(from, to) },
                         appSettings = appSettings,
                         playerViewModel = playerViewModel
                     )

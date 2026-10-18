@@ -693,4 +693,277 @@ class PlaybackLifecycleAndQueueRegressionTest {
         assertNotEquals(neutralDark.primary, crimson.primary)
         assertNotEquals(midnight.primary, crimson.primary)
     }
+
+    // =========================================================================
+    // TASK: Queue Coordination Regression Tests
+    // =========================================================================
+
+    private class MockTestDispatcher : PlaybackDispatcher {
+        var localPlayed: Song? = null
+        var onlinePlayed: com.aman.auramusic.online.model.OnlineSong? = null
+        var localPausedCount = 0
+        var onlinePausedCount = 0
+
+        override fun playLocal(song: Song) {
+            localPlayed = song
+        }
+
+        override fun playOnline(onlineSong: com.aman.auramusic.online.model.OnlineSong, startPositionMs: Long) {
+            onlinePlayed = onlineSong
+        }
+
+        override fun pauseLocal() {
+            localPausedCount++
+        }
+
+        override fun pauseOnline() {
+            onlinePausedCount++
+        }
+
+        override fun isOnlineActive(): Boolean = onlinePlayed != null
+    }
+
+    private fun sampleOnlineSong(id: String, title: String): com.aman.auramusic.online.model.OnlineSong {
+        return com.aman.auramusic.online.model.OnlineSong(
+            id = id,
+            title = title,
+            artist = "Online Artist",
+            album = "Online Album",
+            durationSeconds = 210L,
+            artworkUrl = "https://artwork.url/$id",
+            streamUrl = "https://stream.url/$id",
+            source = com.aman.auramusic.online.model.AudioSource.YOUTUBE
+        )
+    }
+
+    @Test
+    fun regression_1_adding_local_song_appends_without_interrupting_playback() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val mock = MockTestDispatcher()
+        PlaybackQueueCoordinator.registerDispatcher(mock)
+
+        val s1 = sampleSong(1L, "Song 1")
+        val s2 = sampleSong(2L, "Song 2")
+        PlaybackQueueCoordinator.setQueueSongs(listOf(s1), s1)
+
+        mock.localPlayed = null
+        val res = PlaybackQueueCoordinator.addToQueue(listOf(PlaybackQueueCoordinator.createTrack(s2)))
+        assertTrue(res is QueueActionResult.Added)
+
+        val queue = PlaybackQueueCoordinator.queueFlow.value
+        assertEquals(2, queue.size)
+        assertEquals("Song 1", queue[0].song.title)
+        assertEquals("Song 2", queue[1].song.title)
+        assertEquals(1L, PlaybackQueueCoordinator.currentTrack?.song?.id)
+        assertNull(mock.localPlayed)
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_2_adding_online_song_updates_queue_consumed_by_next() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val mock = MockTestDispatcher()
+        PlaybackQueueCoordinator.registerDispatcher(mock)
+
+        val o1 = sampleOnlineSong("yt_1", "Online 1")
+        val o2 = sampleOnlineSong("yt_2", "Online 2")
+        PlaybackQueueCoordinator.setQueueOnline(listOf(o1), o1)
+
+        val res = PlaybackQueueCoordinator.addToQueue(listOf(PlaybackQueueCoordinator.createTrack(o2)))
+        assertTrue(res is QueueActionResult.Added)
+
+        val advanced = PlaybackQueueCoordinator.playNextTrack(isManual = true)
+        assertTrue(advanced)
+        assertEquals("yt_2", PlaybackQueueCoordinator.currentTrack?.onlineSong?.id)
+        assertEquals("yt_2", mock.onlinePlayed?.id)
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_3_adding_entire_online_playlist_appends_in_order() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val init = sampleOnlineSong("init", "Playing")
+        PlaybackQueueCoordinator.setQueueOnline(listOf(init), init)
+
+        val playlist = (1..5).map { sampleOnlineSong("yt_$it", "Track $it") }
+        val res = PlaybackQueueCoordinator.addToQueue(playlist.map { PlaybackQueueCoordinator.createTrack(it) })
+        assertTrue(res is QueueActionResult.Added)
+        assertEquals(5, (res as QueueActionResult.Added).count)
+
+        val queue = PlaybackQueueCoordinator.queueFlow.value
+        assertEquals(6, queue.size)
+        assertEquals("Playing", queue[0].song.title)
+        for (i in 1..5) {
+            assertEquals("Track $i", queue[i].song.title)
+        }
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_4_adding_local_playlist_appends_in_order() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val cur = sampleSong(10L, "Playing")
+        PlaybackQueueCoordinator.setQueueSongs(listOf(cur), cur)
+
+        val playlist = (1L..4L).map { sampleSong(it, "Album $it") }
+        val res = PlaybackQueueCoordinator.addToQueue(playlist.map { PlaybackQueueCoordinator.createTrack(it) })
+        assertTrue(res is QueueActionResult.Added)
+        assertEquals(4, (res as QueueActionResult.Added).count)
+
+        val queue = PlaybackQueueCoordinator.queueFlow.value
+        assertEquals(5, queue.size)
+        for (i in 1..4) {
+            assertEquals("Album $i", queue[i].song.title)
+        }
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_5_play_next_inserts_immediately_after_current_track() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val s1 = sampleSong(1L, "1")
+        val s2 = sampleSong(2L, "2")
+        val s3 = sampleSong(3L, "3")
+        PlaybackQueueCoordinator.setQueueSongs(listOf(s1, s2, s3), s1)
+
+        val next = sampleSong(99L, "Next")
+        PlaybackQueueCoordinator.playNext(listOf(PlaybackQueueCoordinator.createTrack(next)))
+
+        val queue = PlaybackQueueCoordinator.queueFlow.value
+        assertEquals(listOf(1L, 99L, 2L, 3L), queue.map { it.song.id })
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_6_play_next_multiple_tracks_preserves_relative_order() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val s1 = sampleSong(1L, "1")
+        val s2 = sampleSong(2L, "2")
+        PlaybackQueueCoordinator.setQueueSongs(listOf(s1, s2), s1)
+
+        val multi = listOf(sampleSong(10L, "10"), sampleSong(20L, "20"), sampleSong(30L, "30"))
+        PlaybackQueueCoordinator.playNext(multi.map { PlaybackQueueCoordinator.createTrack(it) })
+
+        val queue = PlaybackQueueCoordinator.queueFlow.value
+        assertEquals(listOf(1L, 10L, 20L, 30L, 2L), queue.map { it.song.id })
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_7_duplicate_handling_across_repeated_presses() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val s1 = sampleSong(1L, "1")
+        PlaybackQueueCoordinator.setQueueSongs(listOf(s1), s1)
+
+        val s2 = sampleSong(2L, "2")
+        val res1 = PlaybackQueueCoordinator.addToQueue(listOf(PlaybackQueueCoordinator.createTrack(s2)))
+        assertTrue(res1 is QueueActionResult.Added)
+
+        val res2 = PlaybackQueueCoordinator.addToQueue(listOf(PlaybackQueueCoordinator.createTrack(s2)))
+        assertTrue(res2 is QueueActionResult.AlreadyQueued)
+        assertEquals(2, PlaybackQueueCoordinator.queueFlow.value.size)
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_8_playlist_observers_do_not_erase_manually_queued_tracks() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val p1 = sampleSong(1L, "P1")
+        val p2 = sampleSong(2L, "P2")
+        PlaybackQueueCoordinator.setQueueSongs(listOf(p1, p2), p1, playlistId = 77L)
+
+        val manual = sampleSong(999L, "Manual")
+        PlaybackQueueCoordinator.addToQueue(listOf(PlaybackQueueCoordinator.createTrack(manual)))
+
+        val p3 = sampleSong(3L, "P3")
+        PlaybackQueueCoordinator.refreshFromPlaylist(77L, listOf(p1, p3), emptyList())
+
+        val ids = PlaybackQueueCoordinator.queueFlow.value.map { it.song.id }
+        assertTrue(ids.contains(999L))
+        assertTrue(ids.contains(1L))
+        assertTrue(ids.contains(3L))
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_9_queue_removal_and_reorder_update_actual_queue() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val s1 = sampleSong(1L, "A")
+        val s2 = sampleSong(2L, "B")
+        val s3 = sampleSong(3L, "C")
+        PlaybackQueueCoordinator.setQueueSongs(listOf(s1, s2, s3), s1)
+
+        PlaybackQueueCoordinator.moveQueueItem(0, 2)
+        assertEquals(listOf("B", "C", "A"), PlaybackQueueCoordinator.queueFlow.value.map { it.song.title })
+
+        PlaybackQueueCoordinator.removeTrack("local:3")
+        assertEquals(listOf("B", "A"), PlaybackQueueCoordinator.queueFlow.value.map { it.song.title })
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_10_queue_ui_state_and_playback_remain_consistent() {
+        PlaybackQueueCoordinator.resetForTesting()
+        var synced: List<QueueTrack>? = null
+        PlaybackQueueCoordinator.addEngineSyncListener { synced = it }
+
+        val s1 = sampleSong(1L, "A")
+        val s2 = sampleSong(2L, "B")
+        PlaybackQueueCoordinator.setQueueSongs(listOf(s1), s1)
+        PlaybackQueueCoordinator.addToQueue(listOf(PlaybackQueueCoordinator.createTrack(s2)))
+
+        assertNotNull(synced)
+        assertEquals(2, synced!!.size)
+        assertEquals(PlaybackQueueCoordinator.queueFlow.value, synced)
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_11_switching_between_local_and_online_routes_correctly() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val mock = MockTestDispatcher()
+        PlaybackQueueCoordinator.registerDispatcher(mock)
+
+        val local = sampleSong(1L, "Local")
+        val online = sampleOnlineSong("yt_on", "Online")
+
+        PlaybackQueueCoordinator.setQueueSongs(listOf(local), local)
+        PlaybackQueueCoordinator.addToQueue(listOf(PlaybackQueueCoordinator.createTrack(online)))
+        PlaybackQueueCoordinator.playTrack(PlaybackQueueCoordinator.createTrack(local))
+
+        assertEquals(1L, mock.localPlayed?.id)
+        assertTrue(mock.onlinePausedCount > 0)
+
+        PlaybackQueueCoordinator.playNextTrack(isManual = true)
+        assertEquals("yt_on", mock.onlinePlayed?.id)
+        assertTrue(mock.localPausedCount > 0)
+
+        PlaybackQueueCoordinator.playPreviousTrack()
+        assertEquals(1L, mock.localPlayed?.id)
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_12_shuffle_repeat_next_previous_continuity() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val songs = (1L..5L).map { sampleSong(it, "Song $it") }
+        PlaybackQueueCoordinator.setQueueSongs(songs, songs[0])
+
+        assertTrue(PlaybackQueueCoordinator.toggleShuffle())
+        assertTrue(PlaybackQueueCoordinator.isShuffled)
+        assertEquals(1L, PlaybackQueueCoordinator.currentTrack?.song?.id)
+
+        assertEquals(RepeatMode.ALL, PlaybackQueueCoordinator.toggleRepeat())
+        assertEquals(RepeatMode.ONE, PlaybackQueueCoordinator.toggleRepeat())
+        assertEquals(RepeatMode.NONE, PlaybackQueueCoordinator.toggleRepeat())
+
+        PlaybackQueueCoordinator.toggleShuffle()
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L), PlaybackQueueCoordinator.queueFlow.value.map { it.song.id })
+
+        PlaybackQueueCoordinator.playNextTrack(isManual = true)
+        assertEquals(2L, PlaybackQueueCoordinator.currentTrack?.song?.id)
+        PlaybackQueueCoordinator.playPreviousTrack()
+        assertEquals(1L, PlaybackQueueCoordinator.currentTrack?.song?.id)
+        PlaybackQueueCoordinator.resetForTesting()
+    }
 }

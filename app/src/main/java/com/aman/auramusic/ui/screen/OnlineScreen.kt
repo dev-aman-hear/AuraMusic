@@ -232,6 +232,10 @@ fun OnlineScreen(
     onSaveOnlineAlbum: ((OnlinePlaylist) -> Unit)? = null,
     onRemoveSavedOnlineAlbum: ((String) -> Unit)? = null,
     onAddOnlineSongToPlaylist: ((OnlineSong) -> Unit)? = null,
+    onPlayNext: ((OnlineSong) -> Unit)? = null,
+    onAddToQueue: ((OnlineSong) -> Unit)? = null,
+    onPlayNextCollection: ((List<OnlineSong>) -> Unit)? = null,
+    onAddCollectionToQueue: ((List<OnlineSong>) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
@@ -796,6 +800,10 @@ fun OnlineScreen(
                     onBack = { selectedCollection = null },
                     onSongSelected = onOnlineSongSelected,
                     onAddOnlineSongToPlaylist = onAddOnlineSongToPlaylist,
+                    onPlayNext = onPlayNext,
+                    onAddToQueue = onAddToQueue,
+                    onPlayNextCollection = onPlayNextCollection,
+                    onAddCollectionToQueue = onAddCollectionToQueue,
                     showMenuButton = false,
                     modifier = Modifier.fillMaxSize()
                 )

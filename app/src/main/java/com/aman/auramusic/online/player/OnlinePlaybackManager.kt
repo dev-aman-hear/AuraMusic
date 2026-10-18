@@ -16,6 +16,7 @@ import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.model.PlaybackState
 import com.aman.auramusic.online.model.StreamingEngine
+import com.aman.auramusic.online.model.toOnlineSong
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
 import com.aman.auramusic.online.util.LastPlayedStore
 import kotlinx.coroutines.CoroutineScope
@@ -285,6 +286,15 @@ class OnlinePlaybackManager(
         }
     )
 
+    init {
+        com.aman.auramusic.playback.PlaybackQueueCoordinator.addEngineSyncListener { tracks ->
+            val onlineTracks = tracks.mapNotNull { it.onlineSong ?: it.song.toOnlineSong() }
+            val curId = _playbackState.value.currentSong?.id
+            val newIdx = if (curId != null) onlineTracks.indexOfFirst { it.id == curId } else -1
+            _playbackState.update { it.copy(queue = onlineTracks, queueIndex = newIdx) }
+        }
+    }
+
     fun setStreamingEngine(engine: StreamingEngine) {
         _playbackState.update { it.copy(selectedEngine = engine) }
     }
@@ -332,6 +342,11 @@ class OnlinePlaybackManager(
 
     fun playSong(song: OnlineSong, newQueue: List<OnlineSong> = emptyList(), startPositionMs: Long = 0L) {
         Log.d("AuraPlaybackDebug", "OnlinePlaybackManager.playSong: ${song.title} (${song.id}), source=${song.source}, startPositionMs=$startPositionMs")
+        if (newQueue.isNotEmpty()) {
+            com.aman.auramusic.playback.PlaybackQueueCoordinator.setQueueOnline(newQueue, current = song)
+        } else {
+            com.aman.auramusic.playback.PlaybackQueueCoordinator.setCurrentOnlineSong(song)
+        }
         isTransitioning = true
         hasStartedPlaybackForCurrentSong = true
         scope.launch {
@@ -582,6 +597,9 @@ class OnlinePlaybackManager(
     }
 
     fun playNext(isManual: Boolean = false) {
+        val started = com.aman.auramusic.playback.PlaybackQueueCoordinator.playNextTrack(isManual)
+        if (started) return
+
         val state = _playbackState.value
         val queue = state.queue
         if (queue.isEmpty()) {
@@ -614,6 +632,9 @@ class OnlinePlaybackManager(
             return
         }
 
+        val started = com.aman.auramusic.playback.PlaybackQueueCoordinator.playPreviousTrack()
+        if (started) return
+
         val queue = state.queue
         if (queue.isEmpty()) return
 
@@ -645,6 +666,9 @@ class OnlinePlaybackManager(
     }
 
     fun addToQueue(song: OnlineSong) {
+        com.aman.auramusic.playback.PlaybackQueueCoordinator.addToQueue(
+            com.aman.auramusic.playback.PlaybackQueueCoordinator.createTrack(song)
+        )
         _playbackState.update {
             if (!it.queue.any { q -> q.id == song.id }) {
                 it.copy(queue = it.queue + song)
@@ -653,6 +677,10 @@ class OnlinePlaybackManager(
     }
 
     fun removeQueueItem(songId: String) {
+        val target = _playbackState.value.queue.find { it.id == songId }
+        if (target != null) {
+            com.aman.auramusic.playback.PlaybackQueueCoordinator.removeTrack("online:${target.source}:${target.id}")
+        }
         val wasCurrent = _playbackState.value.currentSong?.id == songId
         val currentIndex = _playbackState.value.queueIndex
         var nextSongToPlay: OnlineSong? = null
@@ -682,6 +710,7 @@ class OnlinePlaybackManager(
     }
 
     fun clearQueueExceptCurrent() {
+        com.aman.auramusic.playback.PlaybackQueueCoordinator.clearQueueExceptCurrent()
         _playbackState.update { state ->
             val current = state.currentSong
             if (current != null) {
@@ -693,6 +722,7 @@ class OnlinePlaybackManager(
     }
 
     fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        com.aman.auramusic.playback.PlaybackQueueCoordinator.moveTrack(fromIndex, toIndex)
         _playbackState.update { state ->
             val q = state.queue.toMutableList()
             if (fromIndex !in q.indices || toIndex !in q.indices) return@update state

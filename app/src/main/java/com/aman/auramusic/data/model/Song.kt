@@ -11,4 +11,6 @@ data class Song(
     val filePath: String,
     val artworkUri: String?,
     val mimeType: String,
+    val isOnline: Boolean = false,
+    val onlineId: String? = null
 )
