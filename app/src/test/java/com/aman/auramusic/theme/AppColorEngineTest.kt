@@ -526,4 +526,48 @@ class AppColorEngineTest {
         assertEquals(playerPalette.accent, appScheme.accent)
         assertEquals(playerPalette.accent, playerScheme.ambientAccent)
     }
+
+    // 20. Regression test: Sequence of scope switching, toggle ON/OFF, and config preservation
+    @Test
+    fun regressionSequence_scopeSwitchingAndToggling_preservesConfiguration() {
+        // Step 1: Turn Dynamic Theme ON
+        var settings = AppSettings(
+            changeThemeEnabled = true,
+            themeScope = "Entire App",
+            themeColorStyle = "Preset",
+            appColorPreset = "Nordic Slate",
+            appCustomPaletteHexes = "#123456,#654321"
+        )
+        assertTrue(settings.isFullAppThemeActive())
+        assertTrue(settings.isPlayerThemeActive())
+
+        // Step 2 & 3: Switch from Entire App to Player Only
+        settings = settings.copy(themeScope = "Player Only")
+        assertFalse(settings.isFullAppThemeActive())
+        assertTrue(settings.isPlayerThemeActive())
+        assertEquals("Preset", settings.themeColorStyle)
+        assertEquals("Nordic Slate", settings.appColorPreset)
+        assertEquals(PlayerPaletteMode.PRESET, resolvePlayerPaletteMode(settings))
+
+        // Step 4 & 5: Switch back to Entire App
+        settings = settings.copy(themeScope = "Entire App")
+        assertTrue(settings.isFullAppThemeActive())
+        assertTrue(settings.isPlayerThemeActive())
+        assertEquals("Preset", settings.themeColorStyle)
+        assertEquals("Nordic Slate", settings.appColorPreset)
+
+        // Step 6: Turn Dynamic Theme OFF and ON again
+        settings = settings.copy(changeThemeEnabled = false)
+        assertFalse(settings.isFullAppThemeActive())
+        assertFalse(settings.isPlayerThemeActive())
+        assertEquals(PlayerPaletteMode.MONOCHROME, resolvePlayerPaletteMode(settings))
+
+        settings = settings.copy(changeThemeEnabled = true)
+        assertTrue(settings.isFullAppThemeActive())
+        assertTrue(settings.isPlayerThemeActive())
+        assertEquals("Entire App", settings.themeScope)
+        assertEquals("Preset", settings.themeColorStyle)
+        assertEquals("Nordic Slate", settings.appColorPreset)
+        assertEquals("#123456,#654321", settings.appCustomPaletteHexes)
+    }
 }
