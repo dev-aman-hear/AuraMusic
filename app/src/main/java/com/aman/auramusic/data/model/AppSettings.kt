@@ -28,8 +28,8 @@ data class AppSettings(
     val themeArtistDetailEnabled: Boolean = true,
     val themePlaylistDetailEnabled: Boolean = true,
     // Unified Appearance / Theme System
-    val changeThemeEnabled: Boolean = enableFullAppDynamicTheme || dynamicArtworkColors || (playerThemeMode != "Monochrome" && !colorPreset.equals("Monochrome", ignoreCase = true) && (enableFullAppDynamicTheme || dynamicArtworkColors)),
-    val themeScope: String = if (enableFullAppDynamicTheme) "Entire App" else "Player Only",
+    val changeThemeEnabled: Boolean = false,
+    val themeScope: String = "Entire App",
     val themeColorStyle: String = appPaletteMode
 ) {
     fun isAreaThemingEnabled(areaName: String): Boolean {

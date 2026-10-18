@@ -206,7 +206,6 @@ fun SettingsScreen(
                             checked = appSettings.changeThemeEnabled,
                             onCheckedChange = { isChecked ->
                                 onChangeThemeEnabled(isChecked)
-                                onEnableFullAppDynamicThemeChange(isChecked && appSettings.themeScope.equals("Entire App", ignoreCase = true))
                                 if (isChecked) {
                                     isThemeExpanded = true
                                 }

@@ -73,6 +73,7 @@ class AppColorEngineTest {
     fun eachAreaSwitch_operatesIndependently() {
         // Only Library enabled, others disabled
         val settings = AppSettings(
+            changeThemeEnabled = true,
             enableFullAppDynamicTheme = true,
             appPaletteMode = "Preset",
             appColorPreset = "Midnight Indigo",
@@ -97,6 +98,7 @@ class AppColorEngineTest {
     @Test
     fun enablingHomeTheming_doesNotEnableArtistTheming() {
         val settings = AppSettings(
+            changeThemeEnabled = true,
             enableFullAppDynamicTheme = true,
             appPaletteMode = "Preset",
             appColorPreset = "Crimson Velvet",
@@ -115,6 +117,7 @@ class AppColorEngineTest {
     @Test
     fun dynamicArtwork_producesExpectedPalette() {
         val settings = AppSettings(
+            changeThemeEnabled = true,
             enableFullAppDynamicTheme = true,
             appPaletteMode = "Dynamic Artwork",
             themeHomeEnabled = true
@@ -138,6 +141,7 @@ class AppColorEngineTest {
     @Test
     fun albumAndArtistScreens_useOwnArtworkSources() {
         val settings = AppSettings(
+            changeThemeEnabled = true,
             enableFullAppDynamicTheme = true,
             appPaletteMode = "Dynamic Artwork",
             themeAlbumDetailEnabled = true,
@@ -172,6 +176,7 @@ class AppColorEngineTest {
     @Test
     fun presetMode_appliesSelectedPreset() {
         val settings = AppSettings(
+            changeThemeEnabled = true,
             enableFullAppDynamicTheme = true,
             appPaletteMode = "Preset",
             appColorPreset = "Emerald Pine",
@@ -207,6 +212,7 @@ class AppColorEngineTest {
 
         // Custom palette mode resolution
         val settings = AppSettings(
+            changeThemeEnabled = true,
             enableFullAppDynamicTheme = true,
             appPaletteMode = "Custom",
             appCustomPaletteHexes = validHexes,
@@ -223,6 +229,7 @@ class AppColorEngineTest {
     fun invalidOrMissingArtwork_fallsBackSafely() {
         // When dynamic artwork is null, but preset is selected
         val settingsWithPresetFallback = AppSettings(
+            changeThemeEnabled = true,
             enableFullAppDynamicTheme = true,
             appPaletteMode = "Dynamic Artwork",
             appColorPreset = "Midnight Indigo",
@@ -242,6 +249,7 @@ class AppColorEngineTest {
 
         // Legacy Monochrome preset safely migrates to Midnight Indigo fallback
         val settingsLegacyFallback = AppSettings(
+            changeThemeEnabled = true,
             enableFullAppDynamicTheme = true,
             appPaletteMode = "Dynamic Artwork",
             appColorPreset = "Monochrome",
@@ -266,6 +274,7 @@ class AppColorEngineTest {
         assertEquals(AppPaletteMode.PRESET, parsed)
 
         val settings = AppSettings(
+            changeThemeEnabled = true,
             enableFullAppDynamicTheme = true,
             appPaletteMode = "Monochrome",
             appColorPreset = "Emerald Pine",
@@ -280,6 +289,7 @@ class AppColorEngineTest {
     fun playerSettings_remainIndependentOfFullAppSettings() {
         // Full app theming is enabled with Crimson Velvet, but player has Monochrome
         val settings = AppSettings(
+            changeThemeEnabled = true,
             enableFullAppDynamicTheme = true,
             appPaletteMode = "Preset",
             appColorPreset = "Crimson Velvet",

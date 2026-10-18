@@ -35,14 +35,27 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         prefs[Keys.username] ?: "Master"
     }.distinctUntilChanged()
 
-    val settingsFlow: Flow<AppSettings> = dataStore.data.map { prefs ->
+    private fun isMasterThemeEnabled(prefs: Preferences): Boolean {
+        val explicit = prefs[Keys.changeThemeEnabled]
+        if (explicit != null) return explicit
+
         val legacyFullApp = prefs[Keys.enableFullAppDynamicTheme] ?: false
         val legacyPlayerColored = (prefs[Keys.dynamicArtworkColors] ?: false) ||
             prefs[Keys.playerThemeMode]?.equals("Dynamic Artwork", ignoreCase = true) == true ||
             prefs[Keys.playerThemeMode]?.equals("Custom", ignoreCase = true) == true ||
             (prefs[Keys.colorPreset] != null && !prefs[Keys.colorPreset].equals("Monochrome", ignoreCase = true))
 
-        val masterEnabled = prefs[Keys.changeThemeEnabled] ?: (legacyFullApp || legacyPlayerColored)
+        return legacyFullApp || legacyPlayerColored
+    }
+
+    val settingsFlow: Flow<AppSettings> = dataStore.data.map { prefs ->
+        val masterEnabled = isMasterThemeEnabled(prefs)
+
+        val legacyFullApp = prefs[Keys.enableFullAppDynamicTheme] ?: false
+        val legacyPlayerColored = (prefs[Keys.dynamicArtworkColors] ?: false) ||
+            prefs[Keys.playerThemeMode]?.equals("Dynamic Artwork", ignoreCase = true) == true ||
+            prefs[Keys.playerThemeMode]?.equals("Custom", ignoreCase = true) == true ||
+            (prefs[Keys.colorPreset] != null && !prefs[Keys.colorPreset].equals("Monochrome", ignoreCase = true))
 
         val scope = prefs[Keys.themeScope] ?: if (legacyFullApp) "Entire App" else if (legacyPlayerColored) "Player Only" else "Entire App"
 
@@ -180,9 +193,12 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setThemeScope(scope: String) {
         dataStore.edit { prefs ->
+            val master = isMasterThemeEnabled(prefs)
             prefs[Keys.themeScope] = scope
-            val master = prefs[Keys.changeThemeEnabled] ?: false
             prefs[Keys.enableFullAppDynamicTheme] = master && scope.equals("Entire App", ignoreCase = true)
+            if (prefs[Keys.changeThemeEnabled] == null) {
+                prefs[Keys.changeThemeEnabled] = master
+            }
         }
     }
 
@@ -192,8 +208,11 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             prefs[Keys.themeColorStyle] = cleanStyle
             prefs[Keys.appPaletteMode] = cleanStyle
             prefs[Keys.playerThemeMode] = cleanStyle
-            val master = prefs[Keys.changeThemeEnabled] ?: false
+            val master = isMasterThemeEnabled(prefs)
             prefs[Keys.dynamicArtworkColors] = master && cleanStyle.equals("Dynamic Artwork", ignoreCase = true)
+            if (prefs[Keys.changeThemeEnabled] == null) {
+                prefs[Keys.changeThemeEnabled] = master
+            }
         }
     }
 
@@ -242,12 +261,11 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setEnableFullAppDynamicTheme(enabled: Boolean) {
         dataStore.edit { prefs ->
-            prefs[Keys.enableFullAppDynamicTheme] = enabled
-            if (enabled) {
-                prefs[Keys.changeThemeEnabled] = true
-                prefs[Keys.themeScope] = "Entire App"
-            } else {
-                prefs[Keys.changeThemeEnabled] = false
+            val master = isMasterThemeEnabled(prefs)
+            prefs[Keys.enableFullAppDynamicTheme] = master && enabled
+            prefs[Keys.themeScope] = if (enabled) "Entire App" else "Player Only"
+            if (prefs[Keys.changeThemeEnabled] == null) {
+                prefs[Keys.changeThemeEnabled] = master
             }
         }
     }
