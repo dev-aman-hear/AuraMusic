@@ -146,9 +146,28 @@ fun StreamDiagnosticsSheet(
                 DiagnosticItem(title = "Source Engine", value = song.source.displayName)
                 DiagnosticItem(title = "Active Player Type", value = state.activePlayerType)
                 DiagnosticItem(title = "Extraction Tier", value = if (song.extractorTier.isNotBlank()) song.extractorTier else "Direct CDN")
-                DiagnosticItem(title = "Audio Container", value = song.format)
-                DiagnosticItem(title = "Audio Codec", value = if (song.audioCodec.isNotBlank()) song.audioCodec else song.format)
-                DiagnosticItem(title = "Active Bitrate", value = song.bitrate)
+                val containerText = state.measuredMimeType ?: song.format
+                val bitrateText = if (state.measuredBitrate != null && state.measuredBitrate > 0) {
+                    "${state.measuredBitrate / 1000} kbps (Measured)"
+                } else if (song.source == com.aman.auramusic.online.model.AudioSource.YOUTUBE) {
+                    "~128–160 kbps (Advertised Opus/AAC)"
+                } else if (song.bitrate.isNotBlank()) {
+                    "${song.bitrate} (Requested/Advertised)"
+                } else {
+                    "Unknown / Variable"
+                }
+                val sampleRateText = if (state.measuredSampleRate != null && state.measuredSampleRate > 0) {
+                    "${state.measuredSampleRate} Hz (Measured)"
+                } else if (song.source == com.aman.auramusic.online.model.AudioSource.YOUTUBE) {
+                    "48,000 Hz (Nominal / Unmeasured)"
+                } else {
+                    "44,100 Hz (Nominal / Unmeasured)"
+                }
+
+                DiagnosticItem(title = "Audio Container", value = containerText)
+                DiagnosticItem(title = "Audio Codec", value = if (song.audioCodec.isNotBlank()) song.audioCodec else containerText)
+                DiagnosticItem(title = "Stream Bitrate", value = bitrateText)
+                DiagnosticItem(title = "Sample Rate", value = sampleRateText)
                 DiagnosticItem(
                     title = "Lyrics Status",
                     value = if (state.isLoadingLyrics) "Syncing with LRCLIB..."

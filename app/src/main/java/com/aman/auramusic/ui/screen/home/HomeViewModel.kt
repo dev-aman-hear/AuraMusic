@@ -117,7 +117,8 @@ class HomeViewModel @Inject constructor(
 
     private val dailyCache = DailyFeaturedCache(application.applicationContext)
     private val feedCachePrefs = application.getSharedPreferences("aura_home_feed_cache", android.app.Application.MODE_PRIVATE)
-    private val feedCacheTtlMs = 6L * 60L * 60L * 1000L
+    private val feedCacheTtlMs = 24L * 60L * 60L * 1000L // 24-hour freshness policy
+    private var isFetchingFeed = false
 
     private inline fun <reified T> readCachedList(key: String): List<T> = runCatching {
         Gson().fromJson<List<T>>(
@@ -251,20 +252,23 @@ class HomeViewModel @Inject constructor(
         history: List<PlaybackHistoryEntry>,
         forceRefresh: Boolean = false
     ) {
+        if (isFetchingFeed && !forceRefresh) return
         viewModelScope.launch {
-            val recommendationLocalSongs = localSongs.filterNot {
-                ExplicitTitleFilter.shouldHideTitle(it.title)
-            }
-            val listenAgainColumns = buildListenAgainFeed(recommendationLocalSongs, history)
+            isFetchingFeed = true
+            try {
+                val recommendationLocalSongs = localSongs.filterNot {
+                    ExplicitTitleFilter.shouldHideTitle(it.title)
+                }
+                val listenAgainColumns = buildListenAgainFeed(recommendationLocalSongs, history)
 
-            if (_uiState.value.trendingTracks.isNotEmpty() && !forceRefresh) {
-                updateLocalDerivedData(recommendationLocalSongs, history)
-                _uiState.value = _uiState.value.copy(
-                    listenAgainColumns = listenAgainColumns,
-                    listenAgainTracks = listenAgainColumns.flatten()
-                )
-                return@launch
-            }
+                if (_uiState.value.trendingTracks.isNotEmpty() && !forceRefresh) {
+                    updateLocalDerivedData(recommendationLocalSongs, history)
+                    _uiState.value = _uiState.value.copy(
+                        listenAgainColumns = listenAgainColumns,
+                        listenAgainTracks = listenAgainColumns.flatten()
+                    )
+                    return@launch
+                }
 
             val deduplicator = SectionDeduplicator()
 
@@ -301,16 +305,21 @@ class HomeViewModel @Inject constructor(
             val feedCacheFresh = !forceRefresh && cachedAt > 0L &&
                 System.currentTimeMillis() - cachedAt in 0..feedCacheTtlMs
 
-            var cacheUsable = false
-            if (feedCacheFresh) {
-                rawTrendingOnline = readCachedList("trending")
-                rawQuickHitsOnline = readCachedList("quick_hits")
-                curatedPlaylists = readCachedList("playlists")
-                onlineArtistsDiscovered = readCachedList("artists")
-                featuredTracks = readCachedList("featured_tracks")
-                cacheUsable = rawTrendingOnline.isNotEmpty() || rawQuickHitsOnline.isNotEmpty() ||
-                    curatedPlaylists.isNotEmpty() || onlineArtistsDiscovered.isNotEmpty()
+            val cachedTrending: List<OnlineSong> = readCachedList("trending")
+            val cachedQuickHits: List<OnlineSong> = readCachedList("quick_hits")
+            val cachedPlaylists: List<OnlinePlaylist> = readCachedList("playlists")
+            val cachedArtists: List<com.aman.auramusic.online.network.repository.YouTubeArtist> = readCachedList("artists")
+            val cachedFeatured: List<OnlineSong> = readCachedList("featured_tracks")
+
+            if (cachedTrending.isNotEmpty() || cachedQuickHits.isNotEmpty() || cachedPlaylists.isNotEmpty()) {
+                rawTrendingOnline = cachedTrending
+                rawQuickHitsOnline = cachedQuickHits
+                curatedPlaylists = cachedPlaylists
+                onlineArtistsDiscovered = cachedArtists
+                featuredTracks = cachedFeatured
             }
+
+            val cacheUsable = feedCacheFresh && (rawTrendingOnline.isNotEmpty() || rawQuickHitsOnline.isNotEmpty())
 
             if (!cacheUsable) {
                 try {
@@ -427,11 +436,7 @@ class HomeViewModel @Inject constructor(
             }
 
             val trendingItems = cleanTrending.map { onlineSong ->
-                val match = localSongs.find { local ->
-                    local.title.trim().equals(onlineSong.title.trim(), ignoreCase = true) ||
-                            (local.title.contains(onlineSong.title, ignoreCase = true) &&
-                                    local.artist.contains(onlineSong.artist, ignoreCase = true))
-                }
+                val match = findLocalMatch(onlineSong, localSongs)
                 TrendingSongItem(
                     onlineSong = onlineSong,
                     localMatch = match,
@@ -469,8 +474,22 @@ class HomeViewModel @Inject constructor(
                 categories = defaultCategories
             )
             resolveMissingArtistPortraits(artistsList)
+
+            if (!isOfflineDetected && (rawTrendingOnline.isNotEmpty() || rawQuickHitsOnline.isNotEmpty() || curatedPlaylists.isNotEmpty())) {
+                writeCachedList("trending", rawTrendingOnline)
+                writeCachedList("quick_hits", rawQuickHitsOnline)
+                writeCachedList("playlists", curatedPlaylists)
+                writeCachedList("artists", onlineArtistsDiscovered)
+                if (featuredTracks.isNotEmpty()) {
+                    writeCachedList("featured_tracks", featuredTracks)
+                }
+                feedCachePrefs.edit().putLong("fetched_at", System.currentTimeMillis()).apply()
+            }
+        } finally {
+            isFetchingFeed = false
         }
     }
+}
 
     private fun updateLocalDerivedData(
         localSongs: List<Song>,
@@ -497,6 +516,50 @@ class HomeViewModel @Inject constructor(
             listenAgainTracks = listenAgainColumns.flatten()
         )
         resolveMissingArtistPortraits(artistsList)
+    }
+
+    private fun findLocalMatch(onlineSong: OnlineSong, localSongs: List<Song>): Song? {
+        // 1. Direct ID / OnlineID match
+        localSongs.find { local ->
+            local.onlineId == onlineSong.id ||
+            (local.isOnline && local.id.toString() == onlineSong.id)
+        }?.let { return it }
+
+        fun normalize(str: String): String =
+            str.lowercase(java.util.Locale.ROOT)
+                .replace(Regex("\\(.*?\\)|\\[.*?\\]"), "")
+                .replace(Regex("[^a-z0-9]"), " ")
+                .trim()
+                .replace(Regex("\\s+"), " ")
+
+        val targetTitle = normalize(onlineSong.title)
+        val targetArtist = normalize(onlineSong.artist)
+        if (targetTitle.isBlank() || targetArtist.isBlank()) return null
+
+        return localSongs.find { local ->
+            val localTitle = normalize(local.title)
+            val localArtist = normalize(local.artist)
+
+            // Equal title alone is NOT sufficient. Artist must also match.
+            val titleMatches = localTitle == targetTitle || (localTitle.length > 4 && targetTitle.length > 4 && (localTitle.contains(targetTitle) || targetTitle.contains(localTitle)))
+            val artistMatches = localArtist == targetArtist || (localArtist.length > 3 && targetArtist.length > 3 && (localArtist.contains(targetArtist) || targetArtist.contains(localArtist)))
+
+            if (!titleMatches || !artistMatches) return@find false
+
+            val localDurSec = local.duration / 1000L
+            val onlineDurSec = onlineSong.durationSeconds
+            val durationClose = if (localDurSec > 0L && onlineDurSec > 0L) {
+                kotlin.math.abs(localDurSec - onlineDurSec) <= 6L
+            } else false
+
+            val localAlbum = normalize(local.album)
+            val onlineAlbum = normalize(onlineSong.album)
+            val albumMatches = localAlbum.isNotBlank() && onlineAlbum.isNotBlank() &&
+                    !localAlbum.contains("unknown") && !onlineAlbum.contains("unknown") &&
+                    (localAlbum == onlineAlbum || localAlbum.contains(onlineAlbum) || onlineAlbum.contains(localAlbum))
+
+            durationClose || albumMatches || (localTitle == targetTitle && localArtist == targetArtist)
+        }
     }
 
     private fun extractSingleArtistNames(raw: String): List<String> =

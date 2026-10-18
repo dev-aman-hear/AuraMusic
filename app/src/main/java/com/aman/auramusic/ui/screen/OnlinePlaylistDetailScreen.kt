@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.BookmarkAdded
@@ -79,6 +80,10 @@ fun OnlinePlaylistDetailScreen(
     isSavedInLibrary: Boolean = false,
     onToggleSaveToLibrary: (() -> Unit)? = null,
     onAddOnlineSongToPlaylist: ((OnlineSong) -> Unit)? = null,
+    onPlayNext: ((OnlineSong) -> Unit)? = null,
+    onAddToQueue: ((OnlineSong) -> Unit)? = null,
+    onPlayNextCollection: ((List<OnlineSong>) -> Unit)? = null,
+    onAddCollectionToQueue: ((List<OnlineSong>) -> Unit)? = null,
     showMenuButton: Boolean = false,
     showAddButton: Boolean = true,
     modifier: Modifier = Modifier
@@ -159,7 +164,7 @@ fun OnlinePlaylistDetailScreen(
 
                     // Audio Format Pill
                     Text(
-                        text = "Aura Music • Lossless Audio",
+                        text = "Aura Music • High Fidelity Audio",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -427,6 +432,26 @@ fun OnlinePlaylistDetailScreen(
                                         onSongSelected(song, songs)
                                     }
                                 )
+                                if (onPlayNext != null) {
+                                    DropdownMenuItem(
+                                        text = { Text("Play Next", fontWeight = FontWeight.SemiBold) },
+                                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
+                                        onClick = {
+                                            itemMenuExpanded = false
+                                            onPlayNext(song)
+                                        }
+                                    )
+                                }
+                                if (onAddToQueue != null) {
+                                    DropdownMenuItem(
+                                        text = { Text("Add to Queue", fontWeight = FontWeight.SemiBold) },
+                                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
+                                        onClick = {
+                                            itemMenuExpanded = false
+                                            onAddToQueue(song)
+                                        }
+                                    )
+                                }
                                 if (onAddOnlineSongToPlaylist != null) {
                                     DropdownMenuItem(
                                         text = { Text("Add to Playlist", fontWeight = FontWeight.SemiBold) },
@@ -639,6 +664,30 @@ fun OnlinePlaylistDetailScreen(
                                     }
                                 }
                             )
+                            if (onPlayNextCollection != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Play Next", fontWeight = FontWeight.SemiBold) },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
+                                    onClick = {
+                                        showTopMenu = false
+                                        if (songs.isNotEmpty()) {
+                                            onPlayNextCollection(songs)
+                                        }
+                                    }
+                                )
+                            }
+                            if (onAddCollectionToQueue != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Add to Queue", fontWeight = FontWeight.SemiBold) },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
+                                    onClick = {
+                                        showTopMenu = false
+                                        if (songs.isNotEmpty()) {
+                                            onAddCollectionToQueue(songs)
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
                 }

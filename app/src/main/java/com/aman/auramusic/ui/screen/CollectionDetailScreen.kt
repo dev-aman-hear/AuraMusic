@@ -49,7 +49,9 @@ fun CollectionDetailScreen(
     onRenamePlaylist: (() -> Unit)? = null,
     onToggleFavorite: (Song) -> Unit,
     onAddToPlaylist: (Song) -> Unit,
+    onPlayNext: ((Song) -> Unit)? = null,
     onAddToQueue: ((Song) -> Unit)? = null,
+    onPlayNextCollection: (() -> Unit)? = null,
     onAddCollectionToQueue: (() -> Unit)? = null,
     onAddCollectionToPlaylist: (() -> Unit)? = null,
     onFavoriteCollection: (() -> Unit)? = null,
@@ -424,6 +426,16 @@ fun CollectionDetailScreen(
                                     onAddToPlaylist(song)
                                 }
                             )
+                            if (onPlayNext != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Play Next", fontWeight = FontWeight.SemiBold) },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
+                                    onClick = {
+                                        itemMenuExpanded = false
+                                        onPlayNext(song)
+                                    }
+                                )
+                            }
                             if (onAddToQueue != null) {
                                 DropdownMenuItem(
                                     text = { Text("Add to Queue", fontWeight = FontWeight.SemiBold) },
@@ -614,6 +626,16 @@ fun CollectionDetailScreen(
                         expanded = showTopMenu,
                         onDismissRequest = { showTopMenu = false }
                     ) {
+                        if (onPlayNextCollection != null) {
+                            DropdownMenuItem(
+                                text = { Text(if (isPlaylist) "Play Playlist Next" else "Play All Next", fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
+                                onClick = {
+                                    showTopMenu = false
+                                    onPlayNextCollection()
+                                }
+                            )
+                        }
                         if (onAddCollectionToQueue != null) {
                             DropdownMenuItem(
                                 text = { Text(if (isPlaylist) "Add Playlist to Queue" else "Add All to Queue", fontWeight = FontWeight.SemiBold) },

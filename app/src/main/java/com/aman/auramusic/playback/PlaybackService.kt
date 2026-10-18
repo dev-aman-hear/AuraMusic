@@ -1,6 +1,7 @@
 package com.aman.auramusic.playback
 
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
@@ -52,15 +53,24 @@ class PlaybackService : Service() {
     val repeatModeFlow = _repeatMode.asStateFlow()
     var repeatMode: RepeatMode
         get() = _repeatMode.value
-        set(value) { _repeatMode.value = value }
+        set(value) {
+            _repeatMode.value = value
+            PlaybackQueueCoordinator.setRepeatMode(value)
+        }
 
     private val _isShuffled = MutableStateFlow(value = false)
     val isShuffledFlow = _isShuffled.asStateFlow()
     var isShuffled: Boolean
         get() = _isShuffled.value
-        set(value) { _isShuffled.value = value }
+        set(value) {
+            _isShuffled.value = value
+            PlaybackQueueCoordinator.setShuffle(value)
+        }
 
     var currentPlaylistId: Long? = null
+    private val queueSyncListener: (List<QueueTrack>) -> Unit = { tracks ->
+        _queue.value = tracks.map { it.song }
+    }
 
     private var isTaskRemoved = false
 
@@ -69,9 +79,67 @@ class PlaybackService : Service() {
     var currentOnlineSong: OnlineSong? = null
         private set
     private var cachedOnlineLyrics: List<LyricLine> = emptyList()
-    private var isOnlinePlaying: Boolean = false
+    var isOnlinePlaying: Boolean = false
+        private set
     private var currentOnlinePosition: Long = 0L
     private var currentOnlineDuration: Long = 0L
+
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
+    private var isScreenReceiverRegistered = false
+
+    private val screenReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
+                    Log.d("AuraPlaybackDebug", "Screen turned on / user present, verifying playback and notification")
+                    if (isAnyPlaybackActive()) {
+                        acquireWakeLock()
+                        val activeLocal = currentSong
+                        val activeOnline = currentOnlineSong
+                        if (isOnlinePlaybackActive && activeOnline != null) {
+                            updateOnlineNotification(activeOnline, isOnlinePlaying)
+                        } else if (activeLocal != null) {
+                            startAsForeground(activeLocal, playerManager.isPlaying())
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun acquireWakeLock() {
+        try {
+            if (wakeLock == null) {
+                val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                wakeLock = powerManager?.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "AuraMusic:PlaybackWakeLock")?.apply {
+                    setReferenceCounted(false)
+                }
+            }
+            if (wakeLock?.isHeld == false) {
+                wakeLock?.acquire(24 * 60 * 60 * 1000L)
+                Log.d("AuraPlaybackDebug", "PlaybackService: WakeLock acquired")
+            }
+        } catch (e: Exception) {
+            Log.e("AuraPlaybackDebug", "Failed to acquire WakeLock", e)
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+                Log.d("AuraPlaybackDebug", "PlaybackService: WakeLock released")
+            }
+        } catch (e: Exception) {
+            Log.e("AuraPlaybackDebug", "Failed to release WakeLock", e)
+        }
+    }
+
+    fun isAnyPlaybackActive(): Boolean {
+        val isLocalActive = ::playerManager.isInitialized && (playerManager.isPlaying() || playerManager.isTransitioning)
+        val isOnlineActive = isOnlinePlaybackActive && (isOnlinePlaying || (::onlinePlaybackManager.isInitialized && (onlinePlaybackManager.playbackState.value.isBuffering || onlinePlaybackManager.isTransitioning)))
+        return isLocalActive || isOnlineActive
+    }
 
     private fun getOnlineDisplaySong(song: OnlineSong? = currentOnlineSong): Song? {
         val target = song ?: currentOnlineSong ?: return null
@@ -81,8 +149,8 @@ class PlaybackService : Service() {
 
     private fun setupOnlineActions() {
         PlaybackActionRegistry.onPlayPause = { onlinePlaybackManager.togglePlayPause() }
-        PlaybackActionRegistry.onNext = { onlinePlaybackManager.playNext() }
-        PlaybackActionRegistry.onPrevious = { onlinePlaybackManager.playPrevious() }
+        PlaybackActionRegistry.onNext = { PlaybackQueueCoordinator.playNextTrack(isManual = true) }
+        PlaybackActionRegistry.onPrevious = { PlaybackQueueCoordinator.playPreviousTrack() }
         PlaybackActionRegistry.onSeekTo = { onlinePlaybackManager.seekTo(it) }
     }
 
@@ -92,6 +160,7 @@ class PlaybackService : Service() {
             isOnlinePlaybackActive = true
             currentOnlineSong = song
             currentSong = null
+            PlaybackQueueCoordinator.setCurrentOnlineSong(song)
             isOnlinePlaying = true
             currentOnlinePosition = 0L
             currentOnlineDuration = (song.durationSeconds * 1000L).coerceAtLeast(0L)
@@ -109,9 +178,15 @@ class PlaybackService : Service() {
             currentOnlinePosition = positionMs
             setupOnlineActions()
             updateOnlinePlaybackState(song, isPlaying = isPlaying, positionMs = positionMs, durationMs = currentOnlineDuration)
+            if (isPlaying) {
+                acquireWakeLock()
+            } else if (!isAnyPlaybackActive()) {
+                releaseWakeLock()
+            }
             if (!isPlaying && !playerManager.isPlaying() && isTaskRemoved) {
-                Log.d("AuraPlaybackDebug", "PlaybackService: Task removed and online playback paused, checking keepPlayingOnClose=$keepPlayingOnClose")
-                if (!keepPlayingOnClose) {
+                val isOnlineActive = isOnlinePlaying || (::onlinePlaybackManager.isInitialized && (onlinePlaybackManager.playbackState.value.isBuffering || onlinePlaybackManager.isTransitioning))
+                Log.d("AuraPlaybackDebug", "PlaybackService: Task removed and online state changed, isOnlineActive=$isOnlineActive, keepPlayingOnClose=$keepPlayingOnClose")
+                if (!isOnlineActive && !keepPlayingOnClose) {
                     stopSelf()
                 }
             }
@@ -158,12 +233,57 @@ class PlaybackService : Service() {
         onlinePlaybackManager = OnlinePlaybackManagerHolder.get(this)
         onlinePlaybackManager.addListener(onlinePlayerListener)
         
+        PlaybackQueueCoordinator.registerDispatcher(object : PlaybackDispatcher {
+            override fun playLocal(song: Song) {
+                this@PlaybackService.play(song)
+            }
+            override fun playOnline(onlineSong: OnlineSong, startPositionMs: Long) {
+                this@PlaybackService.isOnlinePlaybackActive = true
+                this@PlaybackService.currentOnlineSong = onlineSong
+                this@PlaybackService.currentSong = null
+                this@PlaybackService.playerManager.pause()
+                onlinePlaybackManager.playSong(onlineSong, startPositionMs = startPositionMs)
+            }
+            override fun pauseLocal() {
+                this@PlaybackService.playerManager.pause()
+            }
+            override fun pauseOnline() {
+                onlinePlaybackManager.pause()
+            }
+            override fun isOnlineActive(): Boolean {
+                return this@PlaybackService.isOnlinePlaybackActive
+            }
+        })
+        PlaybackQueueCoordinator.addEngineSyncListener(queueSyncListener)
+
         setupActions()
+
+        try {
+            val filter = android.content.IntentFilter(Intent.ACTION_SCREEN_ON).apply {
+                addAction(Intent.ACTION_USER_PRESENT)
+            }
+            registerReceiver(screenReceiver, filter)
+            isScreenReceiverRegistered = true
+        } catch (e: Exception) {
+            Log.e("AuraPlaybackDebug", "Failed to register screenReceiver", e)
+        }
 
         serviceScope.launch {
             userRepository.settingsFlow.collect { settings ->
                 keepPlayingOnClose = settings.keepPlayingOnClose
                 playerManager.smartAudioFocusEnabled = settings.smartAudioFocus
+            }
+        }
+
+        serviceScope.launch {
+            PlaybackQueueCoordinator.repeatModeFlow.collect { mode ->
+                _repeatMode.value = mode
+            }
+        }
+
+        serviceScope.launch {
+            PlaybackQueueCoordinator.isShuffledFlow.collect { shuffled ->
+                _isShuffled.value = shuffled
             }
         }
 
@@ -176,6 +296,11 @@ class PlaybackService : Service() {
 
             override fun onPlaybackState(isPlaying: Boolean) {
                 Log.d("AuraPlaybackDebug", "PlaybackService onPlaybackState: isPlaying=$isPlaying, isTransitioning=${playerManager.isTransitioning}, currentSong=${currentSong?.title}")
+                if (isPlaying) {
+                    acquireWakeLock()
+                } else if (!isAnyPlaybackActive()) {
+                    releaseWakeLock()
+                }
                 currentSong?.let { song ->
                     if (isPlaying) {
                         startAsForeground(song, true)
@@ -192,8 +317,10 @@ class PlaybackService : Service() {
                     }
                 }
                 if (!isPlaying && !isOnlinePlaybackActive && isTaskRemoved && !playerManager.isTransitioning) {
-                    Log.d("AuraPlaybackDebug", "PlaybackService: Task was removed and playback stopped, stopping service")
-                    stopSelf()
+                    if (!keepPlayingOnClose) {
+                        Log.d("AuraPlaybackDebug", "PlaybackService: Task was removed and playback stopped with keepPlayingOnClose=false, stopping service")
+                        stopSelf()
+                    }
                 }
             }
 
@@ -206,61 +333,41 @@ class PlaybackService : Service() {
 
     private var retryJob: Job? = null
     private var notificationJob: Job? = null
+    private var lastEndHandledTimeMs: Long = 0L
 
     private fun handlePlaybackEnd() {
+        val now = System.currentTimeMillis()
+        if (now - lastEndHandledTimeMs < 500) {
+            Log.d("AuraPlaybackDebug", "handlePlaybackEnd debounced duplicate trigger within 500ms")
+            return
+        }
+        lastEndHandledTimeMs = now
         Log.d("AuraPlaybackDebug", "handlePlaybackEnd called. RepeatMode: $repeatMode, currentSong: ${currentSong?.title}")
-        when (repeatMode) {
-            RepeatMode.ONE -> {
-                currentSong?.let { play(it) }
-            }
-            else -> {
-                playNext(isManual = false)
-            }
+        val started = PlaybackQueueCoordinator.playNextTrack(isManual = false)
+        if (!started) {
+            Log.d("AuraPlaybackDebug", "handlePlaybackEnd: End of queue reached cleanly, pausing.")
+            playerManager.pause()
         }
     }
 
     fun playNext(isManual: Boolean = false) {
-        if (queue.isEmpty()) {
-            Log.d("AuraPlaybackDebug", "playNext: Queue is empty")
-            return
-        }
-        val currentIndex = queue.indexOfFirst { it.id == currentSong?.id }
-        Log.d("AuraPlaybackDebug", "playNext: currentIndex=$currentIndex, queueSize=${queue.size}, repeatMode=$repeatMode, isManual=$isManual")
-
-        if (currentIndex == -1) {
-            play(queue[0])
-            return
-        }
-
-        val nextIndex = currentIndex + 1
-        if (nextIndex >= queue.size) {
-            when (repeatMode) {
-                RepeatMode.ALL -> {
-                    play(queue[0])
-                }
-                RepeatMode.ONE -> {
-                    currentSong?.let { play(it) } ?: play(queue[0])
-                }
-                RepeatMode.NONE -> {
-                    if (isManual) {
-                        play(queue[0])
-                    } else {
-                        Log.d("AuraPlaybackDebug", "playNext: Natural end of queue reached with RepeatMode.NONE. Cleanly pausing.")
-                        playerManager.pause()
-                    }
-                }
+        val started = PlaybackQueueCoordinator.playNextTrack(isManual)
+        if (!started && queue.isNotEmpty()) {
+            val currentIndex = queue.indexOfFirst { it.id == currentSong?.id }
+            val nextIndex = currentIndex + 1
+            if (nextIndex < queue.size) {
+                play(queue[nextIndex])
             }
-        } else {
-            play(queue[nextIndex])
         }
     }
 
     fun playPrevious() {
-        if (queue.isEmpty()) return
-        val currentIndex = queue.indexOfFirst { it.id == currentSong?.id }
-        val prevIndex = if (currentIndex <= 0) queue.size - 1 else currentIndex - 1
-        Log.d("AuraPlaybackDebug", "playPrevious: currentIndex=$currentIndex, prevIndex=$prevIndex")
-        play(queue[prevIndex])
+        val started = PlaybackQueueCoordinator.playPreviousTrack()
+        if (!started && queue.isNotEmpty()) {
+            val currentIndex = queue.indexOfFirst { it.id == currentSong?.id }
+            val prevIndex = if (currentIndex <= 0) queue.size - 1 else currentIndex - 1
+            play(queue[prevIndex])
+        }
     }
 
     fun play(song: Song) {
@@ -271,6 +378,7 @@ class PlaybackService : Service() {
         }
         setupActions()
         currentSong = song
+        PlaybackQueueCoordinator.setCurrentLocalSong(song)
         playerManager.play(song.filePath)
         startAsForeground(song, true)
     }
@@ -454,8 +562,10 @@ class PlaybackService : Service() {
         )
         try {
             if (isPlaying || isOnlinePlaying) {
+                acquireWakeLock()
                 startForeground(PlaybackNotificationManager.NOTIFICATION_ID, initialNotification)
             } else {
+                if (!playerManager.isPlaying()) releaseWakeLock()
                 notificationManager.show(displaySong, false, playerManager.getSessionToken(), customArtwork = fastArtwork)
             }
         } catch (e: Exception) {
@@ -526,9 +636,21 @@ class PlaybackService : Service() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
         isTaskRemoved = true
-        val isAnyPlaying = if (isOnlinePlaybackActive) isOnlinePlaying else playerManager.isPlaying()
-        Log.d("AuraPlaybackDebug", "onTaskRemoved: keepPlayingOnClose=$keepPlayingOnClose, isAnyPlaying=$isAnyPlaying")
-        if (!keepPlayingOnClose || !isAnyPlaying) {
+        val isLocalActive = playerManager.isPlaying() || playerManager.isTransitioning
+        val isOnlineActive = isOnlinePlaybackActive && (isOnlinePlaying || (::onlinePlaybackManager.isInitialized && (onlinePlaybackManager.playbackState.value.isBuffering || onlinePlaybackManager.isTransitioning)))
+        val isAnyPlaying = isLocalActive || isOnlineActive
+        Log.d("AuraPlaybackDebug", "onTaskRemoved: keepPlayingOnClose=$keepPlayingOnClose, isAnyPlaying=$isAnyPlaying, isLocalActive=$isLocalActive, isOnlineActive=$isOnlineActive")
+        if (!keepPlayingOnClose) {
+            if (::onlinePlaybackManager.isInitialized) {
+                onlinePlaybackManager.pause()
+            }
+            playerManager.pause()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            notificationManager.clear()
+            stopSelf()
+        } else if (!isAnyPlaying) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            notificationManager.clear()
             stopSelf()
         }
     }
@@ -555,8 +677,10 @@ class PlaybackService : Service() {
         )
         try {
             if (isPlaying) {
+                acquireWakeLock()
                 startForeground(PlaybackNotificationManager.NOTIFICATION_ID, initialNotification)
             } else {
+                if (!isOnlinePlaying) releaseWakeLock()
                 notificationManager.show(song, false, playerManager.getSessionToken(), customArtwork = fastArtwork)
             }
         } catch (e: Exception) {
@@ -607,6 +731,7 @@ class PlaybackService : Service() {
 
     fun stopAsForeground(removeNotification: Boolean) {
         Log.d("AuraPlaybackDebug", "stopAsForeground called: removeNotification=$removeNotification")
+        releaseWakeLock()
         stopForeground(if (removeNotification) STOP_FOREGROUND_REMOVE else STOP_FOREGROUND_DETACH)
         val activeSong = currentSong ?: currentOnlineSong?.toSong()
         colorOSBridge.onPlaybackStopped(activeSong)
@@ -616,6 +741,11 @@ class PlaybackService : Service() {
         Log.d("AuraPlaybackDebug", "PlaybackService onDestroy called")
         val activeSong = currentSong ?: currentOnlineSong?.toSong()
         colorOSBridge.onPlaybackStopped(activeSong)
+        if (isScreenReceiverRegistered) {
+            runCatching { unregisterReceiver(screenReceiver) }
+            isScreenReceiverRegistered = false
+        }
+        releaseWakeLock()
         notificationJob?.cancel()
         retryJob?.cancel()
         serviceScope.cancel()
@@ -624,6 +754,8 @@ class PlaybackService : Service() {
             OnlinePlaybackManagerHolder.releaseIfCreated()
         }
         playerManager.release()
+        PlaybackQueueCoordinator.unregisterDispatcher()
+        PlaybackQueueCoordinator.removeEngineSyncListener(queueSyncListener)
         super.onDestroy()
     }
 }

@@ -32,6 +32,7 @@ fun SongOptionsDialog(
     onPlay: () -> Unit,
     onToggleFavorite: () -> Unit,
     onAddToPlaylist: () -> Unit,
+    onPlayNext: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null
 ) {
     val isDark = LocalIsDark.current
@@ -107,6 +108,18 @@ fun SongOptionsDialog(
                         )
                     }
 
+                    if (onPlayNext != null) {
+                        OutlinedButton(
+                            onClick = onPlayNext,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Play Next", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
                     if (onAddToQueue != null) {
                         OutlinedButton(
                             onClick = onAddToQueue,
@@ -115,7 +128,7 @@ fun SongOptionsDialog(
                         ) {
                             Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Play Next / Add to Queue", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                            Text("Add to Queue", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                         }
                     }
 

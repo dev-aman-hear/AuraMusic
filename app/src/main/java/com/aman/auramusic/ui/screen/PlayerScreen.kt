@@ -124,7 +124,9 @@ import com.aman.auramusic.ui.theme.DynamicArtworkColorsHelper
 import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.ui.theme.PlayerArtworkPalette
 import com.aman.auramusic.ui.theme.PlayerColorScheme
+import com.aman.auramusic.ui.theme.PlayerPaletteMode
 import com.aman.auramusic.ui.theme.rememberPlayerColorScheme
+import com.aman.auramusic.ui.theme.resolvePlayerPaletteMode
 import com.aman.auramusic.util.audioQuality
 import com.aman.auramusic.util.formatDuration
 import com.aman.auramusic.viewmodel.PlayerViewModel
@@ -179,14 +181,46 @@ fun PlayerScreen(
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val scope = rememberCoroutineScope()
 
-    var artworkPalette by remember(isDark) { mutableStateOf(PlayerArtworkPalette.neutral(isDark)) }
+    val paletteMode = resolvePlayerPaletteMode(
+        dynamicArtworkColors = appSettings.dynamicArtworkColors,
+        colorPreset = appSettings.colorPreset,
+        customPaletteHexes = appSettings.customPaletteHexes
+    )
 
-    LaunchedEffect(song.id, song.artworkUri, song.uri, isDark, appSettings.dynamicArtworkColors) {
-        if (appSettings.dynamicArtworkColors) {
-            val extracted = DynamicArtworkColorsHelper.extractPalette(context, song, isDark)
-            artworkPalette = extracted
-        } else {
-            artworkPalette = PlayerArtworkPalette.neutral(isDark)
+    val initialPalette = remember(isDark, paletteMode, appSettings.colorPreset, appSettings.customPaletteHexes) {
+        when (paletteMode) {
+            PlayerPaletteMode.DYNAMIC_ARTWORK -> PlayerArtworkPalette.neutral(isDark)
+            PlayerPaletteMode.PRESET -> PlayerArtworkPalette.fromPreset(appSettings.colorPreset, isDark)
+            PlayerPaletteMode.CUSTOM -> PlayerArtworkPalette.fromCustomColors(appSettings.customPaletteHexes.split(","), isDark)
+            PlayerPaletteMode.MONOCHROME -> PlayerArtworkPalette.neutral(isDark)
+        }
+    }
+
+    var artworkPalette by remember(initialPalette) { mutableStateOf(initialPalette) }
+
+    LaunchedEffect(
+        song.id,
+        song.artworkUri,
+        song.uri,
+        isDark,
+        paletteMode,
+        appSettings.colorPreset,
+        appSettings.customPaletteHexes
+    ) {
+        when (paletteMode) {
+            PlayerPaletteMode.DYNAMIC_ARTWORK -> {
+                val extracted = DynamicArtworkColorsHelper.extractPalette(context, song, isDark)
+                artworkPalette = extracted
+            }
+            PlayerPaletteMode.PRESET -> {
+                artworkPalette = PlayerArtworkPalette.fromPreset(appSettings.colorPreset, isDark)
+            }
+            PlayerPaletteMode.CUSTOM -> {
+                artworkPalette = PlayerArtworkPalette.fromCustomColors(appSettings.customPaletteHexes.split(","), isDark)
+            }
+            PlayerPaletteMode.MONOCHROME -> {
+                artworkPalette = PlayerArtworkPalette.neutral(isDark)
+            }
         }
     }
 
@@ -211,13 +245,16 @@ fun PlayerScreen(
         label = "ambientAccentAnimation"
     )
 
+    val isColored = paletteMode.isColored
+
     val playerColors = rememberPlayerColorScheme(
-        isDynamic = appSettings.dynamicArtworkColors,
+        isDynamic = isColored,
         isDark = isDark,
         primary = animatedPrimary,
         secondary = animatedSecondary,
         tertiary = animatedTertiary,
-        accent = animatedAccent
+        accent = animatedAccent,
+        paletteMode = paletteMode
     )
 
     val offsetY = remember { Animatable(0f) }
@@ -255,7 +292,7 @@ fun PlayerScreen(
             }
     ) {
         PlayerBackground(
-            enabled = appSettings.dynamicArtworkColors,
+            enabled = isColored,
             primaryColor = animatedPrimary,
             secondaryColor = animatedSecondary,
             tertiaryColor = animatedTertiary,
@@ -1285,7 +1322,7 @@ private fun PlayerControls(
                 )
             }
 
-            val playPauseColor = if (LocalIsDark.current) Color.White else Color.Black
+            val playPauseColor = playerColors.prominentSurface
             Box(
                 modifier = Modifier
                     .size(72.dp)

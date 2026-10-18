@@ -122,6 +122,14 @@ fun LibraryScreen(
     onSaveOnlineAlbum: ((OnlinePlaylist) -> Unit)? = null,
     onRemoveSavedOnlineAlbum: ((String) -> Unit)? = null,
     onAddOnlineSongToPlaylist: ((OnlineSong) -> Unit)? = null,
+    onPlayNext: ((Song) -> Unit)? = null,
+    onAddToQueue: ((Song) -> Unit)? = null,
+    onOnlinePlayNext: ((OnlineSong) -> Unit)? = null,
+    onOnlineAddToQueue: ((OnlineSong) -> Unit)? = null,
+    onPlayNextSongs: ((List<Song>) -> Unit)? = null,
+    onAddSongsToQueue: ((List<Song>) -> Unit)? = null,
+    onPlayNextOnlineSongs: ((List<OnlineSong>) -> Unit)? = null,
+    onAddOnlineSongsToQueue: ((List<OnlineSong>) -> Unit)? = null,
     selectedTab: LibraryTab = LibraryTab.SONGS,
     onTabSelected: (LibraryTab) -> Unit = {},
     modifier: Modifier = Modifier
@@ -265,6 +273,10 @@ fun LibraryScreen(
             onSongSelected = { onSongSelected(it, albumSongs) },
             onToggleFavorite = onFavoriteToggle,
             onAddToPlaylist = onAddToPlaylist,
+            onPlayNext = onPlayNext?.let { cb -> { cb(it) } },
+            onAddToQueue = onAddToQueue?.let { cb -> { cb(it) } },
+            onPlayNextCollection = onPlayNextSongs?.let { cb -> { cb(albumSongs) } },
+            onAddCollectionToQueue = onAddSongsToQueue?.let { cb -> { cb(albumSongs) } },
             showAddButton = false
         )
         return
@@ -308,6 +320,10 @@ fun LibraryScreen(
                 }
             },
             onAddOnlineSongToPlaylist = onAddOnlineSongToPlaylist,
+            onPlayNext = onOnlinePlayNext,
+            onAddToQueue = onOnlineAddToQueue,
+            onPlayNextCollection = onPlayNextOnlineSongs,
+            onAddCollectionToQueue = onAddOnlineSongsToQueue,
             onBack = { selectedOnlinePlaylist = null },
             onSongSelected = { song, queue ->
                 onOnlineSongSelected(song, queue)
@@ -718,7 +734,9 @@ fun LibraryScreen(
                                     onClick = { onSongSelected(song, filteredSongs) },
                                     onPlayNow = { onSongSelected(song, filteredSongs) },
                                     onToggleFavorite = { onFavoriteToggle(song) },
-                                    onAddToPlaylist = { onAddToPlaylist(song) }
+                                    onAddToPlaylist = { onAddToPlaylist(song) },
+                                    onPlayNext = onPlayNext?.let { cb -> { cb(song) } },
+                                    onAddToQueue = onAddToQueue?.let { cb -> { cb(song) } }
                                 )
                             }
                         }
@@ -810,7 +828,9 @@ fun LibraryScreen(
                                     onClick = { onSongSelected(song, filteredFavorites) },
                                     onPlayNow = { onSongSelected(song, filteredFavorites) },
                                     onToggleFavorite = { onFavoriteToggle(song) },
-                                    onAddToPlaylist = { onAddToPlaylist(song) }
+                                    onAddToPlaylist = { onAddToPlaylist(song) },
+                                    onPlayNext = onPlayNext?.let { cb -> { cb(song) } },
+                                    onAddToQueue = onAddToQueue?.let { cb -> { cb(song) } }
                                 )
                             }
                         }

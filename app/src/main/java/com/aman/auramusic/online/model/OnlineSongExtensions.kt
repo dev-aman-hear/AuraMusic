@@ -10,6 +10,7 @@ import com.aman.auramusic.online.util.ArtworkQualityOptimizer
  */
 
 fun OnlineSong.toSong(): Song {
+    com.aman.auramusic.playback.PlaybackQueueCoordinator.registerOnlineSong(this)
     val optimizedArt = ArtworkQualityOptimizer.optimizeUrl(artworkUrl)
     return Song(
         id = (id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L),
@@ -21,7 +22,23 @@ fun OnlineSong.toSong(): Song {
         uri = streamUrl.ifBlank { optimizedArt },
         filePath = streamUrl,
         artworkUri = optimizedArt.ifBlank { null },
-        mimeType = "audio/mpeg"
+        mimeType = "audio/mpeg",
+        isOnline = true,
+        onlineId = id
+    )
+}
+
+fun Song.toOnlineSong(): OnlineSong? {
+    if (!isOnline && onlineId == null) return null
+    val targetId = onlineId ?: id.toString()
+    return com.aman.auramusic.playback.PlaybackQueueCoordinator.getOnlineSong(targetId) ?: OnlineSong(
+        id = targetId,
+        title = title,
+        artist = artist,
+        album = album,
+        artworkUrl = artworkUri ?: "",
+        durationSeconds = duration / 1000L,
+        streamUrl = filePath
     )
 }
 

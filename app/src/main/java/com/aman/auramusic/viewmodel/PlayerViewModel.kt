@@ -34,7 +34,13 @@ import android.annotation.SuppressLint
 import android.content.ServiceConnection
 import android.os.IBinder
 import com.aman.auramusic.playback.PlaybackService
+import com.aman.auramusic.playback.PlaybackQueueCoordinator
+import com.aman.auramusic.playback.QueueActionResult
 import com.aman.auramusic.playback.RepeatMode
+import com.aman.auramusic.data.model.Playlist
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -174,15 +180,37 @@ class PlayerViewModel @Inject constructor(
     private val _lyrics = MutableStateFlow<List<LyricLine>>(emptyList())
     val lyrics: StateFlow<List<LyricLine>> = _lyrics.asStateFlow()
 
+    private val _userFeedback = MutableSharedFlow<String>(extraBufferCapacity = 64)
+    val userFeedback: SharedFlow<String> = _userFeedback.asSharedFlow()
+
     private val _queue = MutableStateFlow<List<QueueEntry>>(emptyList())
     val queue: StateFlow<List<QueueEntry>> = _queue.asStateFlow()
 
     private var originalQueue: List<QueueEntry> = emptyList()
+    private val manuallyAddedSongIds = mutableSetOf<Long>()
 
     init {
         val intent = Intent(application, PlaybackService::class.java)
         application.bindService(intent, serviceConnection, android.content.Context.BIND_AUTO_CREATE)
         application.startService(intent)
+
+        viewModelScope.launch {
+            PlaybackQueueCoordinator.queueFlow.collect { tracks ->
+                _queue.value = tracks.map { QueueEntry(id = it.queueId, song = it.song) }
+            }
+        }
+
+        viewModelScope.launch {
+            PlaybackQueueCoordinator.isShuffledFlow.collect { shuffled ->
+                isShuffled = shuffled
+            }
+        }
+
+        viewModelScope.launch {
+            PlaybackQueueCoordinator.repeatModeFlow.collect { mode ->
+                repeatMode = mode
+            }
+        }
 
         // Observe favorites and playlists to keep queue synced
         viewModelScope.launch {
@@ -198,7 +226,7 @@ class PlayerViewModel @Inject constructor(
                 currentPlaylistId?.let { pid ->
                     if (pid != -1L) {
                         playlists.find { it.id == pid }?.let { playlist ->
-                            refreshQueueFromIds(playlist.songIds)
+                            refreshQueueFromPlaylist(playlist)
                         }
                     }
                 }
@@ -206,21 +234,30 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private suspend fun refreshQueueFromIds(ids: List<Long>) {
+    private suspend fun refreshQueueFromPlaylist(playlist: Playlist) {
+        if (currentPlaylistId == null) return
         val allSongs = kotlinx.coroutines.withContext(Dispatchers.IO) {
             musicRepository.getAllSongs()
         }
-        val songs = ids.mapNotNull { id -> allSongs.find { it.id == id } }.distinctBy { it.id }
-        originalQueue = songs.map { QueueEntry(song = it) }
+        val localSongs = playlist.songIds.mapNotNull { id -> allSongs.find { it.id == id } }
+        PlaybackQueueCoordinator.refreshFromPlaylist(
+            playlistId = playlist.id,
+            localSongs = localSongs,
+            onlineSongs = playlist.onlineSongs
+        )
+    }
 
-        val targetSongs = if (isShuffled) {
-            val current = songs.firstOrNull { it.id == currentSongId }
-            if (current != null) listOf(current) + songs.filterNot { it.id == current.id }.shuffled()
-            else songs.shuffled()
-        } else songs
-
-        playbackService?.queue = targetSongs
-        _queue.value = targetSongs.map { QueueEntry(song = it) }
+    private suspend fun refreshQueueFromIds(ids: List<Long>) {
+        if (currentPlaylistId == null) return
+        val allSongs = kotlinx.coroutines.withContext(Dispatchers.IO) {
+            musicRepository.getAllSongs()
+        }
+        val localSongs = ids.mapNotNull { id -> allSongs.find { it.id == id } }
+        PlaybackQueueCoordinator.refreshFromPlaylist(
+            playlistId = -1L,
+            localSongs = localSongs,
+            onlineSongs = emptyList()
+        )
     }
 
     private var playerListener: VlcPlayerManager.PlayerListener? = null
@@ -253,10 +290,6 @@ class PlayerViewModel @Inject constructor(
                 if (serviceSong != null && serviceSong.id != currentSongId) {
                     syncWithService()
                 }
-
-                currentSong?.let { song ->
-                    notificationManager?.show(song, playing, pm.getSessionToken())
-                }
             }
 
             override fun onEnd() {
@@ -267,53 +300,80 @@ class PlayerViewModel @Inject constructor(
         pm.addListener(playerListener!!)
     }
 
-    var currentPlaylistId by mutableStateOf<Long?>(null)
-        private set
+    private val _currentPlaylistId = mutableStateOf<Long?>(null)
+    var currentPlaylistId: Long?
+        get() = _currentPlaylistId.value
+        set(value) {
+            _currentPlaylistId.value = value
+            playbackService?.currentPlaylistId = value
+        }
 
     fun setQueue(songs: List<Song>, playlistId: Long? = null) {
-        val uniqueSongs = songs.distinctBy { it.id }
         currentPlaylistId = playlistId
-        originalQueue = uniqueSongs.map { QueueEntry(song = it) }
-
         val service = playbackService
         if (service != null) service.currentPlaylistId = playlistId
-        val targetSongs = if (service?.isShuffled == true || (service == null && isShuffled)) {
-            val current = uniqueSongs.firstOrNull { it.id == currentSongId }
-            if (current != null) listOf(current) + uniqueSongs.filterNot { it.id == current.id }.shuffled()
-            else uniqueSongs.shuffled()
-        } else uniqueSongs
+        PlaybackQueueCoordinator.setQueueSongs(songs, currentSong, playlistId)
+    }
 
-        service?.queue = targetSongs
-        _queue.value = targetSongs.map { QueueEntry(song = it) }
+    fun setQueueOnline(onlineSongs: List<OnlineSong>, playlistId: Long? = null) {
+        currentPlaylistId = playlistId
+        PlaybackQueueCoordinator.setQueueOnline(onlineSongs, null, playlistId)
     }
 
     fun addToQueue(song: Song) = addToQueue(listOf(song))
 
     fun addToQueue(songs: List<Song>) {
         if (songs.isEmpty()) return
-        val currentList = playbackService?.queue ?: _queue.value.map { it.song }
-        val newSongs = songs.distinctBy { it.id }
-            .filter { candidate -> currentList.none { it.id == candidate.id } }
-        if (newSongs.isEmpty()) return
+        val res = PlaybackQueueCoordinator.addToQueue(songs.map { PlaybackQueueCoordinator.createTrack(it) })
+        when (res) {
+            is QueueActionResult.Added -> _userFeedback.tryEmit(res.message)
+            is QueueActionResult.AlreadyQueued -> _userFeedback.tryEmit(res.message)
+        }
+    }
 
-        val canonical = originalQueue.map { it.song }
-        val canonicalIds = canonical.mapTo(mutableSetOf()) { it.id }
-        val canonicalBase = if (canonical.isEmpty()) currentList
-            else canonical + currentList.filterNot { it.id in canonicalIds }
-        originalQueue = (canonicalBase + newSongs)
-            .distinctBy { it.id }
-            .map { QueueEntry(song = it) }
+    fun addToQueue(onlineSong: OnlineSong) = addToQueueOnline(listOf(onlineSong))
 
-        val updated = currentList + newSongs
-        playbackService?.queue = updated
-        _queue.value = updated.map { QueueEntry(song = it) }
+    fun addToQueueOnline(onlineSongs: List<OnlineSong>) {
+        if (onlineSongs.isEmpty()) return
+        val res = PlaybackQueueCoordinator.addToQueue(onlineSongs.map { PlaybackQueueCoordinator.createTrack(it) })
+        when (res) {
+            is QueueActionResult.Added -> _userFeedback.tryEmit(res.message)
+            is QueueActionResult.AlreadyQueued -> _userFeedback.tryEmit(res.message)
+        }
+    }
+
+    fun playNext(song: Song) = playNext(listOf(song))
+
+    fun playNext(songs: List<Song>) {
+        if (songs.isEmpty()) return
+        val res = PlaybackQueueCoordinator.playNext(songs.map { PlaybackQueueCoordinator.createTrack(it) })
+        when (res) {
+            is QueueActionResult.Added -> _userFeedback.tryEmit(res.message)
+            is QueueActionResult.AlreadyQueued -> _userFeedback.tryEmit(res.message)
+        }
+    }
+
+    fun playNext(onlineSong: OnlineSong) = playNextOnline(listOf(onlineSong))
+
+    fun playNextOnline(onlineSongs: List<OnlineSong>) {
+        if (onlineSongs.isEmpty()) return
+        val res = PlaybackQueueCoordinator.playNext(onlineSongs.map { PlaybackQueueCoordinator.createTrack(it) })
+        when (res) {
+            is QueueActionResult.Added -> _userFeedback.tryEmit(res.message)
+            is QueueActionResult.AlreadyQueued -> _userFeedback.tryEmit(res.message)
+        }
     }
 
     fun play(song: Song, startPosition: Long = 0L) {
+        if (song.isOnline) {
+            PlaybackQueueCoordinator.playTrackBySong(song)
+            return
+        }
         val pm = playerManager ?: return
         val service = playbackService ?: return
         
         isOnlinePlaying = false
+        PlaybackQueueCoordinator.playTrackBySong(song)
         service.play(song)
         
         currentPosition = startPosition
@@ -507,40 +567,15 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun toggleShuffle() {
-        val service = playbackService
-        val newShuffled = !(service?.isShuffled ?: isShuffled)
-        val activeQueue = service?.queue ?: _queue.value.map { it.song }
-        val canonical = originalQueue.map { it.song }.ifEmpty { activeQueue }
-        if (originalQueue.isEmpty()) {
-            originalQueue = canonical.map { QueueEntry(song = it) }
-        }
-
-        val targetQueue = if (newShuffled) {
-            val current = canonical.firstOrNull { it.id == currentSongId }
-            if (current != null) listOf(current) + canonical.filterNot { it.id == current.id }.shuffled()
-            else canonical.shuffled()
-        } else {
-            canonical.distinctBy { it.id }
-        }
-
-        // Update the flag before publishing the reordered queue so the queueFlow
-        // collector knows whether this is canonical order or shuffle presentation order.
-        service?.isShuffled = newShuffled
-        service?.queue = targetQueue
-        _queue.value = targetQueue.map { QueueEntry(song = it) }
+        val newShuffled = PlaybackQueueCoordinator.toggleShuffle()
         isShuffled = newShuffled
+        playbackService?.isShuffled = newShuffled
     }
 
     fun toggleRepeat() {
-        playbackService?.let { service ->
-            val nextMode = when (service.repeatMode) {
-                RepeatMode.NONE -> RepeatMode.ONE
-                RepeatMode.ONE -> RepeatMode.ALL
-                RepeatMode.ALL -> RepeatMode.NONE
-            }
-            service.repeatMode = nextMode
-            repeatMode = nextMode
-        }
+        val nextMode = PlaybackQueueCoordinator.toggleRepeat()
+        repeatMode = nextMode
+        playbackService?.repeatMode = nextMode
     }
 
     fun toggleFavorite() {
@@ -564,51 +599,32 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun playNext() {
-        playbackService?.playNext()
+        PlaybackQueueCoordinator.playNextTrack(isManual = true)
     }
 
     fun playPrevious() {
-        playbackService?.playPrevious()
+        PlaybackQueueCoordinator.playPreviousTrack()
     }
 
     fun moveQueueItem(fromIndex: Int, toIndex: Int) {
-        val q = _queue.value.toMutableList()
-        if (fromIndex !in q.indices || toIndex !in q.indices) return
-        val item = q.removeAt(fromIndex)
-        q.add(toIndex, item)
-        _queue.value = q
-        playbackService?.queue = q.map { it.song }
-        if (!isShuffled) originalQueue = q
+        PlaybackQueueCoordinator.moveTrack(fromIndex, toIndex)
     }
 
     fun removeQueueItem(songId: Long) {
-        val wasCurrent = currentSongId == songId
-        val q = _queue.value.filterNot { it.song.id == songId }
-        _queue.value = q
-        playbackService?.queue = q.map { it.song }
-
-        val canonical = originalQueue.map { it.song }.ifEmpty { q.map { it.song } }
-        originalQueue = canonical.filterNot { it.id == songId }.map { QueueEntry(song = it) }
-
-        if (wasCurrent) {
-            if (q.isNotEmpty()) {
-                playNext()
-            } else {
-                currentSong = null
-                currentSongId = null
-                playerManager?.pause()
-            }
+        val target = _queue.value.find { it.song.id == songId }
+        if (target != null) {
+            PlaybackQueueCoordinator.removeSong(target.song)
+        } else {
+            PlaybackQueueCoordinator.removeTrack("local:$songId")
         }
     }
 
+    fun removeQueueTrack(stableKey: String) {
+        PlaybackQueueCoordinator.removeTrack(stableKey)
+    }
+
     fun clearQueueExceptCurrent() {
-        val current = currentSong ?: return
-        val q = listOf(QueueEntry(song = current))
-        _queue.value = q
-        playbackService?.queue = listOf(current)
-        playbackService?.currentPlaylistId = null
-        currentPlaylistId = null
-        originalQueue = q
+        PlaybackQueueCoordinator.clearQueueExceptCurrent()
     }
 
     fun saveQueueAsPlaylist(name: String) {
@@ -662,6 +678,9 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        playerListener?.let { playerManager?.removeListener(it) }
+        playerListener = null
+
         if (isServiceBound) {
             runCatching { getApplication<Application>().unbindService(serviceConnection) }
             isServiceBound = false
@@ -669,14 +688,11 @@ class PlayerViewModel @Inject constructor(
         playbackService = null
         playerManager = null
         notificationManager = null
-        
-        val isOnlineActive = playbackService?.isOnlinePlaybackActive == true
-        val isAnyPlaying = isPlaying || (isOnlineActive && isOnlinePlaying)
-        if (!appSettings.keepPlayingOnClose || !isAnyPlaying) {
+
+        if (!appSettings.keepPlayingOnClose) {
             val intent = Intent(getApplication(), PlaybackService::class.java)
             getApplication<Application>().stopService(intent)
-            
-            // Only clear if the service is actually stopping
+
             PlaybackActionRegistry.onPlayPause = null
             PlaybackActionRegistry.onNext = null
             PlaybackActionRegistry.onPrevious = null

@@ -20,6 +20,7 @@ import com.aman.auramusic.online.model.SavedOnlineArtist
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
@@ -42,9 +43,13 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             gaplessEnabled = prefs[Keys.gaplessEnabled] ?: true,
             skipSilence = prefs[Keys.skipSilence] ?: false,
             smartAudioFocus = prefs[Keys.smartAudioFocus] ?: true,
-            keepPlayingOnClose = prefs[Keys.keepPlayingOnClose] ?: false,
+            keepPlayingOnClose = prefs[Keys.keepPlayingOnClose] ?: true,
             playlistGridColumns = prefs[Keys.playlistGridColumns] ?: 2,
             dynamicArtworkColors = prefs[Keys.dynamicArtworkColors] ?: false,
+            colorPreset = prefs[Keys.colorPreset] ?: "Monochrome",
+            customPaletteHexes = prefs[Keys.customPaletteHexes] ?: "",
+            enablePlayerColor = prefs[Keys.enablePlayerColor] ?: true,
+            enableMiniPlayerColor = prefs[Keys.enableMiniPlayerColor] ?: false,
             themeMode = runCatching {
                 ThemeMode.valueOf(prefs[Keys.themeMode] ?: ThemeMode.SYSTEM.name)
             }.getOrDefault(ThemeMode.SYSTEM)
@@ -115,6 +120,10 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it[Keys.keepPlayingOnClose] = enabled }
     }
 
+    suspend fun getKeepPlayingOnClose(): Boolean {
+        return settingsFlow.first().keepPlayingOnClose
+    }
+
     suspend fun setPlaylistGridColumns(columns: Int) {
         dataStore.edit { it[Keys.playlistGridColumns] = columns.coerceIn(1, 2) }
     }
@@ -125,6 +134,21 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setDynamicArtworkColors(enabled: Boolean) {
         dataStore.edit { it[Keys.dynamicArtworkColors] = enabled }
+    }
+
+    suspend fun setColorPreset(preset: String) {
+        dataStore.edit { it[Keys.colorPreset] = preset }
+    }
+
+    suspend fun setCustomPaletteHexes(hexes: String) {
+        dataStore.edit { it[Keys.customPaletteHexes] = hexes }
+    }
+
+    suspend fun setSectionColorEnabled(player: Boolean, miniPlayer: Boolean) {
+        dataStore.edit {
+            it[Keys.enablePlayerColor] = player
+            it[Keys.enableMiniPlayerColor] = miniPlayer
+        }
     }
 
     suspend fun setFavorites(items: List<Pair<Long, OnlineSong?>>, isFavorite: Boolean) {
@@ -457,6 +481,10 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             val keepPlayingOnClose = booleanPreferencesKey("keep_playing_on_close")
             val playlistGridColumns = intPreferencesKey("playlist_grid_columns")
             val dynamicArtworkColors = booleanPreferencesKey("dynamic_artwork_colors")
+            val colorPreset = stringPreferencesKey("color_preset")
+            val customPaletteHexes = stringPreferencesKey("custom_palette_hexes")
+            val enablePlayerColor = booleanPreferencesKey("enable_player_color")
+            val enableMiniPlayerColor = booleanPreferencesKey("enable_mini_player_color")
             val themeMode = stringPreferencesKey("theme_mode")
             val favoriteIds = stringPreferencesKey("favorite_ids")
             val favoriteOnlineSongs = stringPreferencesKey("favorite_online_songs")

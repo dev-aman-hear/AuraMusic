@@ -116,11 +116,14 @@ fun SearchScreen(
     onSongSelected: (Song, List<Song>) -> Unit,
     onFavoriteToggle: (Song) -> Unit,
     onAddToPlaylist: (Song) -> Unit,
+    onPlayNext: (Song) -> Unit = {},
     onAddToQueue: (Song) -> Unit = {},
     onAlbumSelected: (String) -> Unit,
     onArtistSelected: (String) -> Unit,
     onlinePlaybackManager: OnlinePlaybackManager? = null,
     onOnlineSongSelected: (OnlineSong, List<OnlineSong>) -> Unit = { _, _ -> },
+    onOnlinePlayNext: ((OnlineSong) -> Unit)? = null,
+    onOnlineAddToQueue: ((OnlineSong) -> Unit)? = null,
     onAddOnlineSongToPlaylist: ((OnlineSong) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -683,6 +686,7 @@ fun SearchScreen(
                                 onPlayNow = { onSongSelected(song, filteredLocalSongs) },
                                 onToggleFavorite = { onFavoriteToggle(song) },
                                 onAddToPlaylist = { onAddToPlaylist(song) },
+                                onPlayNext = { onPlayNext(song) },
                                 onAddToQueue = { onAddToQueue(song) },
                                 onClick = { onSongSelected(song, filteredLocalSongs) }
                             )
@@ -709,6 +713,8 @@ fun SearchScreen(
                                 isPlaying = isPlaying,
                                 onClick = { onOnlineSongSelected(onlineSong, onlineResults) },
                                 onPlayNow = { onOnlineSongSelected(onlineSong, onlineResults) },
+                                onPlayNext = onOnlinePlayNext?.let { cb -> { cb(onlineSong) } },
+                                onAddToQueue = onOnlineAddToQueue?.let { cb -> { cb(onlineSong) } },
                                 onAddToPlaylist = onAddOnlineSongToPlaylist?.let { cb -> { cb(onlineSong) } }
                             )
                         }
@@ -765,6 +771,7 @@ fun SearchScreen(
                                     onPlayNow = { onSongSelected(song, artistLocalSongs) },
                                     onToggleFavorite = { onFavoriteToggle(song) },
                                     onAddToPlaylist = { onAddToPlaylist(song) },
+                                    onPlayNext = { onPlayNext(song) },
                                     onAddToQueue = { onAddToQueue(song) },
                                     onClick = { onSongSelected(song, artistLocalSongs) }
                                 )
@@ -777,6 +784,8 @@ fun SearchScreen(
                                     isPlaying = isPlaying,
                                     onClick = { onOnlineSongSelected(onlineSong, artistOnlineSongs) },
                                     onPlayNow = { onOnlineSongSelected(onlineSong, artistOnlineSongs) },
+                                    onPlayNext = onOnlinePlayNext?.let { cb -> { cb(onlineSong) } },
+                                    onAddToQueue = onOnlineAddToQueue?.let { cb -> { cb(onlineSong) } },
                                     onAddToPlaylist = onAddOnlineSongToPlaylist?.let { cb -> { cb(onlineSong) } }
                                 )
                             }
@@ -829,6 +838,7 @@ fun SearchScreen(
                                     onPlayNow = { onSongSelected(song, albumLocalSongs) },
                                     onToggleFavorite = { onFavoriteToggle(song) },
                                     onAddToPlaylist = { onAddToPlaylist(song) },
+                                    onPlayNext = { onPlayNext(song) },
                                     onAddToQueue = { onAddToQueue(song) },
                                     onClick = { onSongSelected(song, albumLocalSongs) }
                                 )
@@ -841,6 +851,8 @@ fun SearchScreen(
                                     isPlaying = isPlaying,
                                     onClick = { onOnlineSongSelected(onlineSong, albumOnlineSongs) },
                                     onPlayNow = { onOnlineSongSelected(onlineSong, albumOnlineSongs) },
+                                    onPlayNext = onOnlinePlayNext?.let { cb -> { cb(onlineSong) } },
+                                    onAddToQueue = onOnlineAddToQueue?.let { cb -> { cb(onlineSong) } },
                                     onAddToPlaylist = onAddOnlineSongToPlaylist?.let { cb -> { cb(onlineSong) } }
                                 )
                             }

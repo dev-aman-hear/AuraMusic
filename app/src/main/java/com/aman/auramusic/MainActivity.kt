@@ -251,9 +251,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                 is ExportTarget.SinglePlaylist -> {
                     musicViewModel.exportPlaylistToFile(target.playlist, outputStream)
                 }
-                is ExportTarget.SinglePlaylist -> {
-                    musicViewModel.exportPlaylistToFile(target.playlist, outputStream)
-                }
             }
         }
     }
@@ -269,11 +266,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     }
 
     LaunchedEffect(Unit) {
-        musicViewModel.operationEvent.collect { event ->
-            val message = when (event) {
-                is MusicViewModel.OperationMessage.Success -> event.message
-                is MusicViewModel.OperationMessage.Error -> event.message
-            }
+        playerViewModel.userFeedback.collect { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
@@ -558,11 +551,12 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
         showPlayer = true
     }
 
-    fun playOnlineSong(onlineSong: OnlineSong, queue: List<OnlineSong>) {
+    fun playOnlineSong(onlineSong: OnlineSong, queue: List<OnlineSong>, playlistId: Long? = null) {
         LastPlayedStore.saveOnline(context, onlineSong, 0L, queue)
         musicViewModel.recordOnlinePlayback(onlineSong)
         isOnlinePlaybackActive = true
         activeOnlineSong = onlineSong
+        playerViewModel.currentPlaylistId = playlistId
         playerViewModel.pause()
         onlinePlaybackManager.playSong(onlineSong, queue)
         playerViewModel.startOnlinePlayback(
@@ -674,6 +668,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             },
                             onFavoriteToggle = { song -> toggleSongFavorite(song) },
                             onAddToPlaylist = { songToAddToPlaylist = it },
+                            onPlayNext = { playerViewModel.playNext(it) },
                             onAddToQueue = { playerViewModel.addToQueue(it) },
                             onOnlineSongSelected = { onlineSong, queue ->
                                 playOnlineSong(onlineSong, queue)
@@ -702,7 +697,11 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             savedOnlineAlbums = savedOnlineAlbums,
                             onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
                             onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
-                            onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
+                            onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it },
+                            onPlayNext = { playerViewModel.playNext(it) },
+                            onAddToQueue = { playerViewModel.addToQueue(it) },
+                            onPlayNextCollection = { playerViewModel.playNextOnline(it) },
+                            onAddCollectionToQueue = { playerViewModel.addToQueueOnline(it) }
                         )
                         AppTab.Library -> LibraryScreen(
                             selectedTab = selectedLibraryTab,
@@ -780,7 +779,15 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             savedOnlineAlbums = savedOnlineAlbums,
                             onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
                             onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
-                            onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
+                            onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it },
+                            onPlayNext = { playerViewModel.playNext(it) },
+                            onAddToQueue = { playerViewModel.addToQueue(it) },
+                            onOnlinePlayNext = { playerViewModel.playNext(it) },
+                            onOnlineAddToQueue = { playerViewModel.addToQueue(it) },
+                            onPlayNextSongs = { playerViewModel.playNext(it) },
+                            onAddSongsToQueue = { playerViewModel.addToQueue(it) },
+                            onPlayNextOnlineSongs = { playerViewModel.playNextOnline(it) },
+                            onAddOnlineSongsToQueue = { playerViewModel.addToQueueOnline(it) }
                         )
                         AppTab.Search -> SearchScreen(
                             songs = songs,
@@ -793,6 +800,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             onSongSelected = { song, queue -> playSong(song, queue) },
                             onFavoriteToggle = { song -> toggleSongFavorite(song) },
                             onAddToPlaylist = { songToAddToPlaylist = it },
+                            onPlayNext = { playerViewModel.playNext(it) },
                             onAddToQueue = { playerViewModel.addToQueue(it) },
                             onAlbumSelected = { selectedAlbumName = it },
                             onArtistSelected = { selectedArtistName = it },
@@ -800,6 +808,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             onOnlineSongSelected = { onlineSong, queue ->
                                 playOnlineSong(onlineSong, queue)
                             },
+                            onOnlinePlayNext = { playerViewModel.playNext(it) },
+                            onOnlineAddToQueue = { playerViewModel.addToQueue(it) },
                             onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
                         )
                     }
@@ -816,6 +826,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 onUsernameChange = { musicViewModel.updateUsername(it) },
                                 onThemeModeChange = { mode -> musicViewModel.setThemeMode(mode) },
                                 onDynamicArtworkColorsChange = { musicViewModel.setDynamicArtworkColors(it) },
+                                onColorPresetChange = { preset -> musicViewModel.setColorPreset(preset) },
                                 onKaraokeChange = { musicViewModel.setKaraokeMode(it) },
                                 onLyricFontScaleChange = { musicViewModel.setLyricFontScale(it) },
                                 onSmartAudioFocusChange = { musicViewModel.setSmartAudioFocus(it) },
@@ -848,19 +859,15 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     currentSongId = playerViewModel.currentSong?.id,
                                     onBack = { selectedPlaylistId = null },
                                     onSongSelected = { song ->
-                                        val onlineMatch = p.onlineSongs.find { 
-                                            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title == song.title 
-                                        }
+                                        val onlineMatch = com.aman.auramusic.util.SongIdentityMatcher.findOnlineMatch(song, p.onlineSongs)
                                         if (onlineMatch != null) {
-                                            playOnlineSong(onlineMatch, p.onlineSongs)
+                                            playOnlineSong(onlineMatch, p.onlineSongs, p.id)
                                         } else {
                                             playSong(song, localPlaylistSongs, p.id)
                                         }
                                     },
                                     onRemoveSong = { song -> 
-                                        val onlineMatch = p.onlineSongs.find { 
-                                            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title == song.title 
-                                        }
+                                        val onlineMatch = com.aman.auramusic.util.SongIdentityMatcher.findOnlineMatch(song, p.onlineSongs)
                                         if (onlineMatch != null) {
                                             musicViewModel.removeOnlineSongFromPlaylist(p.id, onlineMatch.id)
                                         } else {
@@ -874,7 +881,9 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onRenamePlaylist = { playlistToRename = p },
                                     onToggleFavorite = { song -> toggleSongFavorite(song) },
                                     onAddToPlaylist = { songToAddToPlaylist = it },
+                                    onPlayNext = { playerViewModel.playNext(it) },
                                     onAddToQueue = { playerViewModel.addToQueue(it) },
+                                    onPlayNextCollection = { playerViewModel.playNext(playlistSongs) },
                                     onAddCollectionToQueue = { playerViewModel.addToQueue(playlistSongs) },
                                     onAddCollectionToPlaylist = { songsToAddToPlaylist = playlistSongs },
                                     onFavoriteCollection = {
@@ -919,7 +928,13 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     isAlbumLoading = true
                                     try {
                                         val repo = OnlineMusicRepository()
-                                        onlineAlbumSongs = repo.search(selectedAlbumName!!, AudioSource.ALL)
+                                        val rawResults = repo.search(selectedAlbumName!!, AudioSource.ALL)
+                                        val filtered = com.aman.auramusic.util.SongIdentityMatcher.filterAlbumTracks(
+                                            targetAlbumName = selectedAlbumName!!,
+                                            targetArtistName = localAlbumSongs.firstOrNull()?.artist,
+                                            rawTracks = rawResults
+                                        )
+                                        onlineAlbumSongs = if (filtered.isNotEmpty()) filtered else rawResults
                                     } catch (_: Exception) {
                                         onlineAlbumSongs = emptyList()
                                     } finally {
@@ -941,11 +956,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 currentSongId = playerViewModel.currentSong?.id,
                                 onBack = { selectedAlbumName = null },
                                 onSongSelected = { song ->
-                                    val onlineMatch = onlineAlbumSongs.find {
-                                        (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
-                                        it.id == song.id.toString() ||
-                                        it.title.equals(song.title, ignoreCase = true)
-                                    }
+                                    val onlineMatch = com.aman.auramusic.util.SongIdentityMatcher.findOnlineMatch(song, onlineAlbumSongs)
                                     if (onlineMatch != null) {
                                         playOnlineSong(onlineMatch, onlineAlbumSongs)
                                     } else {
@@ -954,19 +965,20 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 },
                                 onToggleFavorite = { song ->
                                     val isFav = song.id in favoriteIds
-                                    val onlineMatch = onlineAlbumSongs.find {
-                                        (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
-                                        it.id == song.id.toString() ||
-                                        it.title.equals(song.title, ignoreCase = true)
-                                    } ?: favoriteOnlineSongs.find {
-                                        (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
-                                        it.id == song.id.toString() ||
-                                        it.title.equals(song.title, ignoreCase = true)
-                                    }
+                                    val onlineMatch = com.aman.auramusic.util.SongIdentityMatcher.findOnlineMatch(song, onlineAlbumSongs)
+                                        ?: com.aman.auramusic.util.SongIdentityMatcher.findOnlineMatch(song, favoriteOnlineSongs)
                                     musicViewModel.toggleFavorite(song.id, !isFav, onlineMatch)
                                 },
                                 onAddToPlaylist = { songToAddToPlaylist = it },
+                                onPlayNext = { playerViewModel.playNext(it) },
                                 onAddToQueue = { playerViewModel.addToQueue(it) },
+                                onPlayNextCollection = {
+                                    if (localAlbumSongs.isNotEmpty()) {
+                                        playerViewModel.playNext(localAlbumSongs)
+                                    } else {
+                                        playerViewModel.playNext(displaySongs)
+                                    }
+                                },
                                 onAddCollectionToQueue = {
                                     if (localAlbumSongs.isNotEmpty()) {
                                         playerViewModel.addToQueue(localAlbumSongs)
@@ -1341,10 +1353,10 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         val isFav = onlineAsSong.id in favoriteIds
                         musicViewModel.toggleFavorite(onlineAsSong.id, !isFav, currentOnlineFullSong)
                     },
-                    isShuffled = onlinePlaybackState.isShuffleEnabled,
-                    repeatMode = if (onlinePlaybackState.isRepeatEnabled) RepeatMode.ONE else RepeatMode.NONE,
-                    onToggleShuffle = { onlinePlaybackManager.toggleShuffle() },
-                    onToggleRepeat = { onlinePlaybackManager.toggleRepeat() },
+                    isShuffled = playerViewModel.isShuffled,
+                    repeatMode = playerViewModel.repeatMode,
+                    onToggleShuffle = { playerViewModel.toggleShuffle() },
+                    onToggleRepeat = { playerViewModel.toggleRepeat() },
                     onAddToQueue = { selected ->
                         val target = onlinePlaybackState.queue.find { os ->
                             (os.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == selected.id || os.title == selected.title
@@ -1398,6 +1410,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         },
                         onHistoryClear = { musicViewModel.clearHistory() },
                         onAddToPlaylist = { songToAddToPlaylist = song },
+                        onAddToQueue = { playerViewModel.addToQueue(it) },
+                        onMoveQueueItem = { from, to -> playerViewModel.moveQueueItem(from, to) },
                         appSettings = appSettings,
                         playerViewModel = playerViewModel
                     )

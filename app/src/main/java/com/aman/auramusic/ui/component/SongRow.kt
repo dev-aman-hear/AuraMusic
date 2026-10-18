@@ -70,6 +70,7 @@ fun SongRow(
     onAddToPlaylist: (() -> Unit)? = null,
     onToggleFavorite: (() -> Unit)? = null,
     onRemove: (() -> Unit)? = null,
+    onPlayNext: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null
 ) {
@@ -227,6 +228,24 @@ fun SongRow(
                         )
                     }
 
+                    if (onPlayNext != null) {
+                        DropdownMenuItem(
+                            text = { Text("Play Next", fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onPlayNext()
+                            }
+                        )
+                    }
+
                     if (onAddToQueue != null) {
                         DropdownMenuItem(
                             text = { Text("Add to Queue", fontWeight = FontWeight.SemiBold) },
@@ -327,6 +346,7 @@ fun SongRow(
     onAddToPlaylist: (() -> Unit)? = null,
     onToggleFavorite: (() -> Unit)? = null,
     onRemove: (() -> Unit)? = null,
+    onPlayNext: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null
 ) {
@@ -345,6 +365,7 @@ fun SongRow(
         onAddToPlaylist = onAddToPlaylist,
         onToggleFavorite = onToggleFavorite,
         onRemove = onRemove,
+        onPlayNext = onPlayNext,
         onAddToQueue = onAddToQueue,
         onLongClick = onLongClick
     )

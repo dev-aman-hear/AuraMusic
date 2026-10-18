@@ -16,6 +16,7 @@ data class PlaybackState(
     val queueIndex: Int = -1,
     val isShuffleEnabled: Boolean = false,
     val isRepeatEnabled: Boolean = false,
+    val repeatMode: com.aman.auramusic.playback.RepeatMode = com.aman.auramusic.playback.RepeatMode.NONE,
     val errorMessage: String? = null,
     val selectedBitrate: String = "320 kbps",
     val currentLyrics: SongLyrics? = null,
@@ -23,7 +24,10 @@ data class PlaybackState(
     val isLyricsMode: Boolean = false,
     val isLoadingLyrics: Boolean = false,
     val selectedEngine: StreamingEngine = StreamingEngine.RIPLAY,
-    val activePlayerType: String = "ExoPlayer"
+    val activePlayerType: String = "ExoPlayer",
+    val measuredBitrate: Int? = null,
+    val measuredSampleRate: Int? = null,
+    val measuredMimeType: String? = null
 ) {
     val progress: Float
         get() = if (durationMs > 0) (currentPositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f

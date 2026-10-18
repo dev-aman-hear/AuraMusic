@@ -27,6 +27,8 @@ class PlaybackNotificationManager(private val context: Context) {
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
             description = "Aura Music playback controls"
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            setShowBadge(false)
         }
         context.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
     }
@@ -69,6 +71,7 @@ class PlaybackNotificationManager(private val context: Context) {
             .setOnlyAlertOnce(true)
             .setOngoing(isPlaying)
             .setShowWhen(false)
+            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .addAction(
                 NotificationCompat.Action(
