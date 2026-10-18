@@ -256,11 +256,9 @@ class DynamicArtworkColorsTest {
         assertEquals(0.75f, scheme.buttonSurface.alpha, 0.05f)
         assertEquals(0.75f, scheme.capsuleSurface.alpha, 0.05f)
 
-        // Validate prominent surface derived from accent
-        assertEquals(0.85f, scheme.prominentSurface.alpha, 0.05f)
-
-        // Yellow accent is light, so prominentIconTint must be dark for contrast
-        assertEquals(androidx.compose.ui.graphics.Color(0xFF111111), scheme.prominentIconTint)
+        // Prominent Play/Pause button must remain strictly monochrome: black in light mode and white in dark mode
+        assertEquals(androidx.compose.ui.graphics.Color.White, scheme.prominentSurface)
+        assertEquals(androidx.compose.ui.graphics.Color.Black, scheme.prominentIconTint)
 
         // Queue item active surface is subtle translucent highlight
         assertTrue("Queue active surface must have translucent alpha", scheme.queueItemActiveSurface.alpha < 0.40f)
@@ -463,5 +461,199 @@ class DynamicArtworkColorsTest {
 
         assertEquals(androidx.compose.ui.graphics.Color(0xFF2A2A2A), monochromeScheme.buttonSurface)
         assertEquals(androidx.compose.ui.graphics.Color(0xFF38383A), monochromeScheme.buttonBorder)
+    }
+
+    // --- 9. Player Palette Presets & Precedence Regression Tests ---
+
+    @Test
+    fun each_preset_resolves_to_its_intended_distinct_palette() {
+        val presets = listOf("Monochrome", "Midnight Indigo", "Crimson Velvet", "Emerald Pine", "Nordic Slate")
+        val darkPalettes = presets.map { PlayerArtworkPalette.fromPreset(it, isDark = true) }
+        val lightPalettes = presets.map { PlayerArtworkPalette.fromPreset(it, isDark = false) }
+
+        // All 5 presets must have distinct primary colors in dark mode
+        val darkPrimaries = darkPalettes.map { it.primary }.toSet()
+        assertEquals("Each preset must resolve to a distinct primary in dark mode", 5, darkPrimaries.size)
+
+        // All 5 presets must have distinct primary colors in light mode
+        val lightPrimaries = lightPalettes.map { it.primary }.toSet()
+        assertEquals("Each preset must resolve to a distinct primary in light mode", 5, lightPrimaries.size)
+
+        // Verify specific preset hues
+        val indigo = PlayerArtworkPalette.fromPreset("Midnight Indigo", isDark = true)
+        val crimson = PlayerArtworkPalette.fromPreset("Crimson Velvet", isDark = true)
+        val emerald = PlayerArtworkPalette.fromPreset("Emerald Pine", isDark = true)
+        val slate = PlayerArtworkPalette.fromPreset("Nordic Slate", isDark = true)
+        val monochrome = PlayerArtworkPalette.fromPreset("Monochrome", isDark = true)
+
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF1A237E), indigo.primary)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF880E4F), crimson.primary)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF1B5E20), emerald.primary)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF263238), slate.primary)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF1E1E1E), monochrome.primary)
+    }
+
+    @Test
+    fun monochrome_preset_resolves_to_neutral_palette() {
+        val darkNeutral = PlayerArtworkPalette.neutral(isDark = true)
+        val lightNeutral = PlayerArtworkPalette.neutral(isDark = false)
+
+        val presetDark = PlayerArtworkPalette.fromPreset("Monochrome", isDark = true)
+        val presetLight = PlayerArtworkPalette.fromPreset("Monochrome", isDark = false)
+
+        assertEquals(darkNeutral.primary, presetDark.primary)
+        assertEquals(darkNeutral.secondary, presetDark.secondary)
+        assertEquals(darkNeutral.accent, presetDark.accent)
+
+        assertEquals(lightNeutral.primary, presetLight.primary)
+        assertEquals(lightNeutral.secondary, presetLight.secondary)
+        assertEquals(lightNeutral.accent, presetLight.accent)
+    }
+
+    @Test
+    fun palette_mode_precedence_rules_are_strictly_enforced() {
+        // 1. When dynamicArtworkColors = true, mode is ALWAYS DYNAMIC_ARTWORK, even with a preset selected
+        val modeWithBoth = com.aman.auramusic.ui.theme.resolvePlayerPaletteMode(
+            dynamicArtworkColors = true,
+            colorPreset = "Midnight Indigo"
+        )
+        assertEquals(com.aman.auramusic.ui.theme.PlayerPaletteMode.DYNAMIC_ARTWORK, modeWithBoth)
+        assertTrue(modeWithBoth.isColored)
+
+        // 2. When dynamicArtworkColors = false, selecting a static preset resolves to PRESET mode
+        val modePresetIndigo = com.aman.auramusic.ui.theme.resolvePlayerPaletteMode(
+            dynamicArtworkColors = false,
+            colorPreset = "Midnight Indigo"
+        )
+        assertEquals(com.aman.auramusic.ui.theme.PlayerPaletteMode.PRESET, modePresetIndigo)
+        assertTrue(modePresetIndigo.isColored)
+
+        val modePresetCrimson = com.aman.auramusic.ui.theme.resolvePlayerPaletteMode(
+            dynamicArtworkColors = false,
+            colorPreset = "Crimson Velvet"
+        )
+        assertEquals(com.aman.auramusic.ui.theme.PlayerPaletteMode.PRESET, modePresetCrimson)
+        assertTrue(modePresetCrimson.isColored)
+
+        val modePresetEmerald = com.aman.auramusic.ui.theme.resolvePlayerPaletteMode(
+            dynamicArtworkColors = false,
+            colorPreset = "Emerald Pine"
+        )
+        assertEquals(com.aman.auramusic.ui.theme.PlayerPaletteMode.PRESET, modePresetEmerald)
+        assertTrue(modePresetEmerald.isColored)
+
+        val modePresetSlate = com.aman.auramusic.ui.theme.resolvePlayerPaletteMode(
+            dynamicArtworkColors = false,
+            colorPreset = "Nordic Slate"
+        )
+        assertEquals(com.aman.auramusic.ui.theme.PlayerPaletteMode.PRESET, modePresetSlate)
+        assertTrue(modePresetSlate.isColored)
+
+        // 3. When dynamicArtworkColors = false and preset is Monochrome, mode is MONOCHROME
+        val modeMonochrome = com.aman.auramusic.ui.theme.resolvePlayerPaletteMode(
+            dynamicArtworkColors = false,
+            colorPreset = "Monochrome"
+        )
+        assertEquals(com.aman.auramusic.ui.theme.PlayerPaletteMode.MONOCHROME, modeMonochrome)
+        assertFalse(modeMonochrome.isColored)
+
+        // 4. Custom palette when preset is Monochrome but custom hexes are present
+        val modeCustom = com.aman.auramusic.ui.theme.resolvePlayerPaletteMode(
+            dynamicArtworkColors = false,
+            colorPreset = "Monochrome",
+            customPaletteHexes = "#112233,#445566"
+        )
+        assertEquals(com.aman.auramusic.ui.theme.PlayerPaletteMode.CUSTOM, modeCustom)
+        assertTrue(modeCustom.isColored)
+    }
+
+    @Test
+    fun static_presets_colour_player_surfaces_when_dynamic_artwork_is_disabled() {
+        val indigoPalette = PlayerArtworkPalette.fromPreset("Midnight Indigo", isDark = true)
+
+        val scheme = com.aman.auramusic.ui.theme.resolvePlayerColorScheme(
+            paletteMode = com.aman.auramusic.ui.theme.PlayerPaletteMode.PRESET,
+            isDark = true,
+            primary = indigoPalette.primary,
+            secondary = indigoPalette.secondary,
+            tertiary = indigoPalette.tertiary,
+            accent = indigoPalette.accent
+        )
+
+        // Dynamic / colored flag must be true
+        assertTrue("Preset scheme must be marked colored / dynamic", scheme.isDynamic)
+        assertEquals(com.aman.auramusic.ui.theme.PlayerPaletteMode.PRESET, scheme.paletteMode)
+
+        // Surfaces must use preset colors, not flat monochrome fallback
+        assertEquals(indigoPalette.primary, scheme.ambientPrimary)
+        assertEquals(indigoPalette.accent, scheme.progressIndicator)
+        assertEquals(indigoPalette.secondary.copy(alpha = 0.75f), scheme.capsuleSurface)
+        assertEquals(indigoPalette.secondary.copy(alpha = 0.75f), scheme.buttonSurface)
+    }
+
+    @Test
+    fun play_pause_button_colour_remains_strictly_determined_only_by_light_dark_mode() {
+        val testPresets = listOf("Monochrome", "Midnight Indigo", "Crimson Velvet", "Emerald Pine", "Nordic Slate")
+
+        for (presetName in testPresets) {
+            val darkPalette = PlayerArtworkPalette.fromPreset(presetName, isDark = true)
+            val lightPalette = PlayerArtworkPalette.fromPreset(presetName, isDark = false)
+
+            // Test in dark mode: prominent surface must ALWAYS be white, icon tint black
+            val darkScheme = com.aman.auramusic.ui.theme.resolvePlayerColorScheme(
+                isDynamic = !presetName.equals("Monochrome", ignoreCase = true),
+                isDark = true,
+                primary = darkPalette.primary,
+                secondary = darkPalette.secondary,
+                tertiary = darkPalette.tertiary,
+                accent = darkPalette.accent
+            )
+            assertEquals("Dark mode play/pause surface must be White for preset $presetName",
+                androidx.compose.ui.graphics.Color.White, darkScheme.prominentSurface)
+            assertEquals("Dark mode play/pause icon tint must be Black for preset $presetName",
+                androidx.compose.ui.graphics.Color.Black, darkScheme.prominentIconTint)
+
+            // Test in light mode: prominent surface must ALWAYS be black, icon tint white
+            val lightScheme = com.aman.auramusic.ui.theme.resolvePlayerColorScheme(
+                isDynamic = !presetName.equals("Monochrome", ignoreCase = true),
+                isDark = false,
+                primary = lightPalette.primary,
+                secondary = lightPalette.secondary,
+                tertiary = lightPalette.tertiary,
+                accent = lightPalette.accent
+            )
+            assertEquals("Light mode play/pause surface must be Black for preset $presetName",
+                androidx.compose.ui.graphics.Color.Black, lightScheme.prominentSurface)
+            assertEquals("Light mode play/pause icon tint must be White for preset $presetName",
+                androidx.compose.ui.graphics.Color.White, lightScheme.prominentIconTint)
+        }
+
+        // Test with extreme vibrant neon accent in dynamic artwork mode
+        val neonAccent = androidx.compose.ui.graphics.Color(0xFFFF0055)
+        val dynamicDarkScheme = com.aman.auramusic.ui.theme.resolvePlayerColorScheme(
+            isDynamic = true,
+            isDark = true,
+            primary = androidx.compose.ui.graphics.Color.Blue,
+            secondary = androidx.compose.ui.graphics.Color.Cyan,
+            tertiary = androidx.compose.ui.graphics.Color.DarkGray,
+            accent = neonAccent
+        )
+        assertEquals("Dynamic artwork mode must NEVER override dark play/pause White surface",
+            androidx.compose.ui.graphics.Color.White, dynamicDarkScheme.prominentSurface)
+        assertEquals("Dynamic artwork mode must NEVER override dark play/pause Black icon tint",
+            androidx.compose.ui.graphics.Color.Black, dynamicDarkScheme.prominentIconTint)
+
+        val dynamicLightScheme = com.aman.auramusic.ui.theme.resolvePlayerColorScheme(
+            isDynamic = true,
+            isDark = false,
+            primary = androidx.compose.ui.graphics.Color.Blue,
+            secondary = androidx.compose.ui.graphics.Color.Cyan,
+            tertiary = androidx.compose.ui.graphics.Color.DarkGray,
+            accent = neonAccent
+        )
+        assertEquals("Dynamic artwork mode must NEVER override light play/pause Black surface",
+            androidx.compose.ui.graphics.Color.Black, dynamicLightScheme.prominentSurface)
+        assertEquals("Dynamic artwork mode must NEVER override light play/pause White icon tint",
+            androidx.compose.ui.graphics.Color.White, dynamicLightScheme.prominentIconTint)
     }
 }

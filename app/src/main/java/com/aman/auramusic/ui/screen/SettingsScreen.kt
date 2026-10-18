@@ -144,13 +144,22 @@ fun SettingsScreen(
 
                         ToggleRow(
                             title = "Dynamic Artwork Colors",
-                            subtitle = "Adapt the player background to the current song's artwork with soft ambient colors.",
+                            subtitle = "Adapt the player background to current song artwork. Takes precedence over presets when enabled.",
                             checked = appSettings.dynamicArtworkColors,
                             onCheckedChange = onDynamicArtworkColorsChange
                         )
 
                         val presets = listOf("Monochrome", "Midnight Indigo", "Crimson Velvet", "Emerald Pine", "Nordic Slate")
                         Text("Player Palette Preset", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            text = if (appSettings.dynamicArtworkColors) {
+                                "Dynamic artwork colors are active. Selecting a preset switches the player to that static palette."
+                            } else {
+                                "Choose a cohesive color scheme for the player surfaces."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -160,7 +169,12 @@ fun SettingsScreen(
                                 val isSelected = appSettings.colorPreset.equals(preset, ignoreCase = true)
                                 FilterChip(
                                     selected = isSelected,
-                                    onClick = { onColorPresetChange(preset) },
+                                    onClick = {
+                                        onColorPresetChange(preset)
+                                        if (appSettings.dynamicArtworkColors) {
+                                            onDynamicArtworkColorsChange(false)
+                                        }
+                                    },
                                     label = { Text(preset, style = MaterialTheme.typography.labelMedium) }
                                 )
                             }
