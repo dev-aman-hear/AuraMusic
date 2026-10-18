@@ -150,16 +150,18 @@ fun StreamDiagnosticsSheet(
                 val bitrateText = if (state.measuredBitrate != null && state.measuredBitrate > 0) {
                     "${state.measuredBitrate / 1000} kbps (Measured)"
                 } else if (song.source == com.aman.auramusic.online.model.AudioSource.YOUTUBE) {
-                    "~160 kbps (Opus/AAC)"
+                    "~128–160 kbps (Advertised Opus/AAC)"
+                } else if (song.bitrate.isNotBlank()) {
+                    "${song.bitrate} (Requested/Advertised)"
                 } else {
-                    song.bitrate
+                    "Unknown / Variable"
                 }
                 val sampleRateText = if (state.measuredSampleRate != null && state.measuredSampleRate > 0) {
-                    "${state.measuredSampleRate} Hz"
+                    "${state.measuredSampleRate} Hz (Measured)"
                 } else if (song.source == com.aman.auramusic.online.model.AudioSource.YOUTUBE) {
-                    "48,000 Hz"
+                    "48,000 Hz (Nominal / Unmeasured)"
                 } else {
-                    "44,100 Hz"
+                    "44,100 Hz (Nominal / Unmeasured)"
                 }
 
                 DiagnosticItem(title = "Audio Container", value = containerText)

@@ -16,6 +16,8 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -964,6 +966,87 @@ class PlaybackLifecycleAndQueueRegressionTest {
         assertEquals(2L, PlaybackQueueCoordinator.currentTrack?.song?.id)
         PlaybackQueueCoordinator.playPreviousTrack()
         assertEquals(1L, PlaybackQueueCoordinator.currentTrack?.song?.id)
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_13_repeat_one_natural_completion_replays_current_track() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val s1 = sampleSong(1L, "Track 1")
+        val s2 = sampleSong(2L, "Track 2")
+        PlaybackQueueCoordinator.setQueueSongs(listOf(s1, s2), s1)
+        PlaybackQueueCoordinator.setRepeatMode(RepeatMode.ONE)
+
+        // Natural completion (isManual = false)
+        val started = PlaybackQueueCoordinator.playNextTrack(isManual = false)
+        assertTrue(started)
+        assertEquals(1L, PlaybackQueueCoordinator.currentTrack?.song?.id)
+
+        // Manual Next advances even when RepeatMode.ONE is active
+        val manualStarted = PlaybackQueueCoordinator.playNextTrack(isManual = true)
+        assertTrue(manualStarted)
+        assertEquals(2L, PlaybackQueueCoordinator.currentTrack?.song?.id)
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_14_repeat_all_and_none_natural_end_of_queue() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val s1 = sampleSong(1L, "Track 1")
+        val s2 = sampleSong(2L, "Track 2")
+        PlaybackQueueCoordinator.setQueueSongs(listOf(s1, s2), s2) // at end of queue
+        PlaybackQueueCoordinator.setRepeatMode(RepeatMode.ALL)
+
+        // RepeatMode.ALL wraps to head
+        val startedAll = PlaybackQueueCoordinator.playNextTrack(isManual = false)
+        assertTrue(startedAll)
+        assertEquals(1L, PlaybackQueueCoordinator.currentTrack?.song?.id)
+
+        // Advance to end again
+        PlaybackQueueCoordinator.playNextTrack(isManual = true)
+        assertEquals(2L, PlaybackQueueCoordinator.currentTrack?.song?.id)
+
+        // RepeatMode.NONE stops at end of queue
+        PlaybackQueueCoordinator.setRepeatMode(RepeatMode.NONE)
+        val startedNone = PlaybackQueueCoordinator.playNextTrack(isManual = false)
+        assertFalse("Natural end of queue with RepeatMode.NONE must pause and return false", startedNone)
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_15_removing_current_track_starts_next_track_or_stops_cleanly() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val s1 = sampleSong(1L, "Track 1")
+        val s2 = sampleSong(2L, "Track 2")
+        PlaybackQueueCoordinator.setQueueSongs(listOf(s1, s2), s1)
+
+        // Removing current track s1 should advance to s2
+        PlaybackQueueCoordinator.removeTrack("local:1")
+        assertEquals(listOf(2L), PlaybackQueueCoordinator.queueFlow.value.map { it.song.id })
+        assertEquals(2L, PlaybackQueueCoordinator.currentTrack?.song?.id)
+
+        // Removing remaining s2 empties queue and clears current track
+        PlaybackQueueCoordinator.removeTrack("local:2")
+        assertTrue(PlaybackQueueCoordinator.queueFlow.value.isEmpty())
+        assertNull(PlaybackQueueCoordinator.currentTrack)
+        PlaybackQueueCoordinator.resetForTesting()
+    }
+
+    @Test
+    fun regression_16_stable_track_identity_differentiates_same_title_from_different_sources() {
+        PlaybackQueueCoordinator.resetForTesting()
+        val localSong = sampleSong(100L, "Hello")
+        val onlineSong = sampleOnlineSong("yt_hello_123", "Hello")
+
+        val trackLocal = PlaybackQueueCoordinator.createTrack(localSong)
+        val trackOnline = PlaybackQueueCoordinator.createTrack(onlineSong)
+
+        assertNotEquals(trackLocal.stableKey, trackOnline.stableKey)
+        assertEquals("local:100", trackLocal.stableKey)
+        assertEquals("online:YOUTUBE:yt_hello_123", trackOnline.stableKey)
+
+        PlaybackQueueCoordinator.setQueue(listOf(trackLocal, trackOnline), trackLocal)
+        assertEquals(2, PlaybackQueueCoordinator.queueFlow.value.size)
         PlaybackQueueCoordinator.resetForTesting()
     }
 }

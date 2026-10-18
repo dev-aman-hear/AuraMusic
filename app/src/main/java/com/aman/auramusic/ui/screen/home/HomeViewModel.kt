@@ -436,11 +436,7 @@ class HomeViewModel @Inject constructor(
             }
 
             val trendingItems = cleanTrending.map { onlineSong ->
-                val match = localSongs.find { local ->
-                    local.title.trim().equals(onlineSong.title.trim(), ignoreCase = true) ||
-                            (local.title.contains(onlineSong.title, ignoreCase = true) &&
-                                    local.artist.contains(onlineSong.artist, ignoreCase = true))
-                }
+                val match = findLocalMatch(onlineSong, localSongs)
                 TrendingSongItem(
                     onlineSong = onlineSong,
                     localMatch = match,
@@ -520,6 +516,50 @@ class HomeViewModel @Inject constructor(
             listenAgainTracks = listenAgainColumns.flatten()
         )
         resolveMissingArtistPortraits(artistsList)
+    }
+
+    private fun findLocalMatch(onlineSong: OnlineSong, localSongs: List<Song>): Song? {
+        // 1. Direct ID / OnlineID match
+        localSongs.find { local ->
+            local.onlineId == onlineSong.id ||
+            (local.isOnline && local.id.toString() == onlineSong.id)
+        }?.let { return it }
+
+        fun normalize(str: String): String =
+            str.lowercase(java.util.Locale.ROOT)
+                .replace(Regex("\\(.*?\\)|\\[.*?\\]"), "")
+                .replace(Regex("[^a-z0-9]"), " ")
+                .trim()
+                .replace(Regex("\\s+"), " ")
+
+        val targetTitle = normalize(onlineSong.title)
+        val targetArtist = normalize(onlineSong.artist)
+        if (targetTitle.isBlank() || targetArtist.isBlank()) return null
+
+        return localSongs.find { local ->
+            val localTitle = normalize(local.title)
+            val localArtist = normalize(local.artist)
+
+            // Equal title alone is NOT sufficient. Artist must also match.
+            val titleMatches = localTitle == targetTitle || (localTitle.length > 4 && targetTitle.length > 4 && (localTitle.contains(targetTitle) || targetTitle.contains(localTitle)))
+            val artistMatches = localArtist == targetArtist || (localArtist.length > 3 && targetArtist.length > 3 && (localArtist.contains(targetArtist) || targetArtist.contains(localArtist)))
+
+            if (!titleMatches || !artistMatches) return@find false
+
+            val localDurSec = local.duration / 1000L
+            val onlineDurSec = onlineSong.durationSeconds
+            val durationClose = if (localDurSec > 0L && onlineDurSec > 0L) {
+                kotlin.math.abs(localDurSec - onlineDurSec) <= 6L
+            } else false
+
+            val localAlbum = normalize(local.album)
+            val onlineAlbum = normalize(onlineSong.album)
+            val albumMatches = localAlbum.isNotBlank() && onlineAlbum.isNotBlank() &&
+                    !localAlbum.contains("unknown") && !onlineAlbum.contains("unknown") &&
+                    (localAlbum == onlineAlbum || localAlbum.contains(onlineAlbum) || onlineAlbum.contains(localAlbum))
+
+            durationClose || albumMatches || (localTitle == targetTitle && localArtist == targetArtist)
+        }
     }
 
     private fun extractSingleArtistNames(raw: String): List<String> =

@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Branch-Exp01-blue?style=flat-square" alt="Branch Exp01" />
+  <img src="https://img.shields.io/badge/Branch-BETA--V2-blue?style=flat-square" alt="Branch BETA-V2" />
   <img src="https://img.shields.io/badge/Version-1.0.3%20(Code%2016)-informational?style=flat-square" alt="Version 1.0.3, version code 16" />
   <img src="https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-success?style=flat-square" alt="Android API 26-36" />
   <img src="https://img.shields.io/badge/Kotlin-2.0.21-blueviolet?style=flat-square" alt="Kotlin 2.0.21" />
@@ -263,7 +263,7 @@ With USB debugging enabled on your connected device:
 
 ### Running Unit Tests
 
-Unit tests are located in `app/src/test/java/` and cover online playlist parsing (`OnlinePlaylistSongsTest`) as well as search filtering navigation logic (`SearchFilterNavigationTest`).
+Unit tests are located in `app/src/test/java/` and cover playback queue coordination, playback lifecycle persistence, cross-engine routing, repeat/shuffle mode synchronization, and online playlist collection parsing.
 
 Run the unit tests via Gradle:
 

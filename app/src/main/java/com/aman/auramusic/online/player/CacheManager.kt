@@ -14,6 +14,7 @@ import androidx.media3.datasource.cache.SimpleCache
 import com.aman.auramusic.online.model.OnlineSong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -97,12 +98,14 @@ object CacheManager {
     /**
      * Safely preloads the introductory chunk (~1MB) of the upcoming online track
      * so sequential track advancement starts with zero buffering latency.
+     * Returns the active Coroutine Job for lifecycle cancellation when queue shifts.
      */
-    fun preloadUpcomingTrack(context: Context, song: OnlineSong) {
+    fun preloadUpcomingTrack(context: Context, song: OnlineSong): kotlinx.coroutines.Job? {
         val streamUrl = song.streamUrl
-        if (streamUrl.isBlank() || !streamUrl.startsWith("http")) return
+        if (streamUrl.isBlank() || !streamUrl.startsWith("http")) return null
 
-        CoroutineScope(Dispatchers.IO).launch {
+        return CoroutineScope(Dispatchers.IO).launch {
+            var cacheDataSource: CacheDataSource? = null
             try {
                 val cache = getCache(context)
                 val uri = android.net.Uri.parse(streamUrl)
@@ -111,19 +114,22 @@ object CacheManager {
                     .setLength(1024L * 1024L) // 1MB initial pre-buffer
                     .build()
                 val upstream = DefaultHttpDataSource.Factory().createDataSource()
-                val cacheDataSource = CacheDataSource(cache, upstream)
+                cacheDataSource = CacheDataSource(cache, upstream)
                 val buffer = ByteArray(32 * 1024)
                 cacheDataSource.open(dataSpec)
                 var totalRead = 0
-                while (totalRead < 1024 * 1024) {
+                while (isActive && totalRead < 1024 * 1024) {
                     val read = cacheDataSource.read(buffer, 0, buffer.size)
                     if (read <= 0) break
                     totalRead += read
                 }
-                cacheDataSource.close()
                 Log.d("CacheManager", "Successfully preloaded $totalRead bytes for upcoming track: ${song.title}")
             } catch (e: Exception) {
-                Log.w("CacheManager", "Safe preload skipped/failed for ${song.title}: ${e.message}")
+                if (e !is kotlinx.coroutines.CancellationException) {
+                    Log.w("CacheManager", "Safe preload skipped/failed for ${song.title}: ${e.message}")
+                }
+            } finally {
+                runCatching { cacheDataSource?.close() }
             }
         }
     }

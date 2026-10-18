@@ -200,6 +200,18 @@ class PlayerViewModel @Inject constructor(
             }
         }
 
+        viewModelScope.launch {
+            PlaybackQueueCoordinator.isShuffledFlow.collect { shuffled ->
+                isShuffled = shuffled
+            }
+        }
+
+        viewModelScope.launch {
+            PlaybackQueueCoordinator.repeatModeFlow.collect { mode ->
+                repeatMode = mode
+            }
+        }
+
         // Observe favorites and playlists to keep queue synced
         viewModelScope.launch {
             userRepository.favoriteIdsFlow.collect { ids ->
@@ -561,15 +573,9 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun toggleRepeat() {
-        val currentMode = playbackService?.repeatMode ?: repeatMode
-        val nextMode = when (currentMode) {
-            RepeatMode.NONE -> RepeatMode.ONE
-            RepeatMode.ONE -> RepeatMode.ALL
-            RepeatMode.ALL -> RepeatMode.NONE
-        }
-        playbackService?.repeatMode = nextMode
+        val nextMode = PlaybackQueueCoordinator.toggleRepeat()
         repeatMode = nextMode
-        PlaybackQueueCoordinator.setRepeatMode(nextMode)
+        playbackService?.repeatMode = nextMode
     }
 
     fun toggleFavorite() {

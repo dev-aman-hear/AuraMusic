@@ -47,6 +47,7 @@ class OnlinePlaybackManager(
     private val scope = CoroutineScope(Dispatchers.Main + Job())
     private var progressJob: Job? = null
     private var lyricsJob: Job? = null
+    private var preloadJob: Job? = null
     private val lyricsManager: LyricsManager = LyricsManager()
 
     private val _playbackState = MutableStateFlow(PlaybackState())
@@ -293,6 +294,22 @@ class OnlinePlaybackManager(
             val newIdx = if (curId != null) onlineTracks.indexOfFirst { it.id == curId } else -1
             _playbackState.update { it.copy(queue = onlineTracks, queueIndex = newIdx) }
         }
+        scope.launch {
+            com.aman.auramusic.playback.PlaybackQueueCoordinator.isShuffledFlow.collect { shuffled ->
+                _playbackState.update { it.copy(isShuffleEnabled = shuffled) }
+            }
+        }
+        scope.launch {
+            com.aman.auramusic.playback.PlaybackQueueCoordinator.repeatModeFlow.collect { mode ->
+                _playbackState.update {
+                    it.copy(
+                        repeatMode = mode,
+                        isRepeatEnabled = (mode != com.aman.auramusic.playback.RepeatMode.NONE)
+                    )
+                }
+                exoPlayer.repeatMode = if (mode == com.aman.auramusic.playback.RepeatMode.ONE) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+            }
+        }
     }
 
     fun setStreamingEngine(engine: StreamingEngine) {
@@ -386,10 +403,11 @@ class OnlinePlaybackManager(
             val index = currentQueue.indexOfFirst { it.id == song.id }
             _playbackState.update { it.copy(queueIndex = index) }
 
-            // Safe preloading of upcoming tracks where supported
+            // Safe preloading of upcoming tracks with superseding cancellation
+            preloadJob?.cancel()
             if (index != -1 && index + 1 < currentQueue.size) {
                 val nextSong = currentQueue[index + 1]
-                CacheManager.preloadUpcomingTrack(context, nextSong)
+                preloadJob = CacheManager.preloadUpcomingTrack(context, nextSong)
             }
 
             // ========================================================
@@ -643,12 +661,11 @@ class OnlinePlaybackManager(
     }
 
     fun toggleShuffle() {
-        _playbackState.update { it.copy(isShuffleEnabled = !it.isShuffleEnabled) }
+        com.aman.auramusic.playback.PlaybackQueueCoordinator.toggleShuffle()
     }
 
     fun toggleRepeat() {
-        _playbackState.update { it.copy(isRepeatEnabled = !it.isRepeatEnabled) }
-        exoPlayer.repeatMode = if (_playbackState.value.isRepeatEnabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+        com.aman.auramusic.playback.PlaybackQueueCoordinator.toggleRepeat()
     }
 
     fun changeBitrate(bitrate: String) {
@@ -669,68 +686,20 @@ class OnlinePlaybackManager(
         com.aman.auramusic.playback.PlaybackQueueCoordinator.addToQueue(
             com.aman.auramusic.playback.PlaybackQueueCoordinator.createTrack(song)
         )
-        _playbackState.update {
-            if (!it.queue.any { q -> q.id == song.id }) {
-                it.copy(queue = it.queue + song)
-            } else it
-        }
     }
 
     fun removeQueueItem(songId: String) {
         val target = _playbackState.value.queue.find { it.id == songId }
-        if (target != null) {
-            com.aman.auramusic.playback.PlaybackQueueCoordinator.removeTrack("online:${target.source}:${target.id}")
-        }
-        val wasCurrent = _playbackState.value.currentSong?.id == songId
-        val currentIndex = _playbackState.value.queueIndex
-        var nextSongToPlay: OnlineSong? = null
-
-        _playbackState.update { state ->
-            val newQueue = state.queue.filterNot { it.id == songId }
-            if (wasCurrent) {
-                if (newQueue.isNotEmpty()) {
-                    val nextIdx = currentIndex.coerceIn(0, newQueue.size - 1)
-                    nextSongToPlay = newQueue[nextIdx]
-                    state.copy(queue = newQueue, currentSong = nextSongToPlay, queueIndex = nextIdx)
-                } else {
-                    state.copy(queue = emptyList(), currentSong = null, queueIndex = -1, isPlaying = false)
-                }
-            } else {
-                val newIndex = newQueue.indexOfFirst { it.id == state.currentSong?.id }
-                state.copy(queue = newQueue, queueIndex = newIndex)
-            }
-        }
-
-        if (wasCurrent) {
-            nextSongToPlay?.let { playSong(it) } ?: run {
-                exoPlayer.stop()
-                exoPlayer.clearMediaItems()
-            }
-        }
+        val targetKey = if (target != null) "online:${target.source}:${target.id}" else "online:$songId"
+        com.aman.auramusic.playback.PlaybackQueueCoordinator.removeTrack(targetKey)
     }
 
     fun clearQueueExceptCurrent() {
         com.aman.auramusic.playback.PlaybackQueueCoordinator.clearQueueExceptCurrent()
-        _playbackState.update { state ->
-            val current = state.currentSong
-            if (current != null) {
-                state.copy(queue = listOf(current), queueIndex = 0)
-            } else {
-                state.copy(queue = emptyList(), queueIndex = -1)
-            }
-        }
     }
 
     fun moveQueueItem(fromIndex: Int, toIndex: Int) {
         com.aman.auramusic.playback.PlaybackQueueCoordinator.moveTrack(fromIndex, toIndex)
-        _playbackState.update { state ->
-            val q = state.queue.toMutableList()
-            if (fromIndex !in q.indices || toIndex !in q.indices) return@update state
-            val item = q.removeAt(fromIndex)
-            q.add(toIndex, item)
-            val newIndex = q.indexOfFirst { it.id == state.currentSong?.id }
-            state.copy(queue = q, queueIndex = newIndex)
-        }
     }
 
     private fun handleSongEnded() {
@@ -749,13 +718,13 @@ class OnlinePlaybackManager(
         }
 
         lastEndHandledTimeMs = now
-        Log.d("AuraPlaybackDebug", "handleSongEnded triggered: isRepeatEnabled=${_playbackState.value.isRepeatEnabled}")
+        val currentRepeatMode = com.aman.auramusic.playback.PlaybackQueueCoordinator.repeatMode
+        Log.d("AuraPlaybackDebug", "handleSongEnded triggered: repeatMode=$currentRepeatMode")
 
-        if (_playbackState.value.isRepeatEnabled) {
-            seekTo(0)
-            if (isUsingIFramePlayer) youTubeIFramePlayer.play() else exoPlayer.play()
-        } else {
-            playNext(isManual = false)
+        val started = com.aman.auramusic.playback.PlaybackQueueCoordinator.playNextTrack(isManual = false)
+        if (!started) {
+            Log.d("AuraPlaybackDebug", "handleSongEnded: End of queue reached cleanly, pausing.")
+            pause()
         }
     }
 

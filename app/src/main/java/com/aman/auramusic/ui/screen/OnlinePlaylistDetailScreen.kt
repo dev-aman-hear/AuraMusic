@@ -164,7 +164,7 @@ fun OnlinePlaylistDetailScreen(
 
                     // Audio Format Pill
                     Text(
-                        text = "Aura Music • Lossless Audio",
+                        text = "Aura Music • High Fidelity Audio",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

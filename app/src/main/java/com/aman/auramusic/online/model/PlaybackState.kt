@@ -16,6 +16,7 @@ data class PlaybackState(
     val queueIndex: Int = -1,
     val isShuffleEnabled: Boolean = false,
     val isRepeatEnabled: Boolean = false,
+    val repeatMode: com.aman.auramusic.playback.RepeatMode = com.aman.auramusic.playback.RepeatMode.NONE,
     val errorMessage: String? = null,
     val selectedBitrate: String = "320 kbps",
     val currentLyrics: SongLyrics? = null,

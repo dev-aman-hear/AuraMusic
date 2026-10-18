@@ -62,10 +62,15 @@ object PlaybackQueueCoordinator {
     private var originalQueue: List<QueueTrack> = emptyList()
     val manuallyAddedKeys = mutableSetOf<String>()
 
-    var isShuffled: Boolean = false
-        private set
-    var repeatMode: RepeatMode = RepeatMode.NONE
-        private set
+    private val _isShuffled = MutableStateFlow(false)
+    val isShuffledFlow: StateFlow<Boolean> = _isShuffled.asStateFlow()
+    val isShuffled: Boolean
+        get() = _isShuffled.value
+
+    private val _repeatMode = MutableStateFlow(RepeatMode.NONE)
+    val repeatModeFlow: StateFlow<RepeatMode> = _repeatMode.asStateFlow()
+    val repeatMode: RepeatMode
+        get() = _repeatMode.value
 
     var currentPlaylistId: Long? = null
 
@@ -387,9 +392,13 @@ object PlaybackQueueCoordinator {
     }
 
     fun toggleShuffle(): Boolean {
-        isShuffled = !isShuffled
+        return setShuffle(!isShuffled)
+    }
+
+    fun setShuffle(enabled: Boolean): Boolean {
+        _isShuffled.value = enabled
         val cur = _currentTrack.value
-        val list = if (isShuffled) {
+        val list = if (_isShuffled.value) {
             if (cur != null) listOf(cur) + originalQueue.filterNot { it.stableKey == cur.stableKey }.shuffled()
             else originalQueue.shuffled()
         } else {
@@ -397,20 +406,21 @@ object PlaybackQueueCoordinator {
         }
         _queue.value = list
         notifySync(list)
-        return isShuffled
+        return _isShuffled.value
     }
 
     fun toggleRepeat(): RepeatMode {
-        repeatMode = when (repeatMode) {
+        val next = when (_repeatMode.value) {
             RepeatMode.NONE -> RepeatMode.ALL
             RepeatMode.ALL -> RepeatMode.ONE
             RepeatMode.ONE -> RepeatMode.NONE
         }
-        return repeatMode
+        _repeatMode.value = next
+        return next
     }
 
     fun setRepeatMode(mode: RepeatMode) {
-        repeatMode = mode
+        _repeatMode.value = mode
     }
 
     fun refreshFromPlaylist(
@@ -457,8 +467,8 @@ object PlaybackQueueCoordinator {
         _currentTrack.value = null
         originalQueue = emptyList()
         manuallyAddedKeys.clear()
-        isShuffled = false
-        repeatMode = RepeatMode.NONE
+        _isShuffled.value = false
+        _repeatMode.value = RepeatMode.NONE
         currentPlaylistId = null
         dispatcher = null
         engineSyncListeners.clear()

@@ -206,14 +206,8 @@ class OnlineMusicRepository(
     ): List<OnlineSong> {
         val tracks = pipedService.getMusicCollectionSongs(collection)
         if (tracks.isNotEmpty()) return tracks
-        return try {
-            val cleanTitle = collection.title.replace("Album", "").replace("Playlist", "").trim()
-            val query = if (cleanTitle.isNotBlank()) cleanTitle else collection.title
-            val found = pipedService.searchSongs(query)
-            if (found.isNotEmpty()) found else search(query, AudioSource.ALL)
-        } catch (_: Exception) {
-            emptyList()
-        }
+        // Return empty instead of polluting album tracklists with random song-search results
+        return emptyList()
     }
     suspend fun getCuratedPlaylists(source: AudioSource = AudioSource.ALL): List<com.aman.auramusic.online.model.OnlinePlaylist> {
         val now = System.currentTimeMillis()
@@ -286,24 +280,9 @@ class OnlineMusicRepository(
                 if (ytCandidate != null) {
                     pipedService.getMusicCollectionSongs(ytCandidate)
                 } else {
-                    jioSaavnService.searchSongs(playlist.title, limit = 20)
-                }
-            } else list
-        }
-
-        if (songs.isEmpty() && playlist.title.isNotBlank()) {
-            val cleanTitle = playlist.title.replace("Album", "").replace("Playlist", "").trim()
-            val query = if (cleanTitle.isNotBlank()) cleanTitle else playlist.title
-            songs = try {
-                val found = pipedService.searchSongs(query)
-                if (found.isNotEmpty()) found else search(query, AudioSource.ALL)
-            } catch (_: Exception) {
-                try {
-                    search(query, AudioSource.ALL)
-                } catch (_: Exception) {
                     emptyList()
                 }
-            }
+            } else list
         }
 
         if (songs.isNotEmpty()) {
@@ -361,5 +340,11 @@ class OnlineMusicRepository(
             streamCache.put(cacheKey, resolved)
         }
         return resolved
+    }
+
+    fun invalidateStreamCache(songId: String) {
+        listOf("${songId}_320", "${songId}_160", "${songId}_96", songId).forEach { key ->
+            streamCache.remove(key)
+        }
     }
 }

@@ -53,13 +53,19 @@ class PlaybackService : Service() {
     val repeatModeFlow = _repeatMode.asStateFlow()
     var repeatMode: RepeatMode
         get() = _repeatMode.value
-        set(value) { _repeatMode.value = value }
+        set(value) {
+            _repeatMode.value = value
+            PlaybackQueueCoordinator.setRepeatMode(value)
+        }
 
     private val _isShuffled = MutableStateFlow(value = false)
     val isShuffledFlow = _isShuffled.asStateFlow()
     var isShuffled: Boolean
         get() = _isShuffled.value
-        set(value) { _isShuffled.value = value }
+        set(value) {
+            _isShuffled.value = value
+            PlaybackQueueCoordinator.setShuffle(value)
+        }
 
     var currentPlaylistId: Long? = null
     private val queueSyncListener: (List<QueueTrack>) -> Unit = { tracks ->
@@ -269,6 +275,18 @@ class PlaybackService : Service() {
             }
         }
 
+        serviceScope.launch {
+            PlaybackQueueCoordinator.repeatModeFlow.collect { mode ->
+                _repeatMode.value = mode
+            }
+        }
+
+        serviceScope.launch {
+            PlaybackQueueCoordinator.isShuffledFlow.collect { shuffled ->
+                _isShuffled.value = shuffled
+            }
+        }
+
         playerManager.addListener(object : VlcPlayerManager.PlayerListener {
             override fun onProgress(position: Long, duration: Long) {
                 currentSong?.let { song ->
@@ -325,13 +343,10 @@ class PlaybackService : Service() {
         }
         lastEndHandledTimeMs = now
         Log.d("AuraPlaybackDebug", "handlePlaybackEnd called. RepeatMode: $repeatMode, currentSong: ${currentSong?.title}")
-        when (repeatMode) {
-            RepeatMode.ONE -> {
-                currentSong?.let { play(it) }
-            }
-            else -> {
-                playNext(isManual = false)
-            }
+        val started = PlaybackQueueCoordinator.playNextTrack(isManual = false)
+        if (!started) {
+            Log.d("AuraPlaybackDebug", "handlePlaybackEnd: End of queue reached cleanly, pausing.")
+            playerManager.pause()
         }
     }
 
@@ -547,8 +562,10 @@ class PlaybackService : Service() {
         )
         try {
             if (isPlaying || isOnlinePlaying) {
+                acquireWakeLock()
                 startForeground(PlaybackNotificationManager.NOTIFICATION_ID, initialNotification)
             } else {
+                if (!playerManager.isPlaying()) releaseWakeLock()
                 notificationManager.show(displaySong, false, playerManager.getSessionToken(), customArtwork = fastArtwork)
             }
         } catch (e: Exception) {
@@ -660,8 +677,10 @@ class PlaybackService : Service() {
         )
         try {
             if (isPlaying) {
+                acquireWakeLock()
                 startForeground(PlaybackNotificationManager.NOTIFICATION_ID, initialNotification)
             } else {
+                if (!isOnlinePlaying) releaseWakeLock()
                 notificationManager.show(song, false, playerManager.getSessionToken(), customArtwork = fastArtwork)
             }
         } catch (e: Exception) {
@@ -712,6 +731,7 @@ class PlaybackService : Service() {
 
     fun stopAsForeground(removeNotification: Boolean) {
         Log.d("AuraPlaybackDebug", "stopAsForeground called: removeNotification=$removeNotification")
+        releaseWakeLock()
         stopForeground(if (removeNotification) STOP_FOREGROUND_REMOVE else STOP_FOREGROUND_DETACH)
         val activeSong = currentSong ?: currentOnlineSong?.toSong()
         colorOSBridge.onPlaybackStopped(activeSong)

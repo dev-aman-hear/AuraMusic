@@ -1353,10 +1353,10 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         val isFav = onlineAsSong.id in favoriteIds
                         musicViewModel.toggleFavorite(onlineAsSong.id, !isFav, currentOnlineFullSong)
                     },
-                    isShuffled = onlinePlaybackState.isShuffleEnabled,
-                    repeatMode = if (onlinePlaybackState.isRepeatEnabled) RepeatMode.ONE else RepeatMode.NONE,
-                    onToggleShuffle = { onlinePlaybackManager.toggleShuffle() },
-                    onToggleRepeat = { onlinePlaybackManager.toggleRepeat() },
+                    isShuffled = playerViewModel.isShuffled,
+                    repeatMode = playerViewModel.repeatMode,
+                    onToggleShuffle = { playerViewModel.toggleShuffle() },
+                    onToggleRepeat = { playerViewModel.toggleRepeat() },
                     onAddToQueue = { selected ->
                         val target = onlinePlaybackState.queue.find { os ->
                             (os.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == selected.id || os.title == selected.title
