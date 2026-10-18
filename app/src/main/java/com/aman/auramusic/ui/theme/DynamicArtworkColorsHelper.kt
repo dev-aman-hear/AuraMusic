@@ -11,6 +11,7 @@ import coil.Coil
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.aman.auramusic.util.ArtworkExtractor
@@ -150,6 +151,26 @@ data class PlayerArtworkPalette(
 }
 
 /**
+ * Represents the selectable player theme modes in Settings:
+ * Dynamic Artwork, Preset, and Custom.
+ */
+enum class PlayerThemeMode(val displayName: String) {
+    DYNAMIC_ARTWORK("Dynamic Artwork"),
+    PRESET("Preset"),
+    CUSTOM("Custom");
+
+    companion object {
+        fun fromString(value: String): PlayerThemeMode {
+            return when (value.trim().lowercase()) {
+                "dynamic artwork", "dynamic_artwork", "dynamic" -> DYNAMIC_ARTWORK
+                "custom", "custom palette", "custom_palette" -> CUSTOM
+                else -> PRESET
+            }
+        }
+    }
+}
+
+/**
  * Represents the player's active palette source mode.
  */
 enum class PlayerPaletteMode {
@@ -160,6 +181,29 @@ enum class PlayerPaletteMode {
 
     val isColored: Boolean
         get() = this != MONOCHROME
+}
+
+/**
+ * Resolves the effective palette mode from unified [PlayerThemeMode], preset selection, and custom hexes.
+ */
+fun resolvePlayerPaletteMode(
+    playerThemeMode: String,
+    colorPreset: String,
+    customPaletteHexes: String = "",
+    dynamicArtworkColors: Boolean = false
+): PlayerPaletteMode {
+    val mode = PlayerThemeMode.fromString(playerThemeMode)
+    return when (mode) {
+        PlayerThemeMode.DYNAMIC_ARTWORK -> PlayerPaletteMode.DYNAMIC_ARTWORK
+        PlayerThemeMode.CUSTOM -> PlayerPaletteMode.CUSTOM
+        PlayerThemeMode.PRESET -> {
+            if (colorPreset.equals("Monochrome", ignoreCase = true)) {
+                PlayerPaletteMode.MONOCHROME
+            } else {
+                PlayerPaletteMode.PRESET
+            }
+        }
+    }
 }
 
 /**
@@ -174,11 +218,44 @@ fun resolvePlayerPaletteMode(
     colorPreset: String,
     customPaletteHexes: String = ""
 ): PlayerPaletteMode {
+    val mode = if (dynamicArtworkColors) {
+        PlayerThemeMode.DYNAMIC_ARTWORK
+    } else if (customPaletteHexes.isNotBlank() && colorPreset.equals("Custom", ignoreCase = true)) {
+        PlayerThemeMode.CUSTOM
+    } else if (colorPreset.isNotBlank() && !colorPreset.equals("Monochrome", ignoreCase = true)) {
+        PlayerThemeMode.PRESET
+    } else if (customPaletteHexes.isNotBlank()) {
+        PlayerThemeMode.CUSTOM
+    } else {
+        PlayerThemeMode.PRESET
+    }
+    return resolvePlayerPaletteMode(
+        playerThemeMode = mode.displayName,
+        colorPreset = colorPreset,
+        customPaletteHexes = customPaletteHexes,
+        dynamicArtworkColors = dynamicArtworkColors
+    )
+}
+
+/**
+ * Resolves the effective player palette mode directly from [AppSettings].
+ */
+fun resolvePlayerPaletteMode(appSettings: AppSettings): PlayerPaletteMode {
+    if (!appSettings.isPlayerThemeActive()) {
+        return PlayerPaletteMode.MONOCHROME
+    }
+    val style = appSettings.themeColorStyle.ifBlank { appSettings.playerThemeMode }
     return when {
-        dynamicArtworkColors -> PlayerPaletteMode.DYNAMIC_ARTWORK
-        colorPreset.isNotBlank() && !colorPreset.equals("Monochrome", ignoreCase = true) -> PlayerPaletteMode.PRESET
-        customPaletteHexes.isNotBlank() -> PlayerPaletteMode.CUSTOM
-        else -> PlayerPaletteMode.MONOCHROME
+        style.equals("Dynamic Artwork", ignoreCase = true) -> PlayerPaletteMode.DYNAMIC_ARTWORK
+        style.equals("Custom", ignoreCase = true) || style.equals("Custom Palette", ignoreCase = true) -> PlayerPaletteMode.CUSTOM
+        else -> {
+            val preset = appSettings.appColorPreset.ifBlank { appSettings.colorPreset }
+            if (preset.equals("Monochrome", ignoreCase = true)) {
+                PlayerPaletteMode.MONOCHROME
+            } else {
+                PlayerPaletteMode.PRESET
+            }
+        }
     }
 }
 

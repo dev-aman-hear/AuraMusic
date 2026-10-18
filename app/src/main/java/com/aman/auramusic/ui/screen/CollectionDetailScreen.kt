@@ -34,6 +34,9 @@ import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.ui.component.SongArtwork
 import com.aman.auramusic.ui.theme.AuraActionButtons
 import com.aman.auramusic.ui.theme.AuraScreenBackground
+import com.aman.auramusic.data.model.AppSettings
+import com.aman.auramusic.ui.theme.AppArea
+import com.aman.auramusic.ui.theme.AppThemedScreen
 
 @Composable
 fun CollectionDetailScreen(
@@ -57,6 +60,9 @@ fun CollectionDetailScreen(
     onFavoriteCollection: (() -> Unit)? = null,
     showMenuButton: Boolean = true,
     showAddButton: Boolean = false,
+    appArea: AppArea? = null,
+    artworkModel: Any? = null,
+    appSettings: AppSettings = AppSettings()
 ) {
     val isDark = LocalIsDark.current
     val dynamicPrimary = MaterialTheme.colorScheme.primary
@@ -67,7 +73,19 @@ fun CollectionDetailScreen(
     var showTopMenu by remember { mutableStateOf(false) }
     var showPlusMenu by remember { mutableStateOf(false) }
 
-    AuraScreenBackground(modifier = Modifier.fillMaxSize()) {
+    val resolvedArea = appArea ?: if (subtitle.startsWith("Album", ignoreCase = true) || subtitle.contains("Chart", ignoreCase = true)) {
+        AppArea.ALBUM_DETAIL
+    } else {
+        AppArea.PLAYLIST_DETAIL
+    }
+    val resolvedArtwork = artworkModel ?: songs.firstOrNull { it.artworkUri != null }?.artworkUri
+
+    AppThemedScreen(
+        area = resolvedArea,
+        artworkModel = resolvedArtwork,
+        appSettings = appSettings
+    ) {
+        AuraScreenBackground(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -690,6 +708,7 @@ fun CollectionDetailScreen(
                 }
             }
         }
+    }
     }
     }
 }

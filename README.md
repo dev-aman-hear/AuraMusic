@@ -12,7 +12,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Branch-BETA--V2-blue?style=flat-square" alt="Branch BETA-V2" />
-  <img src="https://img.shields.io/badge/Version-1.0.3%20(Code%2016)-informational?style=flat-square" alt="Version 1.0.3, version code 16" />
+  <img src="https://img.shields.io/badge/Version-1.0.4%20(Code%2017)-informational?style=flat-square" alt="Version 1.0.4, version code 17" />
   <img src="https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-success?style=flat-square" alt="Android API 26-36" />
   <img src="https://img.shields.io/badge/Kotlin-2.0.21-blueviolet?style=flat-square" alt="Kotlin 2.0.21" />
   <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=flat-square" alt="Jetpack Compose" />
@@ -294,9 +294,14 @@ To verify code compilation without building APK packages:
 
 ## Versioning & Release Information
 
-* **Current branch**: `Exp01` (prepared for merge into `main`).
-* **Application version**: `1.0.3` (`versionCode = 16`).
-* **Release status**: Version metadata is set to 1.0.3; build, device testing, and release signing should be verified before publishing.
+* **Current branch**: `BETA-V2` (prepared for merge into `main`).
+* **Application version**: `1.0.4` (`versionCode = 17`).
+* **Release status**: Version metadata is set to 1.0.4; build, device testing, and release signing should be verified before publishing.
+* **Changelog Highlights (v1.0.4)**:
+  * **Settings Dark Mode UI & Contrast Fixes**: Standardized dark-mode color tokens, containers, and borders across Settings (Personalization, Appearance, Playback, System & Files, and About). Hairline dividers and interactive controls now maintain crisp, accessible contrast in both light and dark themes.
+  * **Retracted Theme Options by Default**: When the master Change Theme (dynamic colour) setting is enabled, additional configuration options remain retracted/collapsed by default, preserving user preferences with responsive expand/retract controls.
+  * **Focused Mini Player**: Streamlined the compact bottom mini player to display only the song title, removing the secondary artist subtitle for a balanced, focused appearance with graceful weight-bounded text truncation.
+  * **Theme Engine Container Polish**: Provided complete Material 3 container tokens to `DarkColorScheme` and `LightColorScheme`, and ensured `AuraScreenBackground` consistently resolves against the active theme.
 * **Changelog Highlights (v1.0.3)**:
   * **Dynamic & Smooth Bottom Navigation**: Fluid physics-based spring animations for tab switching, subtle animated selection capsule/indicator, dynamic icon scaling, and responsive feedback.
   * **Direct One-Tap Artist Saving**: Replaced the previous 3-dot dropdown menu in the Artist section with direct, state-aware bookmark buttons on artist cards and detail screens with animated transitions.

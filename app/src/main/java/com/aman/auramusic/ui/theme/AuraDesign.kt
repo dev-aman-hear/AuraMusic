@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,31 +37,27 @@ object AuraActionButtons {
 }
 
 /**
- * Pure Monochrome solid background brush (no colored ambient blooms or gradients).
+ * Solid screen background brush using current active AppColorScheme background.
  */
 @Composable
 fun auraScreenGradient(): Brush {
-    val isDark = LocalIsDark.current
-    val bg = if (isDark) DarkMonochromeColors.background else LightMonochromeColors.background
+    val bg = MaterialTheme.colorScheme.background
     return Brush.verticalGradient(listOf(bg, bg))
 }
 
-
-
 /**
- * Solid monochrome screen background with zero ambient blooms or gradients.
+ * Solid screen background using current active background.
  */
 @Composable
 fun AuraScreenBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    val isDark = LocalIsDark.current
-    val bgColor = if (isDark) DarkMonochromeColors.background else LightMonochromeColors.background
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(bgColor)
+    val bgColor = MaterialTheme.colorScheme.background
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = bgColor,
+        contentColor = MaterialTheme.colorScheme.onBackground
     ) {
         content()
     }

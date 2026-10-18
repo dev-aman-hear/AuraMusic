@@ -656,4 +656,81 @@ class DynamicArtworkColorsTest {
         assertEquals("Dynamic artwork mode must NEVER override light play/pause White icon tint",
             androidx.compose.ui.graphics.Color.White, dynamicLightScheme.prominentIconTint)
     }
+
+    @Test
+    fun player_theme_mode_enum_and_resolution() {
+        // Dynamic Artwork mode
+        val dynamicMode = com.aman.auramusic.ui.theme.resolvePlayerPaletteMode(
+            playerThemeMode = "Dynamic Artwork",
+            colorPreset = "Monochrome",
+            customPaletteHexes = ""
+        )
+        assertEquals(com.aman.auramusic.ui.theme.PlayerPaletteMode.DYNAMIC_ARTWORK, dynamicMode)
+        assertTrue(dynamicMode.isColored)
+
+        // Preset mode with colored preset
+        val presetMode = com.aman.auramusic.ui.theme.resolvePlayerPaletteMode(
+            playerThemeMode = "Preset",
+            colorPreset = "Crimson Velvet",
+            customPaletteHexes = ""
+        )
+        assertEquals(com.aman.auramusic.ui.theme.PlayerPaletteMode.PRESET, presetMode)
+        assertTrue(presetMode.isColored)
+
+        // Preset mode with Monochrome preset
+        val monochromeMode = com.aman.auramusic.ui.theme.resolvePlayerPaletteMode(
+            playerThemeMode = "Preset",
+            colorPreset = "Monochrome",
+            customPaletteHexes = ""
+        )
+        assertEquals(com.aman.auramusic.ui.theme.PlayerPaletteMode.MONOCHROME, monochromeMode)
+        assertFalse(monochromeMode.isColored)
+
+        // Custom mode
+        val customMode = com.aman.auramusic.ui.theme.resolvePlayerPaletteMode(
+            playerThemeMode = "Custom",
+            colorPreset = "Midnight Indigo",
+            customPaletteHexes = "#FF0000,#00FF00"
+        )
+        assertEquals(com.aman.auramusic.ui.theme.PlayerPaletteMode.CUSTOM, customMode)
+        assertTrue(customMode.isColored)
+    }
+
+    @Test
+    fun player_custom_palette_creation_and_play_pause_button_invariance() {
+        val customHexes = "#2E1A47,#4A2574,#1B0E2B,#7B3FA2"
+        val darkPalette = com.aman.auramusic.ui.theme.CustomPaletteValidator.createPaletteFromCustomHexes(customHexes, isDark = true)
+        val lightPalette = com.aman.auramusic.ui.theme.CustomPaletteValidator.createPaletteFromCustomHexes(customHexes, isDark = false)
+
+        val darkScheme = com.aman.auramusic.ui.theme.resolvePlayerColorScheme(
+            paletteMode = com.aman.auramusic.ui.theme.PlayerPaletteMode.CUSTOM,
+            isDark = true,
+            primary = darkPalette.primary,
+            secondary = darkPalette.secondary,
+            tertiary = darkPalette.tertiary,
+            accent = darkPalette.accent
+        )
+        assertEquals("Dark mode play/pause must remain White in CUSTOM mode",
+            androidx.compose.ui.graphics.Color.White, darkScheme.prominentSurface)
+        assertEquals("Dark mode play/pause icon tint must remain Black in CUSTOM mode",
+            androidx.compose.ui.graphics.Color.Black, darkScheme.prominentIconTint)
+
+        val lightScheme = com.aman.auramusic.ui.theme.resolvePlayerColorScheme(
+            paletteMode = com.aman.auramusic.ui.theme.PlayerPaletteMode.CUSTOM,
+            isDark = false,
+            primary = lightPalette.primary,
+            secondary = lightPalette.secondary,
+            tertiary = lightPalette.tertiary,
+            accent = lightPalette.accent
+        )
+        assertEquals("Light mode play/pause must remain Black in CUSTOM mode",
+            androidx.compose.ui.graphics.Color.Black, lightScheme.prominentSurface)
+        assertEquals("Light mode play/pause icon tint must remain White in CUSTOM mode",
+            androidx.compose.ui.graphics.Color.White, lightScheme.prominentIconTint)
+
+        // Invalid hex fallback
+        val fallbackPalette = com.aman.auramusic.ui.theme.CustomPaletteValidator.createPaletteFromCustomHexes("invalid,garbage", isDark = true)
+        assertNotNull(fallbackPalette.primary)
+        assertNotNull(fallbackPalette.secondary)
+    }
 }

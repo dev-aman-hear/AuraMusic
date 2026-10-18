@@ -340,6 +340,12 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    fun setPlayerThemeMode(mode: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setPlayerThemeMode(mode)
+        }
+    }
+
     fun setDynamicArtworkColors(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setDynamicArtworkColors(enabled)
@@ -355,6 +361,66 @@ class MusicViewModel @Inject constructor(
     fun setCustomPaletteHexes(hexes: String) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setCustomPaletteHexes(hexes)
+        }
+    }
+
+    fun setEnableFullAppDynamicTheme(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setEnableFullAppDynamicTheme(enabled)
+        }
+    }
+
+    fun setAppPaletteMode(mode: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setAppPaletteMode(mode)
+        }
+    }
+
+    fun setAppColorPreset(preset: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setAppColorPreset(preset)
+        }
+    }
+
+    fun setAppCustomPaletteHexes(hexes: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setAppCustomPaletteHexes(hexes)
+        }
+    }
+
+    fun setChangeThemeEnabled(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setChangeThemeEnabled(enabled)
+        }
+    }
+
+    fun setThemeScope(scope: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setThemeScope(scope)
+        }
+    }
+
+    fun setThemeColorStyle(style: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setThemeColorStyle(style)
+        }
+    }
+
+    fun setThemePreset(preset: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setThemePreset(preset)
+        }
+    }
+
+    fun setThemeCustomHexes(hexes: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setThemeCustomHexes(hexes)
+        }
+    }
+
+    fun setThemeAreaEnabled(areaName: String, enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setThemeAreaEnabled(areaName, enabled)
         }
     }
 

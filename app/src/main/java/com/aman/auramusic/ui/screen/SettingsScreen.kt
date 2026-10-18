@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,8 +29,13 @@ import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.foundation.border
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.selection.selectable
@@ -42,6 +48,12 @@ import com.aman.auramusic.data.model.ThemeMode
 import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.Monochrome
 import com.aman.auramusic.ui.theme.LocalIsDark
+import com.aman.auramusic.ui.theme.AppPaletteMode
+import com.aman.auramusic.ui.theme.CustomPaletteValidator
+import com.aman.auramusic.ui.theme.PlayerThemeMode
+import com.aman.auramusic.ui.theme.PlayerArtworkPalette
+import com.aman.auramusic.ui.theme.resolvePlayerColorScheme
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun SettingsScreen(
@@ -52,8 +64,20 @@ fun SettingsScreen(
     appSettings: AppSettings,
     onUsernameChange: (String) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit = {},
+    onChangeThemeEnabled: (Boolean) -> Unit = {},
+    onThemeScopeChange: (String) -> Unit = {},
+    onThemeColorStyleChange: (String) -> Unit = {},
+    onThemePresetChange: (String) -> Unit = {},
+    onThemeCustomHexesChange: (String) -> Unit = {},
     onDynamicArtworkColorsChange: (Boolean) -> Unit = {},
+    onPlayerThemeModeChange: (String) -> Unit = {},
     onColorPresetChange: (String) -> Unit = {},
+    onCustomPaletteHexesChange: (String) -> Unit = {},
+    onEnableFullAppDynamicThemeChange: (Boolean) -> Unit = {},
+    onAppPaletteModeChange: (String) -> Unit = {},
+    onAppColorPresetChange: (String) -> Unit = {},
+    onAppCustomPaletteHexesChange: (String) -> Unit = {},
+    onThemeAreaChange: (String, Boolean) -> Unit = { _, _ -> },
     onKaraokeChange: (Boolean) -> Unit = {},
     onLyricFontScaleChange: (Float) -> Unit,
     onSmartAudioFocusChange: (Boolean) -> Unit,
@@ -133,6 +157,17 @@ fun SettingsScreen(
                             label = { Text("Username") },
                             singleLine = true,
                             shape = RoundedCornerShape(18.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                cursorColor = MaterialTheme.colorScheme.primary
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                         ThemeSelectionRow(
@@ -140,55 +175,463 @@ fun SettingsScreen(
                             onThemeSelected = onThemeModeChange
                         )
 
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-
-                        ToggleRow(
-                            title = "Dynamic Artwork Colors",
-                            subtitle = "Adapt the player background to current song artwork. Takes precedence over presets when enabled.",
-                            checked = appSettings.dynamicArtworkColors,
-                            onCheckedChange = onDynamicArtworkColorsChange
-                        )
-
-                        val presets = listOf("Monochrome", "Midnight Indigo", "Crimson Velvet", "Emerald Pine", "Nordic Slate")
-                        Text("Player Palette Preset", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                        Text(
-                            text = if (appSettings.dynamicArtworkColors) {
-                                "Dynamic artwork colors are active. Selecting a preset switches the player to that static palette."
-                            } else {
-                                "Choose a cohesive color scheme for the player surfaces."
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            presets.forEach { preset ->
-                                val isSelected = appSettings.colorPreset.equals(preset, ignoreCase = true)
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = {
-                                        onColorPresetChange(preset)
-                                        if (appSettings.dynamicArtworkColors) {
-                                            onDynamicArtworkColorsChange(false)
-                                        }
-                                    },
-                                    label = { Text(preset, style = MaterialTheme.typography.labelMedium) }
-                                )
-                            }
-                        }
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
                         Text("Lyric font size", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                         Slider(
                             value = appSettings.lyricFontScale,
                             onValueChange = onLyricFontScaleChange,
                             valueRange = 0.8f..1.4f,
-                            steps = 5
+                            steps = 5,
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                activeTickColor = MaterialTheme.colorScheme.onPrimary,
+                                inactiveTickColor = MaterialTheme.colorScheme.outline
+                            )
                         )
+                    }
+                }
+            }
+
+            // Unified Appearance / Theme Section
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
+                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            text = "Appearance",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        var isThemeExpanded by rememberSaveable { mutableStateOf(false) }
+
+                        // 1. Master Switch: Change Theme
+                        ToggleRow(
+                            title = "Change Theme",
+                            subtitle = "Personalize colors across AuraMusic with dynamic artwork, presets, or custom palettes.",
+                            checked = appSettings.changeThemeEnabled,
+                            onCheckedChange = { isChecked ->
+                                onChangeThemeEnabled(isChecked)
+                                if (!isChecked) {
+                                    isThemeExpanded = false
+                                }
+                            }
+                        )
+
+                        // 2. Expand / Retract control and configuration (only shown when Change Theme is ON)
+                        AnimatedVisibility(
+                            visible = appSettings.changeThemeEnabled,
+                            enter = fadeIn(animationSpec = tween(220)) + expandVertically(animationSpec = tween(220)),
+                            exit = fadeOut(animationSpec = tween(180)) + shrinkVertically(animationSpec = tween(180))
+                        ) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+
+                                // Working Expand / Retract button control
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                            RoundedCornerShape(14.dp)
+                                        )
+                                        .border(
+                                            BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+                                            RoundedCornerShape(14.dp)
+                                        )
+                                        .clickable(
+                                            role = Role.Button,
+                                            onClick = { isThemeExpanded = !isThemeExpanded }
+                                        )
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = if (isThemeExpanded) "Theme Configuration" else "Theme Options",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        val summary = if (appSettings.themeScope.equals("Entire App", ignoreCase = true)) {
+                                            "Scope: Entire App • Style: ${appSettings.themeColorStyle}"
+                                        } else {
+                                            "Scope: Player Only • Style: ${appSettings.themeColorStyle}"
+                                        }
+                                        Text(
+                                            text = summary,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isThemeExpanded) "Retract" else "Expand",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Icon(
+                                            imageVector = if (isThemeExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            contentDescription = if (isThemeExpanded) "Retract Theme Options" else "Expand Theme Options",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+
+                                // 3. Expandable configuration options
+                                AnimatedVisibility(
+                                    visible = isThemeExpanded,
+                                    enter = fadeIn(animationSpec = tween(220)) + expandVertically(animationSpec = tween(220)),
+                                    exit = fadeOut(animationSpec = tween(180)) + shrinkVertically(animationSpec = tween(180))
+                                ) {
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        // 3a. Compact Live Theme Preview
+                                        ThemeLivePreview(
+                                            isDark = LocalIsDark.current,
+                                            scope = appSettings.themeScope,
+                                            style = appSettings.themeColorStyle,
+                                            preset = appSettings.appColorPreset,
+                                            customHexes = appSettings.appCustomPaletteHexes
+                                        )
+
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+
+                                        // 3b. Theme Scope Selector
+                                        Text(
+                                            text = "Theme Scope",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Choose where color themes are applied.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+
+                                        ThemeScopeSelector(
+                                            selectedScope = appSettings.themeScope,
+                                            onScopeSelected = { scope ->
+                                                onThemeScopeChange(scope)
+                                                onEnableFullAppDynamicThemeChange(scope.equals("Entire App", ignoreCase = true))
+                                            }
+                                        )
+
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+
+                                        // 3c. Color Style Selector
+                                        Text(
+                                            text = "Color Style",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Choose how theme colors are resolved.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+
+                                        val colorStyles = listOf("Dynamic Artwork", "Preset", "Custom")
+                                        FlowRow(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.fillMaxWidth().selectableGroup()
+                                        ) {
+                                            colorStyles.forEach { style ->
+                                                val isSelected = appSettings.themeColorStyle.equals(style, ignoreCase = true)
+                                                FilterChip(
+                                                    selected = isSelected,
+                                                    onClick = {
+                                                        onThemeColorStyleChange(style)
+                                                        onAppPaletteModeChange(style)
+                                                        onPlayerThemeModeChange(style)
+                                                    },
+                                                    label = { Text(style, style = MaterialTheme.typography.labelMedium) },
+                                                    colors = FilterChipDefaults.filterChipColors(
+                                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                                    ),
+                                                    border = FilterChipDefaults.filterChipBorder(
+                                                        enabled = true,
+                                                        selected = isSelected,
+                                                        borderColor = MaterialTheme.colorScheme.outline,
+                                                        selectedBorderColor = MaterialTheme.colorScheme.primary
+                                                    )
+                                                )
+                                            }
+                                        }
+
+                                        // 3d. Style-specific configuration
+                                        val activeStyle = appSettings.themeColorStyle
+                                        when {
+                                            activeStyle.equals("Dynamic Artwork", ignoreCase = true) -> {
+                                                Text(
+                                                    text = "Extracts a balanced, harmonious color palette from the currently playing song's artwork and adapts smoothly as tracks change.",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            activeStyle.equals("Preset", ignoreCase = true) -> {
+                                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+                                                Text(
+                                                    text = "Color Preset",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                val presets = listOf("Midnight Indigo", "Crimson Velvet", "Emerald Pine", "Nordic Slate")
+                                                val isDark = LocalIsDark.current
+                                                FlowRow(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                                    modifier = Modifier.fillMaxWidth().selectableGroup()
+                                                ) {
+                                                    presets.forEach { preset ->
+                                                        val isSelected = appSettings.appColorPreset.equals(preset, ignoreCase = true)
+                                                        val samplePal = remember(preset, isDark) {
+                                                            PlayerArtworkPalette.fromPreset(preset, isDark)
+                                                        }
+                                                        FilterChip(
+                                                            selected = isSelected,
+                                                            onClick = {
+                                                                onThemePresetChange(preset)
+                                                                onAppColorPresetChange(preset)
+                                                                onColorPresetChange(preset)
+                                                            },
+                                                            leadingIcon = {
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .size(12.dp)
+                                                                        .clip(CircleShape)
+                                                                        .background(samplePal.accent)
+                                                                )
+                                                            },
+                                                            label = { Text(preset, style = MaterialTheme.typography.labelMedium) },
+                                                            colors = FilterChipDefaults.filterChipColors(
+                                                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                                                iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary
+                                                            ),
+                                                            border = FilterChipDefaults.filterChipBorder(
+                                                                enabled = true,
+                                                                selected = isSelected,
+                                                                borderColor = MaterialTheme.colorScheme.outline,
+                                                                selectedBorderColor = MaterialTheme.colorScheme.primary
+                                                            )
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            activeStyle.equals("Custom", ignoreCase = true) || activeStyle.equals("Custom Palette", ignoreCase = true) -> {
+                                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+                                                Text(
+                                                    text = "Custom Color Editor",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Text(
+                                                    text = "Enter 2 to 5 comma-separated hex colors (e.g. #1A237E, #3949AB, #0D1642).",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+
+                                                var hexInput by remember(appSettings.appCustomPaletteHexes) {
+                                                    mutableStateOf(appSettings.appCustomPaletteHexes)
+                                                }
+                                                val parsedHexes = remember(hexInput) {
+                                                    CustomPaletteValidator.parseHexList(hexInput)
+                                                }
+                                                val isValid = remember(parsedHexes) {
+                                                    CustomPaletteValidator.validateHexList(parsedHexes)
+                                                }
+
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 4.dp)
+                                                ) {
+                                                    parsedHexes.forEach { hex ->
+                                                        val col = CustomPaletteValidator.parseHexToColor(hex)
+                                                        if (col != null) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(28.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(col, CircleShape)
+                                                                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                OutlinedTextField(
+                                                    value = hexInput,
+                                                    onValueChange = { newText ->
+                                                        hexInput = newText
+                                                        if (CustomPaletteValidator.validate(newText)) {
+                                                            onThemeCustomHexesChange(newText)
+                                                            onAppCustomPaletteHexesChange(newText)
+                                                            onCustomPaletteHexesChange(newText)
+                                                        }
+                                                    },
+                                                    label = { Text("Hex Colors") },
+                                                    singleLine = true,
+                                                    shape = RoundedCornerShape(16.dp),
+                                                    colors = OutlinedTextFieldDefaults.colors(
+                                                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        cursorColor = MaterialTheme.colorScheme.primary
+                                                    ),
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+
+                                                if (!isValid) {
+                                                    Text(
+                                                        text = "Requires between 2 and 5 valid hex codes (e.g., #1A237E, #3949AB)",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.error
+                                                    )
+                                                }
+
+                                                Row(
+                                                    horizontalArrangement = Arrangement.End,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    TextButton(
+                                                        onClick = {
+                                                            hexInput = CustomPaletteValidator.DEFAULT_HEX_STRING
+                                                            onThemeCustomHexesChange(CustomPaletteValidator.DEFAULT_HEX_STRING)
+                                                            onAppCustomPaletteHexesChange(CustomPaletteValidator.DEFAULT_HEX_STRING)
+                                                            onCustomPaletteHexesChange(CustomPaletteValidator.DEFAULT_HEX_STRING)
+                                                        }
+                                                    ) {
+                                                        Text("Reset to Default", style = MaterialTheme.typography.labelMedium)
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 3e. Themed Content Areas (visible only when Entire App is selected)
+                                        if (appSettings.themeScope.equals("Entire App", ignoreCase = true)) {
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+
+                                            Text(
+                                                text = "Themed Content Areas",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "Choose which screens use theme colors when full-app theming is active.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+
+                                            ToggleRow(
+                                                title = "Home Screen",
+                                                subtitle = "Featured cards and recommendations",
+                                                checked = appSettings.themeHomeEnabled,
+                                                onCheckedChange = { onThemeAreaChange("HOME", it) }
+                                            )
+
+                                            ToggleRow(
+                                                title = "Explore & Search",
+                                                subtitle = "Online feeds, mood charts, and search screens",
+                                                checked = appSettings.themeExploreEnabled,
+                                                onCheckedChange = { onThemeAreaChange("EXPLORE", it) }
+                                            )
+
+                                            ToggleRow(
+                                                title = "Library",
+                                                subtitle = "Tracks, favorites, and playlists lists",
+                                                checked = appSettings.themeLibraryEnabled,
+                                                onCheckedChange = { onThemeAreaChange("LIBRARY", it) }
+                                            )
+
+                                            ToggleRow(
+                                                title = "Album Details",
+                                                subtitle = "Album view and song collections",
+                                                checked = appSettings.themeAlbumDetailEnabled,
+                                                onCheckedChange = { onThemeAreaChange("ALBUM_DETAIL", it) }
+                                            )
+
+                                            ToggleRow(
+                                                title = "Artist Pages",
+                                                subtitle = "Artist bio, discography, and profile headers",
+                                                checked = appSettings.themeArtistDetailEnabled,
+                                                onCheckedChange = { onThemeAreaChange("ARTIST_DETAIL", it) }
+                                            )
+
+                                            ToggleRow(
+                                                title = "Playlist Details",
+                                                subtitle = "Local and online playlist views",
+                                                checked = appSettings.themePlaylistDetailEnabled,
+                                                onCheckedChange = { onThemeAreaChange("PLAYLIST_DETAIL", it) }
+                                            )
+                                        }
+
+                                        // Bottom Retract helper
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            TextButton(
+                                                onClick = { isThemeExpanded = false }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ExpandLess,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Retract theme options", style = MaterialTheme.typography.labelMedium)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -264,13 +707,14 @@ fun SettingsScreen(
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
                     .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
             ) {
-                Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     SettingsRow(
                         icon = Icons.Default.Refresh,
                         title = "Scan local music",
                         subtitle = "Refresh songs from device storage",
                         onClick = onRefresh
                     )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
                     SettingsRow(
                         icon = Icons.Default.Info,
                         title = "About Aura Music",
@@ -409,7 +853,11 @@ fun ToggleRow(
         checkedBorderColor = colors.controlSelected,
         uncheckedThumbColor = if (isDark) colors.textSecondary else colors.background,
         uncheckedTrackColor = if (isDark) colors.border else colors.surfaceSecondary,
-        uncheckedBorderColor = colors.borderStrong
+        uncheckedBorderColor = colors.borderStrong,
+        disabledCheckedThumbColor = colors.controlSelectedContent.copy(alpha = 0.5f),
+        disabledCheckedTrackColor = colors.controlSelected.copy(alpha = 0.5f),
+        disabledUncheckedThumbColor = colors.textTertiary,
+        disabledUncheckedTrackColor = colors.surfaceSecondary
     )
 
     Row(
@@ -425,7 +873,11 @@ fun ToggleRow(
                 .padding(end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
@@ -460,8 +912,8 @@ fun SettingsRow(
         Surface(
             modifier = Modifier.size(44.dp),
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-            contentColor = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurface
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
@@ -469,8 +921,17 @@ fun SettingsRow(
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column {
-            Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -570,5 +1031,333 @@ fun ThemeSelectionRow(
         }
     }
 }
+
+/**
+ * Compact, Apple Music-inspired Live Theme Preview showing miniature player and scope reflections.
+ * Completely isolated from real playback state (does not change active song or queue).
+ */
+@Composable
+fun ThemeLivePreview(
+    isDark: Boolean,
+    scope: String,
+    style: String,
+    preset: String,
+    customHexes: String,
+    modifier: Modifier = Modifier
+) {
+    val previewPalette = remember(isDark, style, preset, customHexes) {
+        when {
+            style.equals("Dynamic Artwork", ignoreCase = true) -> {
+                if (isDark) {
+                    PlayerArtworkPalette(
+                        primary = androidx.compose.ui.graphics.Color(0xFF28104E),
+                        secondary = androidx.compose.ui.graphics.Color(0xFF1B0B33),
+                        tertiary = androidx.compose.ui.graphics.Color(0xFF0F061D),
+                        accent = androidx.compose.ui.graphics.Color(0xFF9C27B0),
+                        primaryArgb = 0xFF28104E.toInt(),
+                        secondaryArgb = 0xFF1B0B33.toInt(),
+                        tertiaryArgb = 0xFF0F061D.toInt(),
+                        accentArgb = 0xFF9C27B0.toInt(),
+                        isLightArtwork = false
+                    )
+                } else {
+                    PlayerArtworkPalette(
+                        primary = androidx.compose.ui.graphics.Color(0xFFE1BEE7),
+                        secondary = androidx.compose.ui.graphics.Color(0xFFCE93D8),
+                        tertiary = androidx.compose.ui.graphics.Color(0xFFF3E5F5),
+                        accent = androidx.compose.ui.graphics.Color(0xFF8E24AA),
+                        primaryArgb = 0xFFE1BEE7.toInt(),
+                        secondaryArgb = 0xFFCE93D8.toInt(),
+                        tertiaryArgb = 0xFFF3E5F5.toInt(),
+                        accentArgb = 0xFF8E24AA.toInt(),
+                        isLightArtwork = true
+                    )
+                }
+            }
+            style.equals("Custom", ignoreCase = true) || style.equals("Custom Palette", ignoreCase = true) -> {
+                CustomPaletteValidator.createPaletteFromCustomHexes(customHexes, isDark)
+            }
+            else -> {
+                val cleanPreset = if (preset.equals("Monochrome", ignoreCase = true)) "Midnight Indigo" else preset
+                PlayerArtworkPalette.fromPreset(cleanPreset, isDark)
+            }
+        }
+    }
+
+    val previewColors = remember(previewPalette, isDark) {
+        resolvePlayerColorScheme(
+            isDynamic = true,
+            isDark = isDark,
+            primary = previewPalette.primary,
+            secondary = previewPalette.secondary,
+            tertiary = previewPalette.tertiary,
+            accent = previewPalette.accent
+        )
+    }
+
+    val isEntireApp = scope.equals("Entire App", ignoreCase = true)
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(previewColors.dialogSurface.copy(alpha = 0.85f), RoundedCornerShape(18.dp))
+            .border(BorderStroke(1.dp, previewColors.dialogBorder.copy(alpha = 0.5f)), RoundedCornerShape(18.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(previewColors.dialogAccent)
+                )
+                Text(
+                    text = "Live Preview",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = previewColors.textPrimary
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(previewColors.capsuleSurface)
+                    .border(BorderStroke(1.dp, previewColors.capsuleBorder), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = if (isEntireApp) "Scope: Entire App" else "Scope: Player Only",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = previewColors.capsuleContent
+                )
+            }
+        }
+
+        // Miniature player preview card
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(previewColors.buttonSurface)
+                .border(BorderStroke(1.dp, previewColors.buttonBorder), RoundedCornerShape(14.dp))
+                .padding(10.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(previewColors.ambientAccent.copy(alpha = 0.35f))
+                            .border(BorderStroke(1.dp, previewColors.ambientAccent.copy(alpha = 0.5f)), RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = previewColors.textPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Aura Harmony",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = previewColors.textPrimary,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = if (style.equals("Dynamic Artwork", ignoreCase = true)) "Dynamic Artwork Palette" else if (style.equals("Custom", ignoreCase = true)) "Custom Palette" else preset,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = previewColors.textSecondary,
+                            maxLines = 1
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SkipPrevious,
+                            contentDescription = null,
+                            tint = previewColors.buttonIconTint,
+                            modifier = Modifier.size(18.dp)
+                        )
+
+                        // Prominent Play/Pause button - fixed monochrome: black in light mode, white in dark mode
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(previewColors.prominentSurface)
+                                .border(BorderStroke(1.dp, previewColors.prominentBorder), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = previewColors.prominentIconTint,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        Icon(
+                            imageVector = Icons.Default.SkipNext,
+                            contentDescription = null,
+                            tint = previewColors.buttonIconTint,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                // Miniature progress bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(1.5.dp))
+                        .background(previewColors.progressTrack)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.42f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(1.5.dp))
+                            .background(previewColors.progressIndicator)
+                    )
+                }
+            }
+        }
+
+        if (isEntireApp) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                listOf("Home", "Explore", "Library", "Details").forEach { label ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(previewColors.buttonSurface.copy(alpha = 0.6f))
+                            .border(BorderStroke(0.5.dp, previewColors.buttonBorder.copy(alpha = 0.5f)), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = previewColors.dialogAccent,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Single-choice mutually exclusive Theme Scope Selector.
+ */
+@Composable
+fun ThemeScopeSelector(
+    selectedScope: String,
+    onScopeSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isEntireApp = selectedScope.equals("Entire App", ignoreCase = true)
+    val options = listOf(
+        Triple(
+            "Entire App",
+            "Apply theme colors across main app screens and the player",
+            Icons.Default.Smartphone
+        ),
+        Triple(
+            "Player Only",
+            "Keep the main app monochrome and theme the player only",
+            Icons.Default.PlayCircleOutline
+        )
+    )
+
+    Column(
+        modifier = modifier.selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        options.forEach { (title, subtitle, icon) ->
+            val isSelected = (title == "Entire App" && isEntireApp) || (title == "Player Only" && !isEntireApp)
+            val borderColor by animateColorAsState(
+                targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                label = "scopeBorder"
+            )
+            val bgColor by animateColorAsState(
+                targetValue = if (isSelected) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
+                label = "scopeBg"
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(bgColor, RoundedCornerShape(16.dp))
+                    .border(BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor), RoundedCornerShape(16.dp))
+                .selectable(
+                    selected = isSelected,
+                    onClick = { onScopeSelected(title) },
+                    role = Role.RadioButton
+                )
+                .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                RadioButton(
+                    selected = isSelected,
+                    onClick = null,
+                    colors = RadioButtonDefaults.colors(
+                        selectedColor = MaterialTheme.colorScheme.primary,
+                        unselectedColor = MaterialTheme.colorScheme.outline
+                    )
+                )
+            }
+        }
+    }
+}
+
 
 

@@ -127,6 +127,7 @@ import com.aman.auramusic.ui.screen.SettingsScreen
 import com.aman.auramusic.ui.screen.CollectionDetailScreen
 import com.aman.auramusic.ui.screen.home.ArtistDetailSheet
 import com.aman.auramusic.ui.screen.home.ArtistItem
+import com.aman.auramusic.ui.theme.AppArea
 import com.aman.auramusic.online.network.repository.ArtistBioData
 import com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
@@ -683,6 +684,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             onRemoveSavedOnlineArtist = { musicViewModel.removeOnlineArtistFromLibrary(it) },
                             onSaveOnlineAlbum = { musicViewModel.saveOnlineAlbumToLibrary(it) },
                             onRemoveSavedOnlineAlbum = { musicViewModel.removeOnlineAlbumFromLibrary(it) },
+                            appSettings = appSettings,
                             homeResetKey = homeReselectKey
                         )
                         AppTab.Online -> OnlineScreen(
@@ -701,7 +703,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             onPlayNext = { playerViewModel.playNext(it) },
                             onAddToQueue = { playerViewModel.addToQueue(it) },
                             onPlayNextCollection = { playerViewModel.playNextOnline(it) },
-                            onAddCollectionToQueue = { playerViewModel.addToQueueOnline(it) }
+                            onAddCollectionToQueue = { playerViewModel.addToQueueOnline(it) },
+                            appSettings = appSettings
                         )
                         AppTab.Library -> LibraryScreen(
                             selectedTab = selectedLibraryTab,
@@ -714,6 +717,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             query = libraryQuery,
                             currentSongId = playerViewModel.currentSong?.id,
                             playlistGridColumns = appSettings.playlistGridColumns,
+                            appSettings = appSettings,
                             onQueryChange = { libraryQuery = it },
                             onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
                             onFavoriteToggle = { song -> toggleSongFavorite(song) },
@@ -810,7 +814,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             },
                             onOnlinePlayNext = { playerViewModel.playNext(it) },
                             onOnlineAddToQueue = { playerViewModel.addToQueue(it) },
-                            onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it }
+                            onAddOnlineSongToPlaylist = { onlineSongToAddToPlaylist = it },
+                            appSettings = appSettings
                         )
                     }
 
@@ -825,8 +830,20 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 appSettings = appSettings,
                                 onUsernameChange = { musicViewModel.updateUsername(it) },
                                 onThemeModeChange = { mode -> musicViewModel.setThemeMode(mode) },
+                                onChangeThemeEnabled = { musicViewModel.setChangeThemeEnabled(it) },
+                                onThemeScopeChange = { musicViewModel.setThemeScope(it) },
+                                onThemeColorStyleChange = { musicViewModel.setThemeColorStyle(it) },
+                                onThemePresetChange = { musicViewModel.setThemePreset(it) },
+                                onThemeCustomHexesChange = { musicViewModel.setThemeCustomHexes(it) },
                                 onDynamicArtworkColorsChange = { musicViewModel.setDynamicArtworkColors(it) },
+                                onPlayerThemeModeChange = { musicViewModel.setPlayerThemeMode(it) },
                                 onColorPresetChange = { preset -> musicViewModel.setColorPreset(preset) },
+                                onCustomPaletteHexesChange = { musicViewModel.setCustomPaletteHexes(it) },
+                                onEnableFullAppDynamicThemeChange = { musicViewModel.setEnableFullAppDynamicTheme(it) },
+                                onAppPaletteModeChange = { musicViewModel.setAppPaletteMode(it) },
+                                onAppColorPresetChange = { musicViewModel.setAppColorPreset(it) },
+                                onAppCustomPaletteHexesChange = { musicViewModel.setAppCustomPaletteHexes(it) },
+                                onThemeAreaChange = { area, enabled -> musicViewModel.setThemeAreaEnabled(area, enabled) },
                                 onKaraokeChange = { musicViewModel.setKaraokeMode(it) },
                                 onLyricFontScaleChange = { musicViewModel.setLyricFontScale(it) },
                                 onSmartAudioFocusChange = { musicViewModel.setSmartAudioFocus(it) },
@@ -857,6 +874,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     songs = playlistSongs,
                                     favoriteIds = favoriteIds,
                                     currentSongId = playerViewModel.currentSong?.id,
+                                    appArea = AppArea.PLAYLIST_DETAIL,
+                                    appSettings = appSettings,
                                     onBack = { selectedPlaylistId = null },
                                     onSongSelected = { song ->
                                         val onlineMatch = com.aman.auramusic.util.SongIdentityMatcher.findOnlineMatch(song, p.onlineSongs)
@@ -954,6 +973,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 songs = displaySongs,
                                 favoriteIds = favoriteIds,
                                 currentSongId = playerViewModel.currentSong?.id,
+                                appArea = AppArea.ALBUM_DETAIL,
+                                appSettings = appSettings,
                                 onBack = { selectedAlbumName = null },
                                 onSongSelected = { song ->
                                     val onlineMatch = com.aman.auramusic.util.SongIdentityMatcher.findOnlineMatch(song, onlineAlbumSongs)
@@ -1113,6 +1134,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 errorMessage = artistDetailErrorMessage,
                                 isSavedInLibrary = isArtistSaved,
                                 audienceText = audience,
+                                appSettings = appSettings,
                                 onToggleSaveToLibrary = {
                                     if (isArtistSaved) {
                                         savedArtistEntry?.let { musicViewModel.removeOnlineArtistFromLibrary(it.id) }

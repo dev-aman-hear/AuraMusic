@@ -120,6 +120,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
 import com.aman.auramusic.playback.RepeatMode
 import com.aman.auramusic.ui.component.SongArtwork
+import com.aman.auramusic.ui.theme.CustomPaletteValidator
 import com.aman.auramusic.ui.theme.DynamicArtworkColorsHelper
 import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.ui.theme.PlayerArtworkPalette
@@ -181,17 +182,37 @@ fun PlayerScreen(
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val scope = rememberCoroutineScope()
 
-    val paletteMode = resolvePlayerPaletteMode(
-        dynamicArtworkColors = appSettings.dynamicArtworkColors,
-        colorPreset = appSettings.colorPreset,
-        customPaletteHexes = appSettings.customPaletteHexes
-    )
+    val paletteMode = if (!appSettings.isPlayerThemeActive()) {
+        PlayerPaletteMode.MONOCHROME
+    } else {
+        val style = appSettings.themeColorStyle.ifBlank { appSettings.playerThemeMode }
+        when {
+            style.equals("Dynamic Artwork", ignoreCase = true) -> PlayerPaletteMode.DYNAMIC_ARTWORK
+            style.equals("Custom", ignoreCase = true) || style.equals("Custom Palette", ignoreCase = true) -> PlayerPaletteMode.CUSTOM
+            else -> {
+                val preset = appSettings.appColorPreset.ifBlank { appSettings.colorPreset }
+                if (preset.equals("Monochrome", ignoreCase = true)) {
+                    PlayerPaletteMode.MONOCHROME
+                } else {
+                    PlayerPaletteMode.PRESET
+                }
+            }
+        }
+    }
 
-    val initialPalette = remember(isDark, paletteMode, appSettings.colorPreset, appSettings.customPaletteHexes) {
+    val activePreset = remember(appSettings.appColorPreset, appSettings.colorPreset) {
+        val p = appSettings.appColorPreset.ifBlank { appSettings.colorPreset }
+        if (p.equals("Monochrome", ignoreCase = true)) "Midnight Indigo" else p
+    }
+    val activeHexes = remember(appSettings.appCustomPaletteHexes, appSettings.customPaletteHexes) {
+        appSettings.appCustomPaletteHexes.ifBlank { appSettings.customPaletteHexes }
+    }
+
+    val initialPalette = remember(isDark, paletteMode, activePreset, activeHexes) {
         when (paletteMode) {
             PlayerPaletteMode.DYNAMIC_ARTWORK -> PlayerArtworkPalette.neutral(isDark)
-            PlayerPaletteMode.PRESET -> PlayerArtworkPalette.fromPreset(appSettings.colorPreset, isDark)
-            PlayerPaletteMode.CUSTOM -> PlayerArtworkPalette.fromCustomColors(appSettings.customPaletteHexes.split(","), isDark)
+            PlayerPaletteMode.PRESET -> PlayerArtworkPalette.fromPreset(activePreset, isDark)
+            PlayerPaletteMode.CUSTOM -> CustomPaletteValidator.createPaletteFromCustomHexes(activeHexes, isDark)
             PlayerPaletteMode.MONOCHROME -> PlayerArtworkPalette.neutral(isDark)
         }
     }
@@ -204,8 +225,8 @@ fun PlayerScreen(
         song.uri,
         isDark,
         paletteMode,
-        appSettings.colorPreset,
-        appSettings.customPaletteHexes
+        activePreset,
+        activeHexes
     ) {
         when (paletteMode) {
             PlayerPaletteMode.DYNAMIC_ARTWORK -> {
@@ -213,10 +234,10 @@ fun PlayerScreen(
                 artworkPalette = extracted
             }
             PlayerPaletteMode.PRESET -> {
-                artworkPalette = PlayerArtworkPalette.fromPreset(appSettings.colorPreset, isDark)
+                artworkPalette = PlayerArtworkPalette.fromPreset(activePreset, isDark)
             }
             PlayerPaletteMode.CUSTOM -> {
-                artworkPalette = PlayerArtworkPalette.fromCustomColors(appSettings.customPaletteHexes.split(","), isDark)
+                artworkPalette = CustomPaletteValidator.createPaletteFromCustomHexes(activeHexes, isDark)
             }
             PlayerPaletteMode.MONOCHROME -> {
                 artworkPalette = PlayerArtworkPalette.neutral(isDark)
