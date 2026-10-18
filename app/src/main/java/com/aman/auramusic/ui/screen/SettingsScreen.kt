@@ -157,6 +157,17 @@ fun SettingsScreen(
                             label = { Text("Username") },
                             singleLine = true,
                             shape = RoundedCornerShape(18.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                cursorColor = MaterialTheme.colorScheme.primary
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                         ThemeSelectionRow(
@@ -164,14 +175,21 @@ fun SettingsScreen(
                             onThemeSelected = onThemeModeChange
                         )
 
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
                         Text("Lyric font size", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                         Slider(
                             value = appSettings.lyricFontScale,
                             onValueChange = onLyricFontScaleChange,
                             valueRange = 0.8f..1.4f,
-                            steps = 5
+                            steps = 5,
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                activeTickColor = MaterialTheme.colorScheme.onPrimary,
+                                inactiveTickColor = MaterialTheme.colorScheme.outline
+                            )
                         )
                     }
                 }
@@ -197,7 +215,7 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        var isThemeExpanded by rememberSaveable { mutableStateOf(true) }
+                        var isThemeExpanded by rememberSaveable { mutableStateOf(false) }
 
                         // 1. Master Switch: Change Theme
                         ToggleRow(
@@ -206,8 +224,8 @@ fun SettingsScreen(
                             checked = appSettings.changeThemeEnabled,
                             onCheckedChange = { isChecked ->
                                 onChangeThemeEnabled(isChecked)
-                                if (isChecked) {
-                                    isThemeExpanded = true
+                                if (!isChecked) {
+                                    isThemeExpanded = false
                                 }
                             }
                         )
@@ -222,7 +240,7 @@ fun SettingsScreen(
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
                                 // Working Expand / Retract button control
                                 Row(
@@ -302,7 +320,7 @@ fun SettingsScreen(
                                             customHexes = appSettings.appCustomPaletteHexes
                                         )
 
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
                                         // 3b. Theme Scope Selector
                                         Text(
@@ -325,7 +343,7 @@ fun SettingsScreen(
                                             }
                                         )
 
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
                                         // 3c. Color Style Selector
                                         Text(
@@ -355,7 +373,19 @@ fun SettingsScreen(
                                                         onAppPaletteModeChange(style)
                                                         onPlayerThemeModeChange(style)
                                                     },
-                                                    label = { Text(style, style = MaterialTheme.typography.labelMedium) }
+                                                    label = { Text(style, style = MaterialTheme.typography.labelMedium) },
+                                                    colors = FilterChipDefaults.filterChipColors(
+                                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                                    ),
+                                                    border = FilterChipDefaults.filterChipBorder(
+                                                        enabled = true,
+                                                        selected = isSelected,
+                                                        borderColor = MaterialTheme.colorScheme.outline,
+                                                        selectedBorderColor = MaterialTheme.colorScheme.primary
+                                                    )
                                                 )
                                             }
                                         }
@@ -371,7 +401,7 @@ fun SettingsScreen(
                                                 )
                                             }
                                             activeStyle.equals("Preset", ignoreCase = true) -> {
-                                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
                                                 Text(
                                                     text = "Color Preset",
                                                     style = MaterialTheme.typography.bodyMedium,
@@ -405,13 +435,27 @@ fun SettingsScreen(
                                                                         .background(samplePal.accent)
                                                                 )
                                                             },
-                                                            label = { Text(preset, style = MaterialTheme.typography.labelMedium) }
+                                                            label = { Text(preset, style = MaterialTheme.typography.labelMedium) },
+                                                            colors = FilterChipDefaults.filterChipColors(
+                                                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                                                iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary
+                                                            ),
+                                                            border = FilterChipDefaults.filterChipBorder(
+                                                                enabled = true,
+                                                                selected = isSelected,
+                                                                borderColor = MaterialTheme.colorScheme.outline,
+                                                                selectedBorderColor = MaterialTheme.colorScheme.primary
+                                                            )
                                                         )
                                                     }
                                                 }
                                             }
                                             activeStyle.equals("Custom", ignoreCase = true) || activeStyle.equals("Custom Palette", ignoreCase = true) -> {
-                                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
                                                 Text(
                                                     text = "Custom Color Editor",
                                                     style = MaterialTheme.typography.bodyMedium,
@@ -468,6 +512,17 @@ fun SettingsScreen(
                                                     label = { Text("Hex Colors") },
                                                     singleLine = true,
                                                     shape = RoundedCornerShape(16.dp),
+                                                    colors = OutlinedTextFieldDefaults.colors(
+                                                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        cursorColor = MaterialTheme.colorScheme.primary
+                                                    ),
                                                     modifier = Modifier.fillMaxWidth()
                                                 )
 
@@ -499,7 +554,7 @@ fun SettingsScreen(
 
                                         // 3e. Themed Content Areas (visible only when Entire App is selected)
                                         if (appSettings.themeScope.equals("Entire App", ignoreCase = true)) {
-                                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
                                             Text(
                                                 text = "Themed Content Areas",
@@ -652,13 +707,14 @@ fun SettingsScreen(
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
                     .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
             ) {
-                Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     SettingsRow(
                         icon = Icons.Default.Refresh,
                         title = "Scan local music",
                         subtitle = "Refresh songs from device storage",
                         onClick = onRefresh
                     )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
                     SettingsRow(
                         icon = Icons.Default.Info,
                         title = "About Aura Music",
@@ -797,7 +853,11 @@ fun ToggleRow(
         checkedBorderColor = colors.controlSelected,
         uncheckedThumbColor = if (isDark) colors.textSecondary else colors.background,
         uncheckedTrackColor = if (isDark) colors.border else colors.surfaceSecondary,
-        uncheckedBorderColor = colors.borderStrong
+        uncheckedBorderColor = colors.borderStrong,
+        disabledCheckedThumbColor = colors.controlSelectedContent.copy(alpha = 0.5f),
+        disabledCheckedTrackColor = colors.controlSelected.copy(alpha = 0.5f),
+        disabledUncheckedThumbColor = colors.textTertiary,
+        disabledUncheckedTrackColor = colors.surfaceSecondary
     )
 
     Row(
@@ -813,7 +873,11 @@ fun ToggleRow(
                 .padding(end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
@@ -848,8 +912,8 @@ fun SettingsRow(
         Surface(
             modifier = Modifier.size(44.dp),
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-            contentColor = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurface
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
@@ -857,8 +921,17 @@ fun SettingsRow(
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column {
-            Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -1229,11 +1302,11 @@ fun ThemeScopeSelector(
         options.forEach { (title, subtitle, icon) ->
             val isSelected = (title == "Entire App" && isEntireApp) || (title == "Player Only" && !isEntireApp)
             val borderColor by animateColorAsState(
-                targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                 label = "scopeBorder"
             )
             val bgColor by animateColorAsState(
-                targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                targetValue = if (isSelected) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
                 label = "scopeBg"
             )
 
@@ -1243,12 +1316,12 @@ fun ThemeScopeSelector(
                     .clip(RoundedCornerShape(16.dp))
                     .background(bgColor, RoundedCornerShape(16.dp))
                     .border(BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor), RoundedCornerShape(16.dp))
-                    .selectable(
-                        selected = isSelected,
-                        onClick = { onScopeSelected(title) },
-                        role = Role.RadioButton
-                    )
-                    .padding(12.dp),
+                .selectable(
+                    selected = isSelected,
+                    onClick = { onScopeSelected(title) },
+                    role = Role.RadioButton
+                )
+                .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -1275,7 +1348,11 @@ fun ThemeScopeSelector(
 
                 RadioButton(
                     selected = isSelected,
-                    onClick = null
+                    onClick = null,
+                    colors = RadioButtonDefaults.colors(
+                        selectedColor = MaterialTheme.colorScheme.primary,
+                        unselectedColor = MaterialTheme.colorScheme.outline
+                    )
                 )
             }
         }

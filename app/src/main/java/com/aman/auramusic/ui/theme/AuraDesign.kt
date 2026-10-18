@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,23 +41,23 @@ object AuraActionButtons {
  */
 @Composable
 fun auraScreenGradient(): Brush {
-    val bg = LocalAppColorScheme.current.background
+    val bg = MaterialTheme.colorScheme.background
     return Brush.verticalGradient(listOf(bg, bg))
 }
 
 /**
- * Solid screen background using current active AppColorScheme background.
+ * Solid screen background using current active background.
  */
 @Composable
 fun AuraScreenBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    val bgColor = LocalAppColorScheme.current.background
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(bgColor)
+    val bgColor = MaterialTheme.colorScheme.background
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = bgColor,
+        contentColor = MaterialTheme.colorScheme.onBackground
     ) {
         content()
     }

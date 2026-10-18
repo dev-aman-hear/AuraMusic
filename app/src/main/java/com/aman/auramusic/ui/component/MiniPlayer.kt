@@ -60,7 +60,6 @@ fun MiniPlayer(
     var dragY by remember { mutableFloatStateOf(0f) }
     val pillShape = RoundedCornerShape(27.dp)
     val titleColor = MaterialTheme.colorScheme.onSurface
-    val subtitleColor = MaterialTheme.colorScheme.onSurfaceVariant
     val iconTint = MaterialTheme.colorScheme.onSurface
 
     Box(
@@ -118,24 +117,13 @@ fun MiniPlayer(
             ) {
                 Text(
                     text = song.title,
-                    fontSize = if (compact) 13.sp else 13.5.sp,
+                    fontSize = if (compact) 13.sp else 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = titleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     letterSpacing = (-0.1).sp
                 )
-                if (!compact) {
-                    Spacer(modifier = Modifier.height(1.dp))
-                    Text(
-                        text = song.artist,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = subtitleColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
             }
 
             Row(
