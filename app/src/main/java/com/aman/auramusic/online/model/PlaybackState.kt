@@ -23,7 +23,10 @@ data class PlaybackState(
     val isLyricsMode: Boolean = false,
     val isLoadingLyrics: Boolean = false,
     val selectedEngine: StreamingEngine = StreamingEngine.RIPLAY,
-    val activePlayerType: String = "ExoPlayer"
+    val activePlayerType: String = "ExoPlayer",
+    val measuredBitrate: Int? = null,
+    val measuredSampleRate: Int? = null,
+    val measuredMimeType: String? = null
 ) {
     val progress: Float
         get() = if (durationMs > 0) (currentPositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f

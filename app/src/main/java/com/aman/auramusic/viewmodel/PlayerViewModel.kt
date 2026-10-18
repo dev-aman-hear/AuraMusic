@@ -178,6 +178,7 @@ class PlayerViewModel @Inject constructor(
     val queue: StateFlow<List<QueueEntry>> = _queue.asStateFlow()
 
     private var originalQueue: List<QueueEntry> = emptyList()
+    private val manuallyAddedSongIds = mutableSetOf<Long>()
 
     init {
         val intent = Intent(application, PlaybackService::class.java)
@@ -207,17 +208,34 @@ class PlayerViewModel @Inject constructor(
     }
 
     private suspend fun refreshQueueFromIds(ids: List<Long>) {
+        if (currentPlaylistId == null) return
         val allSongs = kotlinx.coroutines.withContext(Dispatchers.IO) {
             musicRepository.getAllSongs()
         }
-        val songs = ids.mapNotNull { id -> allSongs.find { it.id == id } }.distinctBy { it.id }
-        originalQueue = songs.map { QueueEntry(song = it) }
+        val currentList = playbackService?.queue ?: _queue.value.map { it.song }
+
+        // Preserve any songs that were manually added to the queue
+        val addedSongs = currentList.filter { it.id in manuallyAddedSongIds }
+
+        // Resolve playlist songs from ids
+        val playlistSongs = ids.mapNotNull { id -> allSongs.find { it.id == id } }.distinctBy { it.id }
+
+        // Ensure the active playing song is never abruptly removed
+        val curSong = currentSong
+        val baseSongs = if (curSong != null && playlistSongs.none { it.id == curSong.id } && addedSongs.none { it.id == curSong.id }) {
+            listOf(curSong) + playlistSongs
+        } else {
+            playlistSongs
+        }
+
+        val fullCanonical = (baseSongs.filterNot { it.id in manuallyAddedSongIds } + addedSongs).distinctBy { it.id }
+        originalQueue = fullCanonical.map { QueueEntry(song = it) }
 
         val targetSongs = if (isShuffled) {
-            val current = songs.firstOrNull { it.id == currentSongId }
-            if (current != null) listOf(current) + songs.filterNot { it.id == current.id }.shuffled()
-            else songs.shuffled()
-        } else songs
+            val current = fullCanonical.firstOrNull { it.id == currentSongId }
+            if (current != null) listOf(current) + fullCanonical.filterNot { it.id == current.id }.shuffled()
+            else fullCanonical.shuffled()
+        } else fullCanonical
 
         playbackService?.queue = targetSongs
         _queue.value = targetSongs.map { QueueEntry(song = it) }
@@ -253,10 +271,6 @@ class PlayerViewModel @Inject constructor(
                 if (serviceSong != null && serviceSong.id != currentSongId) {
                     syncWithService()
                 }
-
-                currentSong?.let { song ->
-                    notificationManager?.show(song, playing, pm.getSessionToken())
-                }
             }
 
             override fun onEnd() {
@@ -267,12 +281,18 @@ class PlayerViewModel @Inject constructor(
         pm.addListener(playerListener!!)
     }
 
-    var currentPlaylistId by mutableStateOf<Long?>(null)
-        private set
+    private val _currentPlaylistId = mutableStateOf<Long?>(null)
+    var currentPlaylistId: Long?
+        get() = _currentPlaylistId.value
+        set(value) {
+            _currentPlaylistId.value = value
+            playbackService?.currentPlaylistId = value
+        }
 
     fun setQueue(songs: List<Song>, playlistId: Long? = null) {
         val uniqueSongs = songs.distinctBy { it.id }
         currentPlaylistId = playlistId
+        manuallyAddedSongIds.clear()
         originalQueue = uniqueSongs.map { QueueEntry(song = it) }
 
         val service = playbackService
@@ -292,19 +312,61 @@ class PlayerViewModel @Inject constructor(
     fun addToQueue(songs: List<Song>) {
         if (songs.isEmpty()) return
         val currentList = playbackService?.queue ?: _queue.value.map { it.song }
+        val currentIds = currentList.mapTo(mutableSetOf()) { it.id }
         val newSongs = songs.distinctBy { it.id }
-            .filter { candidate -> currentList.none { it.id == candidate.id } }
+            .filter { candidate -> candidate.id !in currentIds }
         if (newSongs.isEmpty()) return
+
+        manuallyAddedSongIds.addAll(newSongs.map { it.id })
 
         val canonical = originalQueue.map { it.song }
         val canonicalIds = canonical.mapTo(mutableSetOf()) { it.id }
         val canonicalBase = if (canonical.isEmpty()) currentList
             else canonical + currentList.filterNot { it.id in canonicalIds }
-        originalQueue = (canonicalBase + newSongs)
-            .distinctBy { it.id }
-            .map { QueueEntry(song = it) }
+        val newCanonical = (canonicalBase + newSongs).distinctBy { it.id }
+        originalQueue = newCanonical.map { QueueEntry(song = it) }
 
         val updated = currentList + newSongs
+        playbackService?.queue = updated
+        _queue.value = updated.map { QueueEntry(song = it) }
+    }
+
+    fun playNext(song: Song) = playNext(listOf(song))
+
+    fun playNext(songs: List<Song>) {
+        if (songs.isEmpty()) return
+        val currentList = playbackService?.queue ?: _queue.value.map { it.song }
+        if (currentList.isEmpty()) {
+            setQueue(songs)
+            return
+        }
+
+        val currentIds = currentList.mapTo(mutableSetOf()) { it.id }
+        val newSongs = songs.distinctBy { it.id }
+            .filter { candidate -> candidate.id !in currentIds }
+        if (newSongs.isEmpty()) return
+
+        manuallyAddedSongIds.addAll(newSongs.map { it.id })
+
+        val curSong = currentSong
+        val insertIndex = if (curSong != null) {
+            val idx = currentList.indexOfFirst { it.id == curSong.id }
+            if (idx != -1) idx + 1 else currentList.size
+        } else {
+            0
+        }
+
+        val updated = currentList.toMutableList().apply {
+            addAll(insertIndex, newSongs)
+        }
+
+        val canonical = originalQueue.map { it.song }
+        val canonicalIds = canonical.mapTo(mutableSetOf()) { it.id }
+        val canonicalBase = if (canonical.isEmpty()) currentList
+            else canonical + currentList.filterNot { it.id in canonicalIds }
+        val newCanonical = (canonicalBase + newSongs).distinctBy { it.id }
+        originalQueue = newCanonical.map { QueueEntry(song = it) }
+
         playbackService?.queue = updated
         _queue.value = updated.map { QueueEntry(song = it) }
     }
@@ -582,6 +644,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun removeQueueItem(songId: Long) {
+        manuallyAddedSongIds.remove(songId)
         val wasCurrent = currentSongId == songId
         val q = _queue.value.filterNot { it.song.id == songId }
         _queue.value = q
@@ -604,6 +667,7 @@ class PlayerViewModel @Inject constructor(
     fun clearQueueExceptCurrent() {
         val current = currentSong ?: return
         val q = listOf(QueueEntry(song = current))
+        manuallyAddedSongIds.clear()
         _queue.value = q
         playbackService?.queue = listOf(current)
         playbackService?.currentPlaylistId = null
@@ -662,6 +726,9 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        playerListener?.let { playerManager?.removeListener(it) }
+        playerListener = null
+
         if (isServiceBound) {
             runCatching { getApplication<Application>().unbindService(serviceConnection) }
             isServiceBound = false
@@ -669,14 +736,11 @@ class PlayerViewModel @Inject constructor(
         playbackService = null
         playerManager = null
         notificationManager = null
-        
-        val isOnlineActive = playbackService?.isOnlinePlaybackActive == true
-        val isAnyPlaying = isPlaying || (isOnlineActive && isOnlinePlaying)
-        if (!appSettings.keepPlayingOnClose || !isAnyPlaying) {
+
+        if (!appSettings.keepPlayingOnClose) {
             val intent = Intent(getApplication(), PlaybackService::class.java)
             getApplication<Application>().stopService(intent)
-            
-            // Only clear if the service is actually stopping
+
             PlaybackActionRegistry.onPlayPause = null
             PlaybackActionRegistry.onNext = null
             PlaybackActionRegistry.onPrevious = null

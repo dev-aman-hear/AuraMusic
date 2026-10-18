@@ -52,6 +52,7 @@ fun HomeScreen(
     onSongSelected: (Song, List<Song>) -> Unit,
     onFavoriteToggle: (Song) -> Unit,
     onAddToPlaylist: (Song) -> Unit,
+    onPlayNext: (Song) -> Unit = {},
     onAddToQueue: (Song) -> Unit = {},
     onOnlineSongSelected: (OnlineSong, List<OnlineSong>) -> Unit = { _, _ -> },
     onAlbumSelected: (String) -> Unit,
@@ -291,6 +292,10 @@ fun HomeScreen(
             },
             onAddToPlaylist = {
                 onAddToPlaylist(selectedSongOptions!!)
+                selectedSongOptions = null
+            },
+            onPlayNext = {
+                onPlayNext(selectedSongOptions!!)
                 selectedSongOptions = null
             },
             onAddToQueue = {

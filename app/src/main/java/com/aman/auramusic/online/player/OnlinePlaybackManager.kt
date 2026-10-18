@@ -166,6 +166,20 @@ class OnlinePlaybackManager(
                     }
                 }
 
+                override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                    if (isUsingIFramePlayer) return
+                    val format = exoPlayer.audioFormat
+                    if (format != null) {
+                        _playbackState.update {
+                            it.copy(
+                                measuredBitrate = if (format.bitrate != androidx.media3.common.Format.NO_VALUE) format.bitrate else null,
+                                measuredSampleRate = if (format.sampleRate != androidx.media3.common.Format.NO_VALUE) format.sampleRate else null,
+                                measuredMimeType = format.sampleMimeType ?: format.containerMimeType
+                            )
+                        }
+                    }
+                }
+
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     if (isUsingIFramePlayer) return
                     Log.d("AuraPlaybackDebug", "ExoPlayer onIsPlayingChanged: isPlaying=$isPlaying, isTransitioning=$isTransitioning")
@@ -356,6 +370,12 @@ class OnlinePlaybackManager(
             val currentQueue = _playbackState.value.queue
             val index = currentQueue.indexOfFirst { it.id == song.id }
             _playbackState.update { it.copy(queueIndex = index) }
+
+            // Safe preloading of upcoming tracks where supported
+            if (index != -1 && index + 1 < currentQueue.size) {
+                val nextSong = currentQueue[index + 1]
+                CacheManager.preloadUpcomingTrack(context, nextSong)
+            }
 
             // ========================================================
             // PLAYBACK ROUTING: JioSaavn vs YouTube Engine Strategies

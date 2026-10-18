@@ -181,10 +181,14 @@ fun PlayerScreen(
 
     var artworkPalette by remember(isDark) { mutableStateOf(PlayerArtworkPalette.neutral(isDark)) }
 
-    LaunchedEffect(song.id, song.artworkUri, song.uri, isDark, appSettings.dynamicArtworkColors) {
+    LaunchedEffect(song.id, song.artworkUri, song.uri, isDark, appSettings.dynamicArtworkColors, appSettings.colorPreset, appSettings.customPaletteHexes) {
         if (appSettings.dynamicArtworkColors) {
             val extracted = DynamicArtworkColorsHelper.extractPalette(context, song, isDark)
             artworkPalette = extracted
+        } else if (appSettings.colorPreset.isNotBlank() && !appSettings.colorPreset.equals("Monochrome", ignoreCase = true)) {
+            artworkPalette = PlayerArtworkPalette.fromPreset(appSettings.colorPreset, isDark)
+        } else if (appSettings.customPaletteHexes.isNotBlank()) {
+            artworkPalette = PlayerArtworkPalette.fromCustomColors(appSettings.customPaletteHexes.split(","), isDark)
         } else {
             artworkPalette = PlayerArtworkPalette.neutral(isDark)
         }

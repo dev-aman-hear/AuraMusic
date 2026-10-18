@@ -346,6 +346,18 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    fun setColorPreset(preset: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setColorPreset(preset)
+        }
+    }
+
+    fun setCustomPaletteHexes(hexes: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setCustomPaletteHexes(hexes)
+        }
+    }
+
     fun exportCurrentSongs(songs: List<Song>, outputStream: OutputStream?) {
         viewModelScope.launch(Dispatchers.IO) {
             if (outputStream == null) {

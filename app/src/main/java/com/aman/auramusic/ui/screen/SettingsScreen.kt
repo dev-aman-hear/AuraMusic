@@ -53,6 +53,7 @@ fun SettingsScreen(
     onUsernameChange: (String) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit = {},
     onDynamicArtworkColorsChange: (Boolean) -> Unit = {},
+    onColorPresetChange: (String) -> Unit = {},
     onKaraokeChange: (Boolean) -> Unit = {},
     onLyricFontScaleChange: (Float) -> Unit,
     onSmartAudioFocusChange: (Boolean) -> Unit,
@@ -148,6 +149,23 @@ fun SettingsScreen(
                             onCheckedChange = onDynamicArtworkColorsChange
                         )
 
+                        val presets = listOf("Monochrome", "Midnight Indigo", "Crimson Velvet", "Emerald Pine", "Nordic Slate")
+                        Text("Player Palette Preset", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            presets.forEach { preset ->
+                                val isSelected = appSettings.colorPreset.equals(preset, ignoreCase = true)
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { onColorPresetChange(preset) },
+                                    label = { Text(preset, style = MaterialTheme.typography.labelMedium) }
+                                )
+                            }
+                        }
+
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
 
                         Text("Lyric font size", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
@@ -207,6 +225,18 @@ fun SettingsScreen(
                         title = "Export all songs",
                         subtitle = "Export all songs present on device to JSON",
                         onClick = onExportAllSongs
+                    )
+
+                    var cacheUsage by remember { mutableStateOf(com.aman.auramusic.online.player.CacheManager.getFormattedCacheUsage(context)) }
+
+                    SettingsRow(
+                        icon = Icons.Default.DeleteSweep,
+                        title = "Clear audio cache",
+                        subtitle = "Currently used: $cacheUsage",
+                        onClick = {
+                            com.aman.auramusic.online.player.CacheManager.clearCache(context)
+                            cacheUsage = com.aman.auramusic.online.player.CacheManager.getFormattedCacheUsage(context)
+                        }
                     )
                 }
             }

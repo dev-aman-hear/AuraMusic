@@ -10,6 +10,10 @@ data class AppSettings(
     val keepPlayingOnClose: Boolean = true,
     val playlistGridColumns: Int = 2,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val dynamicArtworkColors: Boolean = false
+    val dynamicArtworkColors: Boolean = false,
+    val colorPreset: String = "Monochrome",
+    val customPaletteHexes: String = "",
+    val enablePlayerColor: Boolean = true,
+    val enableMiniPlayerColor: Boolean = false
 )
 

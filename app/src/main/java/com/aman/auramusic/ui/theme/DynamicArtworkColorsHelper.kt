@@ -64,6 +64,68 @@ data class PlayerArtworkPalette(
                 )
             }
         }
+
+        fun fromPreset(presetName: String, isDark: Boolean): PlayerArtworkPalette {
+            return when (presetName.lowercase()) {
+                "midnight indigo" -> PlayerArtworkPalette(
+                    primary = if (isDark) Color(0xFF1A237E) else Color(0xFFC5CAE9),
+                    secondary = if (isDark) Color(0xFF0D1642) else Color(0xFF9FA8DA),
+                    tertiary = if (isDark) Color(0xFF070B24) else Color(0xFFE8EAF6),
+                    accent = if (isDark) Color(0xFF3949AB) else Color(0xFF7986CB),
+                    isLightArtwork = !isDark
+                )
+                "crimson velvet" -> PlayerArtworkPalette(
+                    primary = if (isDark) Color(0xFF880E4F) else Color(0xFFF8BBD0),
+                    secondary = if (isDark) Color(0xFF4A0027) else Color(0xFFF48FB1),
+                    tertiary = if (isDark) Color(0xFF260013) else Color(0xFFFCE4EC),
+                    accent = if (isDark) Color(0xFFC2185B) else Color(0xFFEC407A),
+                    isLightArtwork = !isDark
+                )
+                "emerald pine" -> PlayerArtworkPalette(
+                    primary = if (isDark) Color(0xFF1B5E20) else Color(0xFFC8E6C9),
+                    secondary = if (isDark) Color(0xFF0B330F) else Color(0xFFA5D6A7),
+                    tertiary = if (isDark) Color(0xFF051C08) else Color(0xFFE8F5E9),
+                    accent = if (isDark) Color(0xFF2E7D32) else Color(0xFF81C784),
+                    isLightArtwork = !isDark
+                )
+                "nordic slate" -> PlayerArtworkPalette(
+                    primary = if (isDark) Color(0xFF263238) else Color(0xFFCFD8DC),
+                    secondary = if (isDark) Color(0xFF151C1F) else Color(0xFFB0BEC5),
+                    tertiary = if (isDark) Color(0xFF0B0F10) else Color(0xFFECEFF1),
+                    accent = if (isDark) Color(0xFF37474F) else Color(0xFF90A4AE),
+                    isLightArtwork = !isDark
+                )
+                else -> neutral(isDark)
+            }
+        }
+
+        fun fromCustomColors(hexList: List<String>, isDark: Boolean): PlayerArtworkPalette {
+            val colors = hexList.mapNotNull { hex ->
+                runCatching {
+                    val clean = hex.trim().removePrefix("#")
+                    val colorInt = if (clean.length == 6) {
+                        (0xFF000000 or clean.toLong(16)).toInt()
+                    } else if (clean.length == 8) {
+                        clean.toLong(16).toInt()
+                    } else null
+                    colorInt?.let { Color(it) }
+                }.getOrNull()
+            }
+            if (colors.size < 2) return neutral(isDark)
+
+            val p = colors[0]
+            val s = colors[1]
+            val t = if (colors.size > 2) colors[2] else s
+            val a = if (colors.size > 3) colors[3] else p
+
+            return PlayerArtworkPalette(
+                primary = p,
+                secondary = s,
+                tertiary = t,
+                accent = a,
+                isLightArtwork = !isDark
+            )
+        }
     }
 }
 

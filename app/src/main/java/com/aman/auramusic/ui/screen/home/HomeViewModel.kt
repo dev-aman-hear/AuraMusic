@@ -117,7 +117,8 @@ class HomeViewModel @Inject constructor(
 
     private val dailyCache = DailyFeaturedCache(application.applicationContext)
     private val feedCachePrefs = application.getSharedPreferences("aura_home_feed_cache", android.app.Application.MODE_PRIVATE)
-    private val feedCacheTtlMs = 6L * 60L * 60L * 1000L
+    private val feedCacheTtlMs = 24L * 60L * 60L * 1000L // 24-hour freshness policy
+    private var isFetchingFeed = false
 
     private inline fun <reified T> readCachedList(key: String): List<T> = runCatching {
         Gson().fromJson<List<T>>(
@@ -251,20 +252,23 @@ class HomeViewModel @Inject constructor(
         history: List<PlaybackHistoryEntry>,
         forceRefresh: Boolean = false
     ) {
+        if (isFetchingFeed && !forceRefresh) return
         viewModelScope.launch {
-            val recommendationLocalSongs = localSongs.filterNot {
-                ExplicitTitleFilter.shouldHideTitle(it.title)
-            }
-            val listenAgainColumns = buildListenAgainFeed(recommendationLocalSongs, history)
+            isFetchingFeed = true
+            try {
+                val recommendationLocalSongs = localSongs.filterNot {
+                    ExplicitTitleFilter.shouldHideTitle(it.title)
+                }
+                val listenAgainColumns = buildListenAgainFeed(recommendationLocalSongs, history)
 
-            if (_uiState.value.trendingTracks.isNotEmpty() && !forceRefresh) {
-                updateLocalDerivedData(recommendationLocalSongs, history)
-                _uiState.value = _uiState.value.copy(
-                    listenAgainColumns = listenAgainColumns,
-                    listenAgainTracks = listenAgainColumns.flatten()
-                )
-                return@launch
-            }
+                if (_uiState.value.trendingTracks.isNotEmpty() && !forceRefresh) {
+                    updateLocalDerivedData(recommendationLocalSongs, history)
+                    _uiState.value = _uiState.value.copy(
+                        listenAgainColumns = listenAgainColumns,
+                        listenAgainTracks = listenAgainColumns.flatten()
+                    )
+                    return@launch
+                }
 
             val deduplicator = SectionDeduplicator()
 
@@ -301,16 +305,21 @@ class HomeViewModel @Inject constructor(
             val feedCacheFresh = !forceRefresh && cachedAt > 0L &&
                 System.currentTimeMillis() - cachedAt in 0..feedCacheTtlMs
 
-            var cacheUsable = false
-            if (feedCacheFresh) {
-                rawTrendingOnline = readCachedList("trending")
-                rawQuickHitsOnline = readCachedList("quick_hits")
-                curatedPlaylists = readCachedList("playlists")
-                onlineArtistsDiscovered = readCachedList("artists")
-                featuredTracks = readCachedList("featured_tracks")
-                cacheUsable = rawTrendingOnline.isNotEmpty() || rawQuickHitsOnline.isNotEmpty() ||
-                    curatedPlaylists.isNotEmpty() || onlineArtistsDiscovered.isNotEmpty()
+            val cachedTrending: List<OnlineSong> = readCachedList("trending")
+            val cachedQuickHits: List<OnlineSong> = readCachedList("quick_hits")
+            val cachedPlaylists: List<OnlinePlaylist> = readCachedList("playlists")
+            val cachedArtists: List<com.aman.auramusic.online.network.repository.YouTubeArtist> = readCachedList("artists")
+            val cachedFeatured: List<OnlineSong> = readCachedList("featured_tracks")
+
+            if (cachedTrending.isNotEmpty() || cachedQuickHits.isNotEmpty() || cachedPlaylists.isNotEmpty()) {
+                rawTrendingOnline = cachedTrending
+                rawQuickHitsOnline = cachedQuickHits
+                curatedPlaylists = cachedPlaylists
+                onlineArtistsDiscovered = cachedArtists
+                featuredTracks = cachedFeatured
             }
+
+            val cacheUsable = feedCacheFresh && (rawTrendingOnline.isNotEmpty() || rawQuickHitsOnline.isNotEmpty())
 
             if (!cacheUsable) {
                 try {
@@ -469,8 +478,22 @@ class HomeViewModel @Inject constructor(
                 categories = defaultCategories
             )
             resolveMissingArtistPortraits(artistsList)
+
+            if (!isOfflineDetected && (rawTrendingOnline.isNotEmpty() || rawQuickHitsOnline.isNotEmpty() || curatedPlaylists.isNotEmpty())) {
+                writeCachedList("trending", rawTrendingOnline)
+                writeCachedList("quick_hits", rawQuickHitsOnline)
+                writeCachedList("playlists", curatedPlaylists)
+                writeCachedList("artists", onlineArtistsDiscovered)
+                if (featuredTracks.isNotEmpty()) {
+                    writeCachedList("featured_tracks", featuredTracks)
+                }
+                feedCachePrefs.edit().putLong("fetched_at", System.currentTimeMillis()).apply()
+            }
+        } finally {
+            isFetchingFeed = false
         }
     }
+}
 
     private fun updateLocalDerivedData(
         localSongs: List<Song>,
