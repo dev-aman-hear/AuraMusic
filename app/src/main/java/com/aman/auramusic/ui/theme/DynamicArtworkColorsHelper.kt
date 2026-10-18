@@ -11,6 +11,7 @@ import coil.Coil
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import com.aman.auramusic.util.ArtworkExtractor
@@ -234,6 +235,28 @@ fun resolvePlayerPaletteMode(
         customPaletteHexes = customPaletteHexes,
         dynamicArtworkColors = dynamicArtworkColors
     )
+}
+
+/**
+ * Resolves the effective player palette mode directly from [AppSettings].
+ */
+fun resolvePlayerPaletteMode(appSettings: AppSettings): PlayerPaletteMode {
+    if (!appSettings.isPlayerThemeActive()) {
+        return PlayerPaletteMode.MONOCHROME
+    }
+    val style = appSettings.themeColorStyle.ifBlank { appSettings.playerThemeMode }
+    return when {
+        style.equals("Dynamic Artwork", ignoreCase = true) -> PlayerPaletteMode.DYNAMIC_ARTWORK
+        style.equals("Custom", ignoreCase = true) || style.equals("Custom Palette", ignoreCase = true) -> PlayerPaletteMode.CUSTOM
+        else -> {
+            val preset = appSettings.appColorPreset.ifBlank { appSettings.colorPreset }
+            if (preset.equals("Monochrome", ignoreCase = true)) {
+                PlayerPaletteMode.MONOCHROME
+            } else {
+                PlayerPaletteMode.PRESET
+            }
+        }
+    }
 }
 
 /**

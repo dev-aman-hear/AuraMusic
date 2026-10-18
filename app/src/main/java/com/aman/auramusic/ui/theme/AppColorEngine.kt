@@ -55,7 +55,6 @@ enum class AppArea {
  * Identifies the color sourcing mode for full-app theming.
  */
 enum class AppPaletteMode(val displayName: String) {
-    MONOCHROME("Monochrome"),
     DYNAMIC_ARTWORK("Dynamic Artwork"),
     PRESET("Preset"),
     CUSTOM("Custom Palette");
@@ -64,9 +63,8 @@ enum class AppPaletteMode(val displayName: String) {
         fun fromString(value: String): AppPaletteMode {
             return when (value.trim().lowercase()) {
                 "dynamic artwork", "dynamic_artwork", "dynamic" -> DYNAMIC_ARTWORK
-                "preset", "built-in preset" -> PRESET
                 "custom", "custom palette", "custom_palette" -> CUSTOM
-                else -> MONOCHROME
+                else -> PRESET
             }
         }
     }
@@ -468,7 +466,7 @@ object AppColorEngine {
         isDark: Boolean
     ): AppColorScheme {
         // Master switch check
-        if (!appSettings.enableFullAppDynamicTheme) {
+        if (!appSettings.isFullAppThemeActive()) {
             return AppColorScheme.monochrome(isDark)
         }
 
@@ -477,16 +475,16 @@ object AppColorEngine {
             return AppColorScheme.monochrome(isDark)
         }
 
-        val mode = AppPaletteMode.fromString(appSettings.appPaletteMode)
+        val mode = AppPaletteMode.fromString(appSettings.themeColorStyle.ifBlank { appSettings.appPaletteMode })
         return when (mode) {
-            AppPaletteMode.MONOCHROME -> {
-                AppColorScheme.monochrome(isDark)
-            }
             AppPaletteMode.PRESET -> {
-                val presetName = appSettings.appColorPreset
+                val presetName = if (appSettings.appColorPreset.equals("Monochrome", ignoreCase = true)) {
+                    "Midnight Indigo"
+                } else {
+                    appSettings.appColorPreset
+                }
                 val presetPalette = PlayerArtworkPalette.fromPreset(presetName, isDark)
-                val isColored = !presetName.equals("Monochrome", ignoreCase = true)
-                AppColorScheme.fromPalette(presetPalette, isDark, isColored = isColored)
+                AppColorScheme.fromPalette(presetPalette, isDark, isColored = true)
             }
             AppPaletteMode.CUSTOM -> {
                 val customPalette = CustomPaletteValidator.createPaletteFromCustomHexes(
@@ -499,14 +497,13 @@ object AppColorEngine {
                 if (artworkPalette != null) {
                     AppColorScheme.fromPalette(artworkPalette, isDark, isColored = true)
                 } else {
-                    // Safe fallback: use selected preset if non-monochrome, else monochrome
-                    val presetName = appSettings.appColorPreset
-                    if (presetName.isNotBlank() && !presetName.equals("Monochrome", ignoreCase = true)) {
-                        val fallbackPreset = PlayerArtworkPalette.fromPreset(presetName, isDark)
-                        AppColorScheme.fromPalette(fallbackPreset, isDark, isColored = true)
+                    val presetName = if (appSettings.appColorPreset.equals("Monochrome", ignoreCase = true)) {
+                        "Midnight Indigo"
                     } else {
-                        AppColorScheme.monochrome(isDark)
+                        appSettings.appColorPreset
                     }
+                    val fallbackPreset = PlayerArtworkPalette.fromPreset(presetName, isDark)
+                    AppColorScheme.fromPalette(fallbackPreset, isDark, isColored = true)
                 }
             }
         }
@@ -546,8 +543,8 @@ fun rememberAreaColorScheme(
         )
     }
 
-    val mode = AppPaletteMode.fromString(appSettings.appPaletteMode)
-    val shouldExtract = appSettings.enableFullAppDynamicTheme &&
+    val mode = AppPaletteMode.fromString(appSettings.themeColorStyle.ifBlank { appSettings.appPaletteMode })
+    val shouldExtract = appSettings.isFullAppThemeActive() &&
         appSettings.isAreaThemingEnabled(area.name) &&
         mode == AppPaletteMode.DYNAMIC_ARTWORK &&
         artworkKey.isNotEmpty()

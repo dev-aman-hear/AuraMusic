@@ -26,10 +26,14 @@ data class AppSettings(
     val themeLibraryEnabled: Boolean = true,
     val themeAlbumDetailEnabled: Boolean = true,
     val themeArtistDetailEnabled: Boolean = true,
-    val themePlaylistDetailEnabled: Boolean = true
+    val themePlaylistDetailEnabled: Boolean = true,
+    // Unified Appearance / Theme System
+    val changeThemeEnabled: Boolean = enableFullAppDynamicTheme || dynamicArtworkColors || (playerThemeMode != "Monochrome" && !colorPreset.equals("Monochrome", ignoreCase = true) && (enableFullAppDynamicTheme || dynamicArtworkColors)),
+    val themeScope: String = if (enableFullAppDynamicTheme) "Entire App" else "Player Only",
+    val themeColorStyle: String = appPaletteMode
 ) {
     fun isAreaThemingEnabled(areaName: String): Boolean {
-        if (!enableFullAppDynamicTheme) return false
+        if (!isFullAppThemeActive()) return false
         return when (areaName.uppercase()) {
             "HOME" -> themeHomeEnabled
             "EXPLORE", "SEARCH" -> themeExploreEnabled
@@ -40,5 +44,15 @@ data class AppSettings(
             else -> false
         }
     }
+
+    /**
+     * Returns true if colored theming is enabled and applied across the full app.
+     */
+    fun isFullAppThemeActive(): Boolean = changeThemeEnabled && themeScope.equals("Entire App", ignoreCase = true)
+
+    /**
+     * Returns true if colored theming is enabled for player surfaces.
+     */
+    fun isPlayerThemeActive(): Boolean = changeThemeEnabled
 }
 

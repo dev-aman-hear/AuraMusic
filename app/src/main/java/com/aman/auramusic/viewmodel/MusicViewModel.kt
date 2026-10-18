@@ -388,6 +388,36 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    fun setChangeThemeEnabled(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setChangeThemeEnabled(enabled)
+        }
+    }
+
+    fun setThemeScope(scope: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setThemeScope(scope)
+        }
+    }
+
+    fun setThemeColorStyle(style: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setThemeColorStyle(style)
+        }
+    }
+
+    fun setThemePreset(preset: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setThemePreset(preset)
+        }
+    }
+
+    fun setThemeCustomHexes(hexes: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setThemeCustomHexes(hexes)
+        }
+    }
+
     fun setThemeAreaEnabled(areaName: String, enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setThemeAreaEnabled(areaName, enabled)

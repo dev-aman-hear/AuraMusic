@@ -36,6 +36,28 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
     }.distinctUntilChanged()
 
     val settingsFlow: Flow<AppSettings> = dataStore.data.map { prefs ->
+        val legacyFullApp = prefs[Keys.enableFullAppDynamicTheme] ?: false
+        val legacyPlayerColored = (prefs[Keys.dynamicArtworkColors] ?: false) ||
+            prefs[Keys.playerThemeMode]?.equals("Dynamic Artwork", ignoreCase = true) == true ||
+            prefs[Keys.playerThemeMode]?.equals("Custom", ignoreCase = true) == true ||
+            (prefs[Keys.colorPreset] != null && !prefs[Keys.colorPreset].equals("Monochrome", ignoreCase = true))
+
+        val masterEnabled = prefs[Keys.changeThemeEnabled] ?: (legacyFullApp || legacyPlayerColored)
+
+        val scope = prefs[Keys.themeScope] ?: if (legacyFullApp) "Entire App" else if (legacyPlayerColored) "Player Only" else "Entire App"
+
+        val style = prefs[Keys.themeColorStyle] ?: prefs[Keys.appPaletteMode]?.takeIf { !it.equals("Monochrome", ignoreCase = true) }
+            ?: prefs[Keys.playerThemeMode]?.takeIf { !it.equals("Monochrome", ignoreCase = true) }
+            ?: "Preset"
+
+        val preset = prefs[Keys.appColorPreset]?.takeIf { !it.equals("Monochrome", ignoreCase = true) }
+            ?: prefs[Keys.colorPreset]?.takeIf { !it.equals("Monochrome", ignoreCase = true) }
+            ?: "Midnight Indigo"
+
+        val customHexes = prefs[Keys.appCustomPaletteHexes]?.takeIf { it.isNotBlank() }
+            ?: prefs[Keys.customPaletteHexes]?.takeIf { it.isNotBlank() }
+            ?: "#1A237E,#3949AB,#0D1642"
+
         AppSettings(
             karaokeMode = prefs[Keys.karaokeMode] ?: false,
             lyricFontScale = prefs[Keys.lyricFontScale] ?: 1.0f,
@@ -45,16 +67,16 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             smartAudioFocus = prefs[Keys.smartAudioFocus] ?: true,
             keepPlayingOnClose = prefs[Keys.keepPlayingOnClose] ?: true,
             playlistGridColumns = prefs[Keys.playlistGridColumns] ?: 2,
-            dynamicArtworkColors = (prefs[Keys.dynamicArtworkColors] ?: false) || (prefs[Keys.playerThemeMode]?.equals("Dynamic Artwork", ignoreCase = true) == true),
-            colorPreset = prefs[Keys.colorPreset] ?: "Monochrome",
-            customPaletteHexes = prefs[Keys.customPaletteHexes] ?: "#1A237E,#3949AB,#0D1642",
-            playerThemeMode = prefs[Keys.playerThemeMode] ?: if (prefs[Keys.dynamicArtworkColors] == true) "Dynamic Artwork" else "Preset",
+            dynamicArtworkColors = masterEnabled && style.equals("Dynamic Artwork", ignoreCase = true),
+            colorPreset = preset,
+            customPaletteHexes = customHexes,
+            playerThemeMode = style,
             enablePlayerColor = prefs[Keys.enablePlayerColor] ?: true,
             enableMiniPlayerColor = prefs[Keys.enableMiniPlayerColor] ?: false,
-            enableFullAppDynamicTheme = prefs[Keys.enableFullAppDynamicTheme] ?: false,
-            appPaletteMode = prefs[Keys.appPaletteMode] ?: "Preset",
-            appColorPreset = prefs[Keys.appColorPreset] ?: "Midnight Indigo",
-            appCustomPaletteHexes = prefs[Keys.appCustomPaletteHexes] ?: "#1A237E,#3949AB,#0D1642",
+            enableFullAppDynamicTheme = masterEnabled && scope.equals("Entire App", ignoreCase = true),
+            appPaletteMode = style,
+            appColorPreset = preset,
+            appCustomPaletteHexes = customHexes,
             themeHomeEnabled = prefs[Keys.themeHomeEnabled] ?: true,
             themeExploreEnabled = prefs[Keys.themeExploreEnabled] ?: true,
             themeLibraryEnabled = prefs[Keys.themeLibraryEnabled] ?: true,
@@ -63,7 +85,10 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             themePlaylistDetailEnabled = prefs[Keys.themePlaylistDetailEnabled] ?: true,
             themeMode = runCatching {
                 ThemeMode.valueOf(prefs[Keys.themeMode] ?: ThemeMode.SYSTEM.name)
-            }.getOrDefault(ThemeMode.SYSTEM)
+            }.getOrDefault(ThemeMode.SYSTEM),
+            changeThemeEnabled = masterEnabled,
+            themeScope = scope,
+            themeColorStyle = style
         )
     }.distinctUntilChanged()
 
@@ -143,30 +168,69 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it[Keys.themeMode] = mode.name }
     }
 
-    suspend fun setPlayerThemeMode(mode: String) {
-        dataStore.edit {
-            it[Keys.playerThemeMode] = mode
-            it[Keys.dynamicArtworkColors] = mode.equals("Dynamic Artwork", ignoreCase = true)
+    suspend fun setChangeThemeEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.changeThemeEnabled] = enabled
+            val scope = prefs[Keys.themeScope] ?: "Entire App"
+            val style = prefs[Keys.themeColorStyle] ?: "Preset"
+            prefs[Keys.enableFullAppDynamicTheme] = enabled && scope.equals("Entire App", ignoreCase = true)
+            prefs[Keys.dynamicArtworkColors] = enabled && style.equals("Dynamic Artwork", ignoreCase = true)
         }
     }
 
+    suspend fun setThemeScope(scope: String) {
+        dataStore.edit { prefs ->
+            prefs[Keys.themeScope] = scope
+            val master = prefs[Keys.changeThemeEnabled] ?: false
+            prefs[Keys.enableFullAppDynamicTheme] = master && scope.equals("Entire App", ignoreCase = true)
+        }
+    }
+
+    suspend fun setThemeColorStyle(style: String) {
+        dataStore.edit { prefs ->
+            val cleanStyle = if (style.equals("Monochrome", ignoreCase = true)) "Preset" else style
+            prefs[Keys.themeColorStyle] = cleanStyle
+            prefs[Keys.appPaletteMode] = cleanStyle
+            prefs[Keys.playerThemeMode] = cleanStyle
+            val master = prefs[Keys.changeThemeEnabled] ?: false
+            prefs[Keys.dynamicArtworkColors] = master && cleanStyle.equals("Dynamic Artwork", ignoreCase = true)
+        }
+    }
+
+    suspend fun setThemePreset(preset: String) {
+        val cleanPreset = if (preset.equals("Monochrome", ignoreCase = true)) "Midnight Indigo" else preset
+        dataStore.edit { prefs ->
+            prefs[Keys.appColorPreset] = cleanPreset
+            prefs[Keys.colorPreset] = cleanPreset
+        }
+    }
+
+    suspend fun setThemeCustomHexes(hexes: String) {
+        dataStore.edit { prefs ->
+            prefs[Keys.appCustomPaletteHexes] = hexes
+            prefs[Keys.customPaletteHexes] = hexes
+        }
+    }
+
+    suspend fun setPlayerThemeMode(mode: String) {
+        setThemeColorStyle(mode)
+    }
+
     suspend fun setDynamicArtworkColors(enabled: Boolean) {
-        dataStore.edit {
-            it[Keys.dynamicArtworkColors] = enabled
-            it[Keys.playerThemeMode] = if (enabled) "Dynamic Artwork" else "Preset"
+        if (enabled) {
+            setChangeThemeEnabled(true)
+            setThemeColorStyle("Dynamic Artwork")
+        } else {
+            setThemeColorStyle("Preset")
         }
     }
 
     suspend fun setColorPreset(preset: String) {
-        dataStore.edit {
-            it[Keys.colorPreset] = preset
-            it[Keys.playerThemeMode] = "Preset"
-            it[Keys.dynamicArtworkColors] = false
-        }
+        setThemePreset(preset)
     }
 
     suspend fun setCustomPaletteHexes(hexes: String) {
-        dataStore.edit { it[Keys.customPaletteHexes] = hexes }
+        setThemeCustomHexes(hexes)
     }
 
     suspend fun setSectionColorEnabled(player: Boolean, miniPlayer: Boolean) {
@@ -177,19 +241,27 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
     }
 
     suspend fun setEnableFullAppDynamicTheme(enabled: Boolean) {
-        dataStore.edit { it[Keys.enableFullAppDynamicTheme] = enabled }
+        dataStore.edit { prefs ->
+            prefs[Keys.enableFullAppDynamicTheme] = enabled
+            if (enabled) {
+                prefs[Keys.changeThemeEnabled] = true
+                prefs[Keys.themeScope] = "Entire App"
+            } else {
+                prefs[Keys.changeThemeEnabled] = false
+            }
+        }
     }
 
     suspend fun setAppPaletteMode(mode: String) {
-        dataStore.edit { it[Keys.appPaletteMode] = mode }
+        setThemeColorStyle(mode)
     }
 
     suspend fun setAppColorPreset(preset: String) {
-        dataStore.edit { it[Keys.appColorPreset] = preset }
+        setThemePreset(preset)
     }
 
     suspend fun setAppCustomPaletteHexes(hexes: String) {
-        dataStore.edit { it[Keys.appCustomPaletteHexes] = hexes }
+        setThemeCustomHexes(hexes)
     }
 
     suspend fun setThemeAreaEnabled(areaName: String, enabled: Boolean) {
@@ -544,6 +616,9 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             val appPaletteMode = stringPreferencesKey("app_palette_mode")
             val appColorPreset = stringPreferencesKey("app_color_preset")
             val appCustomPaletteHexes = stringPreferencesKey("app_custom_palette_hexes")
+            val changeThemeEnabled = booleanPreferencesKey("change_theme_enabled")
+            val themeScope = stringPreferencesKey("theme_scope")
+            val themeColorStyle = stringPreferencesKey("theme_color_style")
             val themeHomeEnabled = booleanPreferencesKey("theme_home_enabled")
             val themeExploreEnabled = booleanPreferencesKey("theme_explore_enabled")
             val themeLibraryEnabled = booleanPreferencesKey("theme_library_enabled")

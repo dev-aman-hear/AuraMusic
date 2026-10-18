@@ -10,7 +10,9 @@ import com.aman.auramusic.ui.theme.CustomPaletteValidator
 import com.aman.auramusic.ui.theme.DarkMonochromeColors
 import com.aman.auramusic.ui.theme.LightMonochromeColors
 import com.aman.auramusic.ui.theme.PlayerArtworkPalette
+import com.aman.auramusic.ui.theme.PlayerPaletteMode
 import com.aman.auramusic.ui.theme.resolvePlayerColorScheme
+import com.aman.auramusic.ui.theme.resolvePlayerPaletteMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -238,23 +240,39 @@ class AppColorEngineTest {
         val expectedPreset = PlayerArtworkPalette.fromPreset("Midnight Indigo", isDark = true)
         assertEquals(expectedPreset.accent, fallbackScheme.accent)
 
-        // When preset is Monochrome and artwork is null, falls back to monochrome
-        val settingsMonochromeFallback = AppSettings(
+        // Legacy Monochrome preset safely migrates to Midnight Indigo fallback
+        val settingsLegacyFallback = AppSettings(
             enableFullAppDynamicTheme = true,
             appPaletteMode = "Dynamic Artwork",
             appColorPreset = "Monochrome",
             themeHomeEnabled = true
         )
 
-        val monoFallbackScheme = AppColorEngine.resolveAreaColorScheme(
+        val legacyFallbackScheme = AppColorEngine.resolveAreaColorScheme(
             AppArea.HOME,
             artworkPalette = null,
-            appSettings = settingsMonochromeFallback,
+            appSettings = settingsLegacyFallback,
             isDark = true
         )
 
-        assertFalse("Should fall back to monochrome", monoFallbackScheme.isColored)
-        assertEquals(DarkMonochromeColors.background, monoFallbackScheme.background)
+        assertTrue("Should safely migrate legacy Monochrome to Midnight Indigo preset", legacyFallbackScheme.isColored)
+        assertEquals(expectedPreset.accent, legacyFallbackScheme.accent)
+    }
+
+    // Legacy Monochrome palette mode migrates to Preset
+    @Test
+    fun legacyMonochromeMode_migratesToPreset() {
+        val parsed = AppPaletteMode.fromString("Monochrome")
+        assertEquals(AppPaletteMode.PRESET, parsed)
+
+        val settings = AppSettings(
+            enableFullAppDynamicTheme = true,
+            appPaletteMode = "Monochrome",
+            appColorPreset = "Emerald Pine",
+            themeHomeEnabled = true
+        )
+        val scheme = AppColorEngine.resolveAreaColorScheme(AppArea.HOME, null, settings, isDark = true)
+        assertTrue("Legacy Monochrome mode must resolve as colored preset", scheme.isColored)
     }
 
     // 10. Player settings remain independent of full-app settings
@@ -318,5 +336,194 @@ class AppColorEngineTest {
             Color.Black,
             lightPlayerScheme.prominentSurface
         )
+    }
+
+    // 12. Master switch Change Theme OFF always resolves to monochrome
+    @Test
+    fun changeThemeMasterSwitchOff_alwaysResolvesToMonochrome() {
+        val settings = AppSettings(
+            changeThemeEnabled = false,
+            themeScope = "Entire App",
+            themeColorStyle = "Preset",
+            appColorPreset = "Midnight Indigo",
+            themeHomeEnabled = true
+        )
+
+        assertFalse(settings.isFullAppThemeActive())
+        assertFalse(settings.isPlayerThemeActive())
+
+        for (area in AppArea.entries) {
+            val scheme = AppColorEngine.resolveAreaColorScheme(area, null, settings, isDark = true)
+            assertFalse("All areas must be monochrome when master switch is OFF", scheme.isColored)
+            assertEquals(DarkMonochromeColors.background, scheme.background)
+        }
+
+        val playerPaletteMode = resolvePlayerPaletteMode(settings)
+        assertEquals(PlayerPaletteMode.MONOCHROME, playerPaletteMode)
+        assertFalse(playerPaletteMode.isColored)
+    }
+
+    // 13. ON + Entire App applies selected style to supported app surfaces and player
+    @Test
+    fun onPlusEntireApp_appliesSelectedStyleToSupportedSurfacesAndPlayer() {
+        val settings = AppSettings(
+            changeThemeEnabled = true,
+            themeScope = "Entire App",
+            themeColorStyle = "Preset",
+            appColorPreset = "Emerald Pine",
+            themeHomeEnabled = true,
+            themeLibraryEnabled = false
+        )
+
+        assertTrue(settings.isFullAppThemeActive())
+        assertTrue(settings.isPlayerThemeActive())
+
+        val homeScheme = AppColorEngine.resolveAreaColorScheme(AppArea.HOME, null, settings, isDark = true)
+        val libraryScheme = AppColorEngine.resolveAreaColorScheme(AppArea.LIBRARY, null, settings, isDark = true)
+        assertTrue("Home should be colored", homeScheme.isColored)
+        assertFalse("Library should remain uncolored because per-area flag is false", libraryScheme.isColored)
+
+        val playerPaletteMode = resolvePlayerPaletteMode(settings)
+        assertEquals(PlayerPaletteMode.PRESET, playerPaletteMode)
+        assertTrue("Player should be colored", playerPaletteMode.isColored)
+    }
+
+    // 14. ON + Player Only keeps main app monochrome and colors the player
+    @Test
+    fun onPlusPlayerOnly_keepsMainAppMonochromeAndColorsPlayer() {
+        val settings = AppSettings(
+            changeThemeEnabled = true,
+            themeScope = "Player Only",
+            themeColorStyle = "Preset",
+            appColorPreset = "Crimson Velvet",
+            themeHomeEnabled = true,
+            themeExploreEnabled = true
+        )
+
+        assertFalse("Full app theme must NOT be active when scope is Player Only", settings.isFullAppThemeActive())
+        assertTrue("Player theme must be active", settings.isPlayerThemeActive())
+
+        for (area in AppArea.entries) {
+            val scheme = AppColorEngine.resolveAreaColorScheme(area, null, settings, isDark = true)
+            assertFalse("Area $area must remain strictly monochrome in Player Only scope", scheme.isColored)
+            assertEquals(DarkMonochromeColors.background, scheme.background)
+        }
+
+        val playerPaletteMode = resolvePlayerPaletteMode(settings)
+        assertEquals(PlayerPaletteMode.PRESET, playerPaletteMode)
+        assertTrue(playerPaletteMode.isColored)
+    }
+
+    // 15. Presets resolve correctly in light and dark modes
+    @Test
+    fun presetsResolveCorrectlyInLightAndDarkModes() {
+        val presets = listOf("Midnight Indigo", "Crimson Velvet", "Emerald Pine", "Nordic Slate")
+        for (preset in presets) {
+            val darkPal = PlayerArtworkPalette.fromPreset(preset, isDark = true)
+            val lightPal = PlayerArtworkPalette.fromPreset(preset, isDark = false)
+
+            assertNotNull(darkPal.primary)
+            assertNotNull(darkPal.accent)
+            assertNotNull(lightPal.primary)
+            assertNotNull(lightPal.accent)
+
+            assertFalse("Dark palette should not be flagged as light artwork", darkPal.isLightArtwork)
+            assertTrue("Light palette should be flagged as light artwork", lightPal.isLightArtwork)
+            assertNotEquals("Light and dark accent colors should differ appropriately", darkPal.accent, lightPal.accent)
+        }
+    }
+
+    // 16. Turning master switch OFF and ON restores previous choices
+    @Test
+    fun turningMasterSwitchOffAndOn_restoresPreviousChoices() {
+        val initialSettings = AppSettings(
+            changeThemeEnabled = true,
+            themeScope = "Player Only",
+            themeColorStyle = "Custom",
+            appColorPreset = "Crimson Velvet",
+            appCustomPaletteHexes = "#1A237E,#3949AB,#0D1642"
+        )
+
+        // Turn OFF
+        val offSettings = initialSettings.copy(changeThemeEnabled = false)
+        assertFalse("Full app must be inactive when OFF", offSettings.isFullAppThemeActive())
+        assertFalse("Player must be inactive when OFF", offSettings.isPlayerThemeActive())
+        assertEquals(PlayerPaletteMode.MONOCHROME, resolvePlayerPaletteMode(offSettings))
+
+        // Turn ON: Previous choices are faithfully restored
+        val onSettings = offSettings.copy(changeThemeEnabled = true)
+        assertEquals("Player Only", onSettings.themeScope)
+        assertEquals("Custom", onSettings.themeColorStyle)
+        assertEquals("Crimson Velvet", onSettings.appColorPreset)
+        assertEquals("#1A237E,#3949AB,#0D1642", onSettings.appCustomPaletteHexes)
+        assertEquals(PlayerPaletteMode.CUSTOM, resolvePlayerPaletteMode(onSettings))
+    }
+
+    // 17. Changing scope preserves selected style and palettes
+    @Test
+    fun changingScope_preservesSelectedStyleAndPalettes() {
+        val entireAppSettings = AppSettings(
+            changeThemeEnabled = true,
+            themeScope = "Entire App",
+            themeColorStyle = "Preset",
+            appColorPreset = "Nordic Slate",
+            appCustomPaletteHexes = "#123456,#654321"
+        )
+
+        val playerOnlySettings = entireAppSettings.copy(themeScope = "Player Only")
+        assertEquals("Preset", playerOnlySettings.themeColorStyle)
+        assertEquals("Nordic Slate", playerOnlySettings.appColorPreset)
+        assertEquals("#123456,#654321", playerOnlySettings.appCustomPaletteHexes)
+        assertEquals(PlayerPaletteMode.PRESET, resolvePlayerPaletteMode(playerOnlySettings))
+    }
+
+    // 18. Changing color styles preserves stored preset and custom palette
+    @Test
+    fun changingColorStyles_preservesStoredPresetAndCustomPalette() {
+        val presetSettings = AppSettings(
+            changeThemeEnabled = true,
+            themeScope = "Entire App",
+            themeColorStyle = "Preset",
+            appColorPreset = "Emerald Pine",
+            appCustomPaletteHexes = "#112233,#445566"
+        )
+
+        // Switch to Dynamic Artwork
+        val dynamicSettings = presetSettings.copy(themeColorStyle = "Dynamic Artwork")
+        assertEquals("Emerald Pine", dynamicSettings.appColorPreset)
+        assertEquals("#112233,#445566", dynamicSettings.appCustomPaletteHexes)
+
+        // Switch to Custom
+        val customSettings = dynamicSettings.copy(themeColorStyle = "Custom")
+        assertEquals("Emerald Pine", customSettings.appColorPreset)
+        assertEquals("#112233,#445566", customSettings.appCustomPaletteHexes)
+    }
+
+    // 19. Full-app and player palettes do not conflict
+    @Test
+    fun fullAppAndPlayerPalettes_doNotConflict() {
+        val settings = AppSettings(
+            changeThemeEnabled = true,
+            themeScope = "Entire App",
+            themeColorStyle = "Preset",
+            appColorPreset = "Midnight Indigo",
+            themeHomeEnabled = true
+        )
+
+        val appScheme = AppColorEngine.resolveAreaColorScheme(AppArea.HOME, null, settings, isDark = true)
+        val playerPalette = PlayerArtworkPalette.fromPreset(settings.appColorPreset, isDark = true)
+        val playerScheme = resolvePlayerColorScheme(
+            isDynamic = true,
+            isDark = true,
+            primary = playerPalette.primary,
+            secondary = playerPalette.secondary,
+            tertiary = playerPalette.tertiary,
+            accent = playerPalette.accent
+        )
+
+        assertTrue("App scheme must be colored", appScheme.isColored)
+        assertTrue("Player scheme must be dynamic/colored", playerScheme.isDynamic)
+        assertEquals(playerPalette.accent, appScheme.accent)
+        assertEquals(playerPalette.accent, playerScheme.ambientAccent)
     }
 }
