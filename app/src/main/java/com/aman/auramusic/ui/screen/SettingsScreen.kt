@@ -15,6 +15,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -1389,7 +1390,7 @@ fun BottomNavStyleSelectionRow(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "Choose between animated liquid glass and the standard navigation style.",
+                text = "Choose whether the navigation capsule adapts dynamically to your theme and music, or uses the normal default styling.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1453,13 +1454,26 @@ fun BottomNavStyleSelectionRow(
                         .padding(vertical = 12.dp, horizontal = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                        color = contentColor,
-                        maxLines = 1
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isDynamic) MaterialTheme.colorScheme.primary else Color(0xFFFA2D48)
+                                )
+                        )
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                            color = contentColor,
+                            maxLines = 1
+                        )
+                    }
                 }
             }
         }
@@ -1471,9 +1485,9 @@ fun BottomNavStyleSelectionRow(
         ) { isDyn ->
             Text(
                 text = if (isDyn) {
-                    "Dynamic — AniWhere-inspired liquid-glass navigation with a moving selection pill, smooth spring animation, subtle glow, translucent surface, and animated icons."
+                    "Dynamic — Navigation capsule, traveling pill, and glow dynamically adapt to the active theme preset, custom palette, and currently playing song's artwork colors."
                 } else {
-                    "Normal — AuraMusic’s original bottom navigation appearance without the liquid-glass capsule, glow, drag lens, or dynamic selection animation."
+                    "Normal — Classic liquid-glass navigation with Aura's signature red accent styling, without dynamic artwork or theme recoloring."
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),

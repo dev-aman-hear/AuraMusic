@@ -49,6 +49,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -74,12 +75,18 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aman.auramusic.data.model.AppSettings
+import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.ui.theme.CustomPaletteValidator
+import com.aman.auramusic.ui.theme.DynamicArtworkColorsHelper
+import com.aman.auramusic.ui.theme.PlayerArtworkPalette
 import kotlin.math.abs
 
 /**
@@ -104,12 +111,16 @@ enum class AppTab(
 }
 
 /**
- * Bottom Navigation Bar supporting both Dynamic Liquid Glass and Normal styles.
+ * Bottom Navigation Bar featuring the AniWhere-inspired Liquid Glass capsule navigation.
  *
- * - Dynamic Style: AniWhere-inspired floating liquid-glass capsule with traveling spring pill,
- *   diffused glow, horizontal stretching, dynamic drag lens, and responsive haptics.
- * - Normal Style: Original AuraMusic bottom navigation design with solid surface,
- *   subtle borders, and individual tab selection capsules without liquid glass or glow.
+ * Supports:
+ * - Dynamic Style (dynamicStyle = true): Adapts the glowing pill, border accents, and active indicators
+ *   dynamically using the theme and playing song's artwork coloring system configured in Settings.
+ * - Normal Style (dynamicStyle = false): Uses the clean signature Liquid Glass styling with Aura's classic
+ *   accent color without track/theme dynamic recoloring.
+ *
+ * In both modes, the modern floating liquid-glass capsule with traveling spring pill, dragging,
+ * glow, and responsive haptics is used (the old navigation bar is retired).
  */
 @Composable
 fun BottomNavBar(
@@ -118,36 +129,72 @@ fun BottomNavBar(
     compact: Boolean = false,
     compactPlayer: (@Composable () -> Unit)? = null,
     isPlaying: Boolean = false,
-    dynamicStyle: Boolean = true
+    dynamicStyle: Boolean = true,
+    song: Song? = null,
+    appSettings: AppSettings? = null
 ) {
     val allTabs = remember { listOf(AppTab.Home, AppTab.Online, AppTab.Library, AppTab.Search) }
+    val isDark = isSystemInDarkTheme()
+    val context = LocalContext.current
 
-    if (dynamicStyle) {
-        val isDark = isSystemInDarkTheme()
-        if (compact) {
-            CompactDockNavBar(
-                selectedTab = selectedTab,
-                onTabSelected = onTabSelected,
-                compactPlayer = compactPlayer,
-                isDark = isDark,
-                isPlaying = isPlaying
-            )
-        } else {
-            ExpandedLiquidGlassNavBar(
-                tabs = allTabs,
-                selectedTab = selectedTab,
-                onTabSelected = onTabSelected,
-                isDark = isDark,
-                isPlaying = isPlaying
-            )
+    val defaultAccent = LiquidGlassAccent
+
+    var dynamicArtworkPalette by remember(song?.id, song?.artworkUri, song?.uri, isDark) {
+        mutableStateOf<PlayerArtworkPalette?>(null)
+    }
+
+    val colorStyle = appSettings?.let {
+        if (it.changeThemeEnabled) it.themeColorStyle.ifBlank { it.appPaletteMode } else "Dynamic Artwork"
+    } ?: "Dynamic Artwork"
+
+    LaunchedEffect(song?.id, song?.artworkUri, song?.uri, isDark, colorStyle, dynamicStyle) {
+        if (dynamicStyle && colorStyle.equals("Dynamic Artwork", ignoreCase = true) && song != null) {
+            val palette = DynamicArtworkColorsHelper.extractPalette(context, song, isDark)
+            dynamicArtworkPalette = palette
         }
+    }
+
+    val resolvedAccent: Color = if (!dynamicStyle) {
+        defaultAccent
     } else {
-        NormalBottomNavBar(
+        when {
+            colorStyle.equals("Preset", ignoreCase = true) -> {
+                val presetName = appSettings?.appColorPreset?.ifBlank { "Midnight Indigo" } ?: "Midnight Indigo"
+                PlayerArtworkPalette.fromPreset(presetName, isDark).accent
+            }
+            colorStyle.equals("Custom", ignoreCase = true) -> {
+                val hexes = appSettings?.appCustomPaletteHexes ?: "#1A237E,#3949AB,#0D1642"
+                CustomPaletteValidator.createPaletteFromCustomHexes(hexes, isDark).accent
+            }
+            else -> {
+                dynamicArtworkPalette?.accent ?: defaultAccent
+            }
+        }
+    }
+
+    val animatedAccent by animateColorAsState(
+        targetValue = resolvedAccent,
+        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+        label = "bottomNavAccentColor"
+    )
+
+    if (compact) {
+        CompactDockNavBar(
+            selectedTab = selectedTab,
+            onTabSelected = onTabSelected,
+            compactPlayer = compactPlayer,
+            isDark = isDark,
+            isPlaying = isPlaying,
+            accentColor = animatedAccent
+        )
+    } else {
+        ExpandedLiquidGlassNavBar(
             tabs = allTabs,
             selectedTab = selectedTab,
             onTabSelected = onTabSelected,
-            compact = compact,
-            compactPlayer = compactPlayer
+            isDark = isDark,
+            isPlaying = isPlaying,
+            accentColor = animatedAccent
         )
     }
 }
@@ -162,7 +209,8 @@ private fun ExpandedLiquidGlassNavBar(
     selectedTab: AppTab,
     onTabSelected: (AppTab) -> Unit,
     isDark: Boolean,
-    isPlaying: Boolean
+    isPlaying: Boolean,
+    accentColor: Color = LiquidGlassAccent
 ) {
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
@@ -307,7 +355,7 @@ private fun ExpandedLiquidGlassNavBar(
             val displayPillLeft = (animatedPillLeft - stretchAmountDp / 2).coerceAtLeast(0.dp)
 
             // Diffused Glow Behind Pill
-            val glowColor = LiquidGlassAccent.copy(alpha = if (isDark) 0.32f else 0.22f)
+            val glowColor = accentColor.copy(alpha = if (isDark) 0.32f else 0.22f)
             Box(
                 modifier = Modifier
                     .offset(x = displayPillLeft, y = 4.dp)
@@ -347,13 +395,13 @@ private fun ExpandedLiquidGlassNavBar(
             val pillBackgroundBrush = Brush.verticalGradient(
                 colors = if (isDark) {
                     listOf(
-                        LiquidGlassAccent.copy(alpha = if (isDragging) 0.34f else 0.26f),
-                        LiquidGlassAccent.copy(alpha = if (isDragging) 0.18f else 0.12f)
+                        accentColor.copy(alpha = if (isDragging) 0.34f else 0.26f),
+                        accentColor.copy(alpha = if (isDragging) 0.18f else 0.12f)
                     )
                 } else {
                     listOf(
-                        LiquidGlassAccent.copy(alpha = if (isDragging) 0.25f else 0.18f),
-                        LiquidGlassAccent.copy(alpha = if (isDragging) 0.12f else 0.07f)
+                        accentColor.copy(alpha = if (isDragging) 0.25f else 0.18f),
+                        accentColor.copy(alpha = if (isDragging) 0.12f else 0.07f)
                     )
                 }
             )
@@ -362,12 +410,12 @@ private fun ExpandedLiquidGlassNavBar(
                 colors = if (isDark) {
                     listOf(
                         Color.White.copy(alpha = if (isDragging) 0.70f else 0.55f),
-                        LiquidGlassAccent.copy(alpha = if (isDragging) 0.50f else 0.35f)
+                        accentColor.copy(alpha = if (isDragging) 0.50f else 0.35f)
                     )
                 } else {
                     listOf(
-                        LiquidGlassAccent.copy(alpha = if (isDragging) 0.80f else 0.65f),
-                        LiquidGlassAccent.copy(alpha = if (isDragging) 0.40f else 0.25f)
+                        accentColor.copy(alpha = if (isDragging) 0.80f else 0.65f),
+                        accentColor.copy(alpha = if (isDragging) 0.40f else 0.25f)
                     )
                 }
             )
@@ -428,7 +476,7 @@ private fun ExpandedLiquidGlassNavBar(
                     }
 
                     val tabTint by animateColorAsState(
-                        targetValue = if (isSelected) LiquidGlassAccent else inactiveTint,
+                        targetValue = if (isSelected) accentColor else inactiveTint,
                         animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
                         label = "tabTint_${tab.name}"
                     )
@@ -479,10 +527,10 @@ private fun ExpandedLiquidGlassNavBar(
                                             .align(Alignment.TopEnd)
                                             .offset(x = 4.dp, y = (-2).dp)
                                             .size(5.dp)
-                                            .background(LiquidGlassAccent, CircleShape)
+                                            .background(accentColor, CircleShape)
                                             .drawBehind {
                                                 drawCircle(
-                                                    color = LiquidGlassAccent.copy(alpha = 0.8f),
+                                                    color = accentColor.copy(alpha = 0.8f),
                                                     radius = size.minDimension * 1.5f
                                                 )
                                             }
@@ -514,7 +562,8 @@ private fun CompactDockNavBar(
     onTabSelected: (AppTab) -> Unit,
     compactPlayer: (@Composable () -> Unit)?,
     isDark: Boolean,
-    isPlaying: Boolean
+    isPlaying: Boolean,
+    accentColor: Color = LiquidGlassAccent
 ) {
     val haptic = LocalHapticFeedback.current
     val navShape = RoundedCornerShape(27.dp)
@@ -548,6 +597,7 @@ private fun CompactDockNavBar(
             ambientShadowColor = ambientShadowColor,
             navShape = navShape,
             isPlaying = isPlaying,
+            accentColor = accentColor,
             onTap = {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onTabSelected(AppTab.Home)
@@ -599,6 +649,7 @@ private fun CompactDockNavBar(
             ambientShadowColor = ambientShadowColor,
             navShape = navShape,
             isPlaying = false,
+            accentColor = accentColor,
             onTap = {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onTabSelected(AppTab.Search)
@@ -618,13 +669,14 @@ private fun CompactGlassButton(
     ambientShadowColor: Color,
     navShape: RoundedCornerShape,
     isPlaying: Boolean,
+    accentColor: Color = LiquidGlassAccent,
     onTap: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val tint by animateColorAsState(
-        targetValue = if (isSelected) LiquidGlassAccent else if (isDark) Color.White.copy(alpha = 0.52f) else Color.Black.copy(alpha = 0.48f),
+        targetValue = if (isSelected) accentColor else if (isDark) Color.White.copy(alpha = 0.52f) else Color.Black.copy(alpha = 0.48f),
         animationSpec = tween(200),
         label = "compactTint"
     )
@@ -670,7 +722,7 @@ private fun CompactGlassButton(
         contentAlignment = Alignment.Center
     ) {
         if (pillAlpha > 0.01f) {
-            val glowColor = LiquidGlassAccent.copy(alpha = if (isDark) 0.28f else 0.18f)
+            val glowColor = accentColor.copy(alpha = if (isDark) 0.28f else 0.18f)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -703,13 +755,13 @@ private fun CompactGlassButton(
                     }
                     .clip(RoundedCornerShape(23.dp))
                     .background(
-                        LiquidGlassAccent.copy(alpha = if (isDark) 0.22f else 0.15f),
+                        accentColor.copy(alpha = if (isDark) 0.22f else 0.15f),
                         RoundedCornerShape(23.dp)
                     )
                     .border(
                         BorderStroke(
                             1.dp,
-                            if (isDark) Color.White.copy(alpha = 0.50f) else LiquidGlassAccent.copy(alpha = 0.60f)
+                            if (isDark) Color.White.copy(alpha = 0.50f) else accentColor.copy(alpha = 0.60f)
                         ),
                         RoundedCornerShape(23.dp)
                     )
@@ -739,7 +791,7 @@ private fun CompactGlassButton(
                             .align(Alignment.TopEnd)
                             .offset(x = 3.dp, y = (-2).dp)
                             .size(5.dp)
-                            .background(LiquidGlassAccent, CircleShape)
+                            .background(accentColor, CircleShape)
                     )
                 }
             }
@@ -758,386 +810,3 @@ private fun CompactGlassButton(
     }
 }
 
-// ==========================================================================================
-// NORMAL STYLE IMPLEMENTATION (Original AuraMusic Navigation)
-// ==========================================================================================
-
-@Composable
-private fun NormalBottomNavBar(
-    tabs: List<AppTab>,
-    selectedTab: AppTab,
-    onTabSelected: (AppTab) -> Unit,
-    compact: Boolean = false,
-    compactPlayer: (@Composable () -> Unit)? = null
-) {
-    val navShape = RoundedCornerShape(27.dp)
-
-    if (compact) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(start = 14.dp, end = 14.dp, bottom = 6.dp, top = 2.dp)
-                .animateContentSize(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val isHomeSelected = selectedTab == AppTab.Home
-            val homeTint by animateColorAsState(
-                targetValue = if (isHomeSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                animationSpec = tween(220),
-                label = "compactNormalHomeTint"
-            )
-            val homeScale by animateFloatAsState(
-                targetValue = if (isHomeSelected) 1.12f else 1.0f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                ),
-                label = "compactNormalHomeScale"
-            )
-            val homePillAlpha by animateFloatAsState(
-                targetValue = if (isHomeSelected) 1f else 0f,
-                animationSpec = tween(220),
-                label = "compactNormalHomePillAlpha"
-            )
-            val homePillScale by animateFloatAsState(
-                targetValue = if (isHomeSelected) 1f else 0.88f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                ),
-                label = "compactNormalHomePillScale"
-            )
-
-            Box(
-                modifier = Modifier
-                    .size(54.dp)
-                    .clip(navShape)
-                    .background(MaterialTheme.colorScheme.surface, navShape)
-                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), navShape)
-                    .clickable { onTabSelected(AppTab.Home) },
-                contentAlignment = Alignment.Center
-            ) {
-                if (homePillAlpha > 0.01f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(4.dp)
-                            .graphicsLayer {
-                                scaleX = homePillScale
-                                scaleY = homePillScale
-                                alpha = homePillAlpha
-                            }
-                            .background(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                RoundedCornerShape(23.dp)
-                            )
-                    )
-                }
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = AppTab.Home.selectedIcon,
-                        contentDescription = AppTab.Home.label,
-                        tint = homeTint,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .graphicsLayer {
-                                scaleX = homeScale
-                                scaleY = homeScale
-                            }
-                    )
-                    Text(
-                        text = AppTab.Home.label,
-                        fontSize = 9.sp,
-                        fontWeight = if (isHomeSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = homeTint,
-                        maxLines = 1
-                    )
-                }
-            }
-
-            if (compactPlayer != null) {
-                Box(modifier = Modifier.weight(1f)) {
-                    compactPlayer()
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(54.dp)
-                        .clip(navShape)
-                        .background(MaterialTheme.colorScheme.surface, navShape)
-                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), navShape)
-                        .clickable { onTabSelected(AppTab.Home) },
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Text(
-                        text = "AuraMusic",
-                        modifier = Modifier.padding(horizontal = 14.dp),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            val isSearchSelected = selectedTab == AppTab.Search
-            val searchTint by animateColorAsState(
-                targetValue = if (isSearchSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                animationSpec = tween(220),
-                label = "compactNormalSearchTint"
-            )
-            val searchScale by animateFloatAsState(
-                targetValue = if (isSearchSelected) 1.14f else 1.0f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                ),
-                label = "compactNormalSearchScale"
-            )
-            val searchPillAlpha by animateFloatAsState(
-                targetValue = if (isSearchSelected) 1f else 0f,
-                animationSpec = tween(220),
-                label = "compactNormalSearchPillAlpha"
-            )
-            val searchPillScale by animateFloatAsState(
-                targetValue = if (isSearchSelected) 1f else 0.88f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                ),
-                label = "compactNormalSearchPillScale"
-            )
-
-            Box(
-                modifier = Modifier
-                    .size(54.dp)
-                    .clip(navShape)
-                    .background(MaterialTheme.colorScheme.surface, navShape)
-                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), navShape)
-                    .clickable { onTabSelected(AppTab.Search) },
-                contentAlignment = Alignment.Center
-            ) {
-                if (searchPillAlpha > 0.01f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(4.dp)
-                            .graphicsLayer {
-                                scaleX = searchPillScale
-                                scaleY = searchPillScale
-                                alpha = searchPillAlpha
-                            }
-                            .background(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                RoundedCornerShape(23.dp)
-                            )
-                    )
-                }
-
-                Icon(
-                    imageVector = AppTab.Search.selectedIcon,
-                    contentDescription = "Search",
-                    tint = searchTint,
-                    modifier = Modifier
-                        .size(21.dp)
-                        .graphicsLayer {
-                            scaleX = searchScale
-                            scaleY = searchScale
-                        }
-                )
-            }
-        }
-    } else {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(start = 14.dp, end = 14.dp, bottom = 6.dp, top = 2.dp)
-                .animateContentSize(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(54.dp)
-                    .clip(navShape)
-                    .background(MaterialTheme.colorScheme.surface, navShape)
-                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), navShape)
-                    .padding(4.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    tabs.forEach { tab ->
-                        if (tab != AppTab.Search) {
-                            val selected = selectedTab == tab
-                            val tabTint by animateColorAsState(
-                                targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                                animationSpec = tween(220),
-                                label = "normalTabTint_${tab.name}"
-                            )
-                            val iconScale by animateFloatAsState(
-                                targetValue = if (selected) 1.15f else 1.0f,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                ),
-                                label = "normalTabScale_${tab.name}"
-                            )
-                            val pillAlpha by animateFloatAsState(
-                                targetValue = if (selected) 1f else 0f,
-                                animationSpec = tween(220),
-                                label = "normalTabPillAlpha_${tab.name}"
-                            )
-                            val pillScale by animateFloatAsState(
-                                targetValue = if (selected) 1f else 0.88f,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                ),
-                                label = "normalTabPillScale_${tab.name}"
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .clip(RoundedCornerShape(22.dp))
-                                    .clickable { onTabSelected(tab) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (pillAlpha > 0.01f) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 2.dp, vertical = 2.dp)
-                                            .graphicsLayer {
-                                                scaleX = pillScale
-                                                scaleY = pillScale
-                                                alpha = pillAlpha
-                                            }
-                                            .background(
-                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                                RoundedCornerShape(20.dp)
-                                            )
-                                    )
-                                }
-
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = tab.selectedIcon,
-                                        contentDescription = tab.label,
-                                        tint = tabTint,
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .graphicsLayer {
-                                                scaleX = iconScale
-                                                scaleY = iconScale
-                                            }
-                                    )
-                                    Text(
-                                        text = tab.label,
-                                        fontSize = 9.5.sp,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                        color = tabTint,
-                                        maxLines = 1,
-                                        letterSpacing = (-0.1).sp
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            val isSearchSelected = selectedTab == AppTab.Search
-            val searchScale by animateFloatAsState(
-                targetValue = if (isSearchSelected) 1.14f else 1.0f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                ),
-                label = "normalSearchScale"
-            )
-            val searchTint by animateColorAsState(
-                targetValue = if (isSearchSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                animationSpec = tween(220),
-                label = "normalSearchTint"
-            )
-            val searchPillAlpha by animateFloatAsState(
-                targetValue = if (isSearchSelected) 1f else 0f,
-                animationSpec = tween(220),
-                label = "normalSearchPillAlpha"
-            )
-            val searchPillScale by animateFloatAsState(
-                targetValue = if (isSearchSelected) 1f else 0.88f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                ),
-                label = "normalSearchPillScale"
-            )
-
-            Box(
-                modifier = Modifier
-                    .size(54.dp)
-                    .clip(navShape)
-                    .background(MaterialTheme.colorScheme.surface, navShape)
-                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), navShape)
-                    .clickable { onTabSelected(AppTab.Search) },
-                contentAlignment = Alignment.Center
-            ) {
-                if (searchPillAlpha > 0.01f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(4.dp)
-                            .graphicsLayer {
-                                scaleX = searchPillScale
-                                scaleY = searchPillScale
-                                alpha = searchPillAlpha
-                            }
-                            .background(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                RoundedCornerShape(23.dp)
-                            )
-                    )
-                }
-
-                Icon(
-                    imageVector = AppTab.Search.selectedIcon,
-                    contentDescription = "Search",
-                    tint = searchTint,
-                    modifier = Modifier
-                        .size(21.dp)
-                        .graphicsLayer {
-                            scaleX = searchScale
-                            scaleY = searchScale
-                        }
-                )
-            }
-        }
-    }
-}

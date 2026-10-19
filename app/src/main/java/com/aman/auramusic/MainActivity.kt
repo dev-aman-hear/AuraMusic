@@ -1224,6 +1224,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     compact = true,
                                     isPlaying = if (isOnlinePlaybackActive) onlinePlaybackState.isPlaying else playerViewModel.isPlaying,
                                     dynamicStyle = appSettings.dynamicBottomNavigationEnabled,
+                                    song = if (isOnlinePlaybackActive) onlineAsSong else localMiniSong,
+                                    appSettings = appSettings,
                                     compactPlayer = {
                                         if (isOnlinePlaybackActive && onlineAsSong != null) {
                                             MiniPlayer(
@@ -1299,6 +1301,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                         compact = false,
                                         isPlaying = if (isOnlinePlaybackActive) onlinePlaybackState.isPlaying else playerViewModel.isPlaying,
                                         dynamicStyle = appSettings.dynamicBottomNavigationEnabled,
+                                        song = if (isOnlinePlaybackActive) onlineAsSong else localMiniSong,
+                                        appSettings = appSettings,
                                         onTabSelected = {
                                             if (it == AppTab.Home && selectedTab == AppTab.Home) homeReselectKey++
                                             selectedTab = it
