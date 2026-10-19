@@ -859,7 +859,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 onExportPlaylist = { showExportPlaylistDialog = true },
                                 onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
                                 onBack = { showSettings = false },
-                                onShowAbout = { showAboutDialog = true }
+                                onShowAbout = { showAboutDialog = true },
+                                onDynamicBottomNavigationChange = { musicViewModel.setDynamicBottomNavigationEnabled(it) }
                             )
                         }
                         selectedPlaylistId != null -> {
@@ -1221,6 +1222,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 BottomNavBar(
                                     selectedTab = selectedTab,
                                     compact = true,
+                                    isPlaying = if (isOnlinePlaybackActive) onlinePlaybackState.isPlaying else playerViewModel.isPlaying,
+                                    dynamicStyle = appSettings.dynamicBottomNavigationEnabled,
                                     compactPlayer = {
                                         if (isOnlinePlaybackActive && onlineAsSong != null) {
                                             MiniPlayer(
@@ -1294,6 +1297,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     BottomNavBar(
                                         selectedTab = selectedTab,
                                         compact = false,
+                                        isPlaying = if (isOnlinePlaybackActive) onlinePlaybackState.isPlaying else playerViewModel.isPlaying,
+                                        dynamicStyle = appSettings.dynamicBottomNavigationEnabled,
                                         onTabSelected = {
                                             if (it == AppTab.Home && selectedTab == AppTab.Home) homeReselectKey++
                                             selectedTab = it

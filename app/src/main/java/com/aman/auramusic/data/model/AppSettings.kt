@@ -30,7 +30,9 @@ data class AppSettings(
     // Unified Appearance / Theme System
     val changeThemeEnabled: Boolean = false,
     val themeScope: String = "Entire App",
-    val themeColorStyle: String = appPaletteMode
+    val themeColorStyle: String = appPaletteMode,
+    // Bottom Navigation Style
+    val dynamicBottomNavigationEnabled: Boolean = true
 ) {
     fun isAreaThemingEnabled(areaName: String): Boolean {
         if (!isFullAppThemeActive()) return false

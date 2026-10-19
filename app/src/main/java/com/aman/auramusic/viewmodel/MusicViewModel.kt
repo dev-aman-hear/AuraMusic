@@ -340,6 +340,12 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    fun setDynamicBottomNavigationEnabled(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setDynamicBottomNavigationEnabled(enabled)
+        }
+    }
+
     fun setPlayerThemeMode(mode: String) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setPlayerThemeMode(mode)
