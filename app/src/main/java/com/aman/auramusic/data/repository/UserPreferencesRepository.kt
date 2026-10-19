@@ -101,8 +101,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             }.getOrDefault(ThemeMode.SYSTEM),
             changeThemeEnabled = masterEnabled,
             themeScope = scope,
-            themeColorStyle = style,
-            dynamicBottomNavigationEnabled = prefs[Keys.dynamicBottomNavigationEnabled] ?: true
+            themeColorStyle = style
         )
     }.distinctUntilChanged()
 
@@ -275,9 +274,6 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         setThemeColorStyle(mode)
     }
 
-    suspend fun setDynamicBottomNavigationEnabled(enabled: Boolean) {
-        dataStore.edit { it[Keys.dynamicBottomNavigationEnabled] = enabled }
-    }
 
     suspend fun setAppColorPreset(preset: String) {
         setThemePreset(preset)
@@ -657,7 +653,6 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             val savedOnlinePlaylists = stringPreferencesKey("saved_online_playlists")
             val savedOnlineArtists = stringPreferencesKey("saved_online_artists")
             val savedOnlineAlbums = stringPreferencesKey("saved_online_albums")
-            val dynamicBottomNavigationEnabled = booleanPreferencesKey("dynamic_bottom_navigation_enabled")
         }
     }
 }

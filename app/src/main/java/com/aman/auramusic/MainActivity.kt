@@ -128,6 +128,7 @@ import com.aman.auramusic.ui.screen.CollectionDetailScreen
 import com.aman.auramusic.ui.screen.home.ArtistDetailSheet
 import com.aman.auramusic.ui.screen.home.ArtistItem
 import com.aman.auramusic.ui.theme.AppArea
+import com.aman.auramusic.ui.theme.AppThemedScreen
 import com.aman.auramusic.online.network.repository.ArtistBioData
 import com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
@@ -651,6 +652,15 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                 .background(MaterialTheme.colorScheme.background)
                 .nestedScroll(bottomBarScrollConnection)
         ) {
+            val currentOnlineMiniSong = onlinePlaybackState.currentSong ?: activeOnlineSong
+            val onlineAsSong = remember(currentOnlineMiniSong, onlinePlaybackState.durationMs) {
+                currentOnlineMiniSong?.toSong()?.let { base ->
+                    if (onlinePlaybackState.durationMs > 0) base.copy(duration = onlinePlaybackState.durationMs) else base
+                }
+            }
+            val localMiniSong = playerViewModel.currentSong
+            val hasMiniSong = (isOnlinePlaybackActive && onlineAsSong != null) || (!isOnlinePlaybackActive && localMiniSong != null)
+
             Box(modifier = Modifier.fillMaxSize()) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     // Base Tab Screen destination: stays active on back-stack
@@ -822,46 +832,51 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                     // Detail Screens overlay
                     when {
                         showSettings -> {
-                            SettingsScreen(
-                                songCount = songs.size,
-                                albumCount = songs.distinctBy { it.album }.size,
-                                artistCount = songs.distinctBy { it.artist }.size,
-                                username = username,
-                                appSettings = appSettings,
-                                onUsernameChange = { musicViewModel.updateUsername(it) },
-                                onThemeModeChange = { mode -> musicViewModel.setThemeMode(mode) },
-                                onChangeThemeEnabled = { musicViewModel.setChangeThemeEnabled(it) },
-                                onThemeScopeChange = { musicViewModel.setThemeScope(it) },
-                                onThemeColorStyleChange = { musicViewModel.setThemeColorStyle(it) },
-                                onThemePresetChange = { musicViewModel.setThemePreset(it) },
-                                onThemeCustomHexesChange = { musicViewModel.setThemeCustomHexes(it) },
-                                onDynamicArtworkColorsChange = { musicViewModel.setDynamicArtworkColors(it) },
-                                onPlayerThemeModeChange = { musicViewModel.setPlayerThemeMode(it) },
-                                onColorPresetChange = { preset -> musicViewModel.setColorPreset(preset) },
-                                onCustomPaletteHexesChange = { musicViewModel.setCustomPaletteHexes(it) },
-                                onEnableFullAppDynamicThemeChange = { musicViewModel.setEnableFullAppDynamicTheme(it) },
-                                onAppPaletteModeChange = { musicViewModel.setAppPaletteMode(it) },
-                                onAppColorPresetChange = { musicViewModel.setAppColorPreset(it) },
-                                onAppCustomPaletteHexesChange = { musicViewModel.setAppCustomPaletteHexes(it) },
-                                onThemeAreaChange = { area, enabled -> musicViewModel.setThemeAreaEnabled(area, enabled) },
-                                onKaraokeChange = { musicViewModel.setKaraokeMode(it) },
-                                onLyricFontScaleChange = { musicViewModel.setLyricFontScale(it) },
-                                onSmartAudioFocusChange = { musicViewModel.setSmartAudioFocus(it) },
-                                onKeepPlayingOnCloseChange = { musicViewModel.setKeepPlayingOnClose(it) },
-                                onPlaylistGridColumnsChange = { musicViewModel.setPlaylistGridColumns(it) },
-                                onImportPlaylistFile = {
-                                    importFileLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*"))
-                                },
-                                onExportAllSongs = {
-                                    pendingExportTarget = ExportTarget.AllSongs
-                                    exportFileLauncher.launch("AuraMusic_AllSongs.json")
-                                },
-                                onExportPlaylist = { showExportPlaylistDialog = true },
-                                onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
-                                onBack = { showSettings = false },
-                                onShowAbout = { showAboutDialog = true },
-                                onDynamicBottomNavigationChange = { musicViewModel.setDynamicBottomNavigationEnabled(it) }
-                            )
+                            AppThemedScreen(
+                                area = AppArea.HOME,
+                                artworkModel = if (isOnlinePlaybackActive) onlineAsSong else localMiniSong,
+                                appSettings = appSettings
+                            ) {
+                                SettingsScreen(
+                                    songCount = songs.size,
+                                    albumCount = songs.distinctBy { it.album }.size,
+                                    artistCount = songs.distinctBy { it.artist }.size,
+                                    username = username,
+                                    appSettings = appSettings,
+                                    onUsernameChange = { musicViewModel.updateUsername(it) },
+                                    onThemeModeChange = { mode -> musicViewModel.setThemeMode(mode) },
+                                    onChangeThemeEnabled = { musicViewModel.setChangeThemeEnabled(it) },
+                                    onThemeScopeChange = { musicViewModel.setThemeScope(it) },
+                                    onThemeColorStyleChange = { musicViewModel.setThemeColorStyle(it) },
+                                    onThemePresetChange = { musicViewModel.setThemePreset(it) },
+                                    onThemeCustomHexesChange = { musicViewModel.setThemeCustomHexes(it) },
+                                    onDynamicArtworkColorsChange = { musicViewModel.setDynamicArtworkColors(it) },
+                                    onPlayerThemeModeChange = { musicViewModel.setPlayerThemeMode(it) },
+                                    onColorPresetChange = { preset -> musicViewModel.setColorPreset(preset) },
+                                    onCustomPaletteHexesChange = { musicViewModel.setCustomPaletteHexes(it) },
+                                    onEnableFullAppDynamicThemeChange = { musicViewModel.setEnableFullAppDynamicTheme(it) },
+                                    onAppPaletteModeChange = { musicViewModel.setAppPaletteMode(it) },
+                                    onAppColorPresetChange = { musicViewModel.setAppColorPreset(it) },
+                                    onAppCustomPaletteHexesChange = { musicViewModel.setAppCustomPaletteHexes(it) },
+                                    onThemeAreaChange = { area, enabled -> musicViewModel.setThemeAreaEnabled(area, enabled) },
+                                    onKaraokeChange = { musicViewModel.setKaraokeMode(it) },
+                                    onLyricFontScaleChange = { musicViewModel.setLyricFontScale(it) },
+                                    onSmartAudioFocusChange = { musicViewModel.setSmartAudioFocus(it) },
+                                    onKeepPlayingOnCloseChange = { musicViewModel.setKeepPlayingOnClose(it) },
+                                    onPlaylistGridColumnsChange = { musicViewModel.setPlaylistGridColumns(it) },
+                                    onImportPlaylistFile = {
+                                        importFileLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*"))
+                                    },
+                                    onExportAllSongs = {
+                                        pendingExportTarget = ExportTarget.AllSongs
+                                        exportFileLauncher.launch("AuraMusic_AllSongs.json")
+                                    },
+                                    onExportPlaylist = { showExportPlaylistDialog = true },
+                                    onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
+                                    onBack = { showSettings = false },
+                                    onShowAbout = { showAboutDialog = true }
+                                )
+                            }
                         }
                         selectedPlaylistId != null -> {
                             val playlist = playlists.find { it.id == selectedPlaylistId }
@@ -1192,14 +1207,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             .padding(top = if (isBottomCollapsed) 2.dp else 10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        val currentOnlineMiniSong = onlinePlaybackState.currentSong ?: activeOnlineSong
-                        val onlineAsSong = remember(currentOnlineMiniSong, onlinePlaybackState.durationMs) {
-                            currentOnlineMiniSong?.toSong()?.let { base ->
-                                if (onlinePlaybackState.durationMs > 0) base.copy(duration = onlinePlaybackState.durationMs) else base
-                            }
-                        }
-                        val localMiniSong = playerViewModel.currentSong
-                        val hasMiniSong = (isOnlinePlaybackActive && onlineAsSong != null) || (!isOnlinePlaybackActive && localMiniSong != null)
 
                         AnimatedContent(
                             targetState = isBottomCollapsed && hasMiniSong,
@@ -1223,7 +1230,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     selectedTab = selectedTab,
                                     compact = true,
                                     isPlaying = if (isOnlinePlaybackActive) onlinePlaybackState.isPlaying else playerViewModel.isPlaying,
-                                    dynamicStyle = appSettings.dynamicBottomNavigationEnabled,
                                     song = if (isOnlinePlaybackActive) onlineAsSong else localMiniSong,
                                     appSettings = appSettings,
                                     compactPlayer = {
@@ -1300,7 +1306,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                         selectedTab = selectedTab,
                                         compact = false,
                                         isPlaying = if (isOnlinePlaybackActive) onlinePlaybackState.isPlaying else playerViewModel.isPlaying,
-                                        dynamicStyle = appSettings.dynamicBottomNavigationEnabled,
                                         song = if (isOnlinePlaybackActive) onlineAsSong else localMiniSong,
                                         appSettings = appSettings,
                                         onTabSelected = {

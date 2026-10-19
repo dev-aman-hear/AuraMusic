@@ -94,7 +94,6 @@ fun SettingsScreen(
     onRefresh: () -> Unit,
     onBack: () -> Unit,
     onShowAbout: () -> Unit,
-    onDynamicBottomNavigationChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -221,13 +220,6 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        // Bottom Navigation Style Selector
-                        BottomNavStyleSelectionRow(
-                            dynamicEnabled = appSettings.dynamicBottomNavigationEnabled,
-                            onStyleSelected = onDynamicBottomNavigationChange
-                        )
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
                         var isThemeExpanded by rememberSaveable { mutableStateOf(false) }
 
@@ -1372,131 +1364,3 @@ fun ThemeScopeSelector(
         }
     }
 }
-
-@Composable
-fun BottomNavStyleSelectionRow(
-    dynamicEnabled: Boolean,
-    onStyleSelected: (Boolean) -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = "Bottom Navigation Style",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = "Choose whether the navigation capsule adapts dynamically to your theme and music, or uses the normal default styling.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            val options = listOf(
-                true to "Dynamic",
-                false to "Normal"
-            )
-            val colors = Monochrome
-
-            options.forEach { (isDynamic, label) ->
-                val isSelected = dynamicEnabled == isDynamic
-                val pillShape = RoundedCornerShape(16.dp)
-                val interactionSource = remember { MutableInteractionSource() }
-                val isPressed by interactionSource.collectIsPressedAsState()
-
-                val targetBackgroundColor = when {
-                    isSelected -> colors.controlSelected
-                    isPressed -> colors.surfacePressed
-                    else -> colors.surfaceSecondary
-                }
-                val targetContentColor = if (isSelected) colors.controlSelectedContent else colors.textPrimary
-                val targetBorderColor = if (isSelected) colors.controlSelected else colors.border
-
-                val backgroundColor by animateColorAsState(
-                    targetValue = targetBackgroundColor,
-                    animationSpec = tween(durationMillis = 150),
-                    label = "navStyleBg_$label"
-                )
-                val contentColor by animateColorAsState(
-                    targetValue = targetContentColor,
-                    animationSpec = tween(durationMillis = 150),
-                    label = "navStyleContent_$label"
-                )
-                val borderColor by animateColorAsState(
-                    targetValue = targetBorderColor,
-                    animationSpec = tween(durationMillis = 150),
-                    label = "navStyleBorder_$label"
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(pillShape)
-                        .background(backgroundColor, pillShape)
-                        .border(BorderStroke(1.dp, borderColor), pillShape)
-                        .selectable(
-                            selected = isSelected,
-                            onClick = { onStyleSelected(isDynamic) },
-                            role = Role.RadioButton,
-                            interactionSource = interactionSource,
-                            indication = ripple()
-                        )
-                        .padding(vertical = 12.dp, horizontal = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (isDynamic) MaterialTheme.colorScheme.primary else Color(0xFFFA2D48)
-                                )
-                        )
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                            color = contentColor,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-        }
-
-        AnimatedContent(
-            targetState = dynamicEnabled,
-            transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(140)) },
-            label = "navStyleDesc"
-        ) { isDyn ->
-            Text(
-                text = if (isDyn) {
-                    "Dynamic — Navigation capsule, traveling pill, and glow dynamically adapt to the active theme preset, custom palette, and currently playing song's artwork colors."
-                } else {
-                    "Normal — Classic liquid-glass navigation with Aura's signature red accent styling, without dynamic artwork or theme recoloring."
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                lineHeight = 16.sp
-            )
-        }
-    }
-}
-
-
-
-

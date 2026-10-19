@@ -35,6 +35,12 @@ private val DarkColorScheme = darkColorScheme(
     onPrimaryContainer = DarkMonochromeColors.textPrimary,
     secondaryContainer = DarkMonochromeColors.surfaceSecondary,
     onSecondaryContainer = DarkMonochromeColors.textPrimary,
+    tertiaryContainer = DarkMonochromeColors.surfaceSecondary,
+    onTertiaryContainer = DarkMonochromeColors.textPrimary,
+    inverseSurface = DarkMonochromeColors.textPrimary,
+    inverseOnSurface = DarkMonochromeColors.background,
+    inversePrimary = DarkMonochromeColors.background,
+    scrim = DarkMonochromeColors.background,
     error = DarkMonochromeColors.textPrimary,
     onError = DarkMonochromeColors.controlSelectedContent
 )
@@ -63,6 +69,12 @@ private val LightColorScheme = lightColorScheme(
     onPrimaryContainer = LightMonochromeColors.textPrimary,
     secondaryContainer = LightMonochromeColors.surfaceSecondary,
     onSecondaryContainer = LightMonochromeColors.textPrimary,
+    tertiaryContainer = LightMonochromeColors.surfaceSecondary,
+    onTertiaryContainer = LightMonochromeColors.textPrimary,
+    inverseSurface = LightMonochromeColors.textPrimary,
+    inverseOnSurface = LightMonochromeColors.background,
+    inversePrimary = LightMonochromeColors.background,
+    scrim = LightMonochromeColors.controlSelected,
     error = LightMonochromeColors.textPrimary,
     onError = LightMonochromeColors.controlSelectedContent
 )
