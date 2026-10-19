@@ -1,9 +1,13 @@
 package com.aman.auramusic.ui.component
 
+import android.graphics.BlurMaskFilter
+import android.graphics.Paint
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -11,10 +15,12 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -22,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,19 +47,32 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -64,6 +84,7 @@ import com.aman.auramusic.ui.theme.DarkMonochromeColors
 import com.aman.auramusic.ui.theme.DynamicArtworkColorsHelper
 import com.aman.auramusic.ui.theme.LightMonochromeColors
 import com.aman.auramusic.ui.theme.PlayerArtworkPalette
+import kotlin.math.abs
 
 enum class AppTab(
     val label: String,
@@ -412,7 +433,47 @@ fun BottomNavBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 1. Glass Capsule containing Home, Explore, Library (weight 1f, height 54dp)
-            Box(
+            val mainTabs = remember { listOf(AppTab.Home, AppTab.Online, AppTab.Library) }
+            val density = LocalDensity.current
+
+            var parentCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+            val tabOffsetsPx = remember { mutableStateMapOf<AppTab, Float>() }
+            val tabWidthsPx = remember { mutableStateMapOf<AppTab, Float>() }
+            var containerWidthPx by remember { mutableFloatStateOf(0f) }
+
+            var isDragging by remember { mutableStateOf(false) }
+            var dragXPx by remember { mutableFloatStateOf(0f) }
+            var hoverTab by remember { mutableStateOf(if (selectedTab in mainTabs) selectedTab else AppTab.Home) }
+            var lastSelectedMainTab by remember { mutableStateOf(if (selectedTab in mainTabs) selectedTab else AppTab.Home) }
+
+            LaunchedEffect(selectedTab) {
+                if (selectedTab in mainTabs) {
+                    lastSelectedMainTab = selectedTab
+                    if (!isDragging) {
+                        hoverTab = selectedTab
+                    }
+                }
+            }
+
+            val currentSelectedTab by rememberUpdatedState(selectedTab)
+            val currentOnTabSelected by rememberUpdatedState(onTabSelected)
+
+            fun findTabForX(xPx: Float): AppTab {
+                for (tab in mainTabs) {
+                    val start = tabOffsetsPx[tab]
+                    val width = tabWidthsPx[tab]
+                    if (start != null && width != null && width > 0f) {
+                        if (xPx >= start && xPx < (start + width)) {
+                            return tab
+                        }
+                    }
+                }
+                val fallbackTabWidth = (containerWidthPx / mainTabs.size).coerceAtLeast(1f)
+                val index = (xPx / fallbackTabWidth).toInt().coerceIn(0, mainTabs.size - 1)
+                return mainTabs[index]
+            }
+
+            BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
                     .height(54.dp)
@@ -426,15 +487,224 @@ fun BottomNavBar(
                     .background(surfaceGlassColor, navShape)
                     .border(BorderStroke(1.dp, surfaceBorderBrush), navShape)
                     .padding(4.dp)
+                    .onGloballyPositioned { coords ->
+                        parentCoordinates = coords
+                        containerWidthPx = coords.size.width.toFloat()
+                    }
+                    .pointerInput(mainTabs) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { offset ->
+                                isDragging = true
+                                dragXPx = offset.x.coerceIn(0f, containerWidthPx)
+                                hoverTab = findTabForX(dragXPx)
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            },
+                            onHorizontalDrag = { _, dragAmount ->
+                                dragXPx = (dragXPx + dragAmount).coerceIn(0f, containerWidthPx)
+                                val newHover = findTabForX(dragXPx)
+                                if (newHover != hoverTab) {
+                                    hoverTab = newHover
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            },
+                            onDragEnd = {
+                                isDragging = false
+                                if (hoverTab != currentSelectedTab) {
+                                    currentOnTabSelected(hoverTab)
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            },
+                            onDragCancel = {
+                                isDragging = false
+                                hoverTab = if (currentSelectedTab in mainTabs) currentSelectedTab else lastSelectedMainTab
+                            }
+                        )
+                    }
             ) {
+                val totalWidthDp = maxWidth
+                val defaultTabWidthDp = totalWidthDp / mainTabs.size
+                val activeTab = if (isDragging) hoverTab else (if (selectedTab in mainTabs) selectedTab else lastSelectedMainTab)
+                val isMainTabActive = isDragging || (selectedTab in mainTabs)
+                val activeIndex = mainTabs.indexOf(activeTab).let { if (it >= 0) it else 0 }
+
+                val measuredTabOffsetDp = tabOffsetsPx[activeTab]?.let { with(density) { it.toDp() } }
+                    ?: (defaultTabWidthDp * activeIndex)
+                val measuredTabWidthDp = tabWidthsPx[activeTab]?.let { with(density) { it.toDp() } }
+                    ?: defaultTabWidthDp
+
+                val basePillWidth = (measuredTabWidthDp - 4.dp).coerceAtLeast(36.dp)
+                val restingPillHeight = 42.dp
+                val restingPillY = 2.dp
+                val targetPillWidth = if (isDragging) (basePillWidth + 10.dp) else basePillWidth
+
+                val targetPillLeft = if (isDragging) {
+                    val dragCenterDp = with(density) { dragXPx.toDp() }
+                    (dragCenterDp - targetPillWidth / 2).coerceIn(0.dp, (totalWidthDp - targetPillWidth).coerceAtLeast(0.dp))
+                } else {
+                    measuredTabOffsetDp + (measuredTabWidthDp - targetPillWidth) / 2
+                }
+
+                val animatedPillLeft by animateDpAsState(
+                    targetValue = targetPillLeft,
+                    animationSpec = if (isDragging) {
+                        tween(durationMillis = 20, easing = LinearEasing)
+                    } else {
+                        spring(
+                            dampingRatio = 0.74f,
+                            stiffness = 380f
+                        )
+                    },
+                    label = "liquidPillLeft"
+                )
+
+                val travelDistanceDp = abs((targetPillLeft - animatedPillLeft).value)
+                val stretchAmountDp = if (!isDragging) {
+                    (travelDistanceDp * 0.14f).coerceAtMost(14f).dp
+                } else {
+                    0.dp
+                }
+
+                val animatedPillWidth by animateDpAsState(
+                    targetValue = targetPillWidth + stretchAmountDp,
+                    animationSpec = if (isDragging) {
+                        tween(durationMillis = 35)
+                    } else {
+                        spring(
+                            dampingRatio = 0.80f,
+                            stiffness = 360f
+                        )
+                    },
+                    label = "liquidPillWidth"
+                )
+
+                val maxAllowedLeft = (totalWidthDp - animatedPillWidth).coerceAtLeast(0.dp)
+                val clampedDisplayLeft = (animatedPillLeft - stretchAmountDp / 2).coerceIn(0.dp, maxAllowedLeft)
+
+                val targetPillAlpha = if (isMainTabActive) 1f else 0f
+                val animatedPillAlpha by animateFloatAsState(
+                    targetValue = targetPillAlpha,
+                    animationSpec = tween(durationMillis = 220),
+                    label = "liquidPillAlpha"
+                )
+                val targetPillScale = if (isMainTabActive) 1f else 0.88f
+                val animatedPillScale by animateFloatAsState(
+                    targetValue = targetPillScale,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    label = "liquidPillScale"
+                )
+
+                val pillShape = RoundedCornerShape(restingPillHeight / 2)
+
+                if (animatedPillAlpha > 0.001f) {
+                    // Diffused Glow Behind Pill
+                    val glowColor = animatedAccent.copy(alpha = if (isDark) 0.28f else 0.18f)
+                    Box(
+                        modifier = Modifier
+                            .offset(x = clampedDisplayLeft, y = restingPillY)
+                            .size(width = animatedPillWidth, height = restingPillHeight)
+                            .graphicsLayer {
+                                scaleX = animatedPillScale
+                                scaleY = animatedPillScale
+                                alpha = animatedPillAlpha
+                            }
+                            .drawBehind {
+                                val blurRadius = 12.dp.toPx()
+                                val paint = Paint().apply {
+                                    isAntiAlias = true
+                                    color = glowColor.toArgb()
+                                    maskFilter = BlurMaskFilter(blurRadius, BlurMaskFilter.Blur.NORMAL)
+                                }
+                                try {
+                                    drawIntoCanvas { canvas ->
+                                        canvas.nativeCanvas.drawRoundRect(
+                                            -2.dp.toPx(),
+                                            -1.dp.toPx(),
+                                            size.width + 2.dp.toPx(),
+                                            size.height + 1.dp.toPx(),
+                                            size.height / 2,
+                                            size.height / 2,
+                                            paint
+                                        )
+                                    }
+                                } catch (_: Throwable) {
+                                    drawRoundRect(
+                                        color = glowColor,
+                                        cornerRadius = CornerRadius(size.height / 2, size.height / 2)
+                                    )
+                                }
+                            }
+                    )
+
+                    // Animated Traveling Liquid Glass Pill
+                    val pillBackgroundBrush = Brush.verticalGradient(
+                        colors = if (isDark) {
+                            listOf(
+                                animatedAccent.copy(alpha = if (isDragging) 0.26f else 0.18f),
+                                animatedAccent.copy(alpha = if (isDragging) 0.14f else 0.08f)
+                            )
+                        } else {
+                            listOf(
+                                animatedAccent.copy(alpha = if (isDragging) 0.20f else 0.14f),
+                                animatedAccent.copy(alpha = if (isDragging) 0.08f else 0.04f)
+                            )
+                        }
+                    )
+
+                    val pillBorderBrush = Brush.verticalGradient(
+                        colors = if (isDark) {
+                            listOf(
+                                Color.White.copy(alpha = if (isDragging) 0.60f else 0.45f),
+                                animatedAccent.copy(alpha = if (isDragging) 0.40f else 0.25f)
+                            )
+                        } else {
+                            listOf(
+                                animatedAccent.copy(alpha = if (isDragging) 0.65f else 0.50f),
+                                animatedAccent.copy(alpha = if (isDragging) 0.30f else 0.15f)
+                            )
+                        }
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .offset(x = clampedDisplayLeft, y = restingPillY)
+                            .size(width = animatedPillWidth, height = restingPillHeight)
+                            .graphicsLayer {
+                                scaleX = animatedPillScale
+                                scaleY = animatedPillScale
+                                alpha = animatedPillAlpha
+                            }
+                            .clip(pillShape)
+                            .background(pillBackgroundBrush, pillShape)
+                            .border(BorderStroke(1.dp, pillBorderBrush), pillShape)
+                    ) {
+                        // Subtle specular liquid highlight on top half of pill
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(restingPillHeight * 0.42f)
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            Color.White.copy(alpha = if (isDark) 0.14f else 0.28f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                )
+                        )
+                    }
+                }
+
+                // Foreground Navigation Tabs Row
                 Row(
                     modifier = Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val mainTabs = remember { listOf(AppTab.Home, AppTab.Online, AppTab.Library) }
                     mainTabs.forEach { tab ->
-                        val selected = selectedTab == tab
+                        val selected = activeTab == tab && isMainTabActive
                         val tabTint by animateColorAsState(
                             targetValue = if (selected) animatedAccent else unselectedTint,
                             animationSpec = tween(220),
@@ -448,58 +718,30 @@ fun BottomNavBar(
                             ),
                             label = "tabScale_${tab.name}"
                         )
-                        val pillAlpha by animateFloatAsState(
-                            targetValue = if (selected) 1f else 0f,
-                            animationSpec = tween(220),
-                            label = "tabPillAlpha_${tab.name}"
-                        )
-                        val pillScale by animateFloatAsState(
-                            targetValue = if (selected) 1f else 0.88f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            ),
-                            label = "tabPillScale_${tab.name}"
-                        )
 
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .clip(RoundedCornerShape(22.dp))
+                                .clip(pillShape)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
                                 ) {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     onTabSelected(tab)
+                                }
+                                .onGloballyPositioned { coords ->
+                                    parentCoordinates?.let { parent ->
+                                        if (parent.isAttached && coords.isAttached) {
+                                            val local = parent.localPositionOf(coords, Offset.Zero)
+                                            tabOffsetsPx[tab] = local.x
+                                            tabWidthsPx[tab] = coords.size.width.toFloat()
+                                        }
+                                    }
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            if (pillAlpha > 0.01f) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 2.dp, vertical = 2.dp)
-                                        .graphicsLayer {
-                                            scaleX = pillScale
-                                            scaleY = pillScale
-                                            alpha = pillAlpha
-                                        }
-                                        .background(
-                                            animatedAccent.copy(alpha = if (isDark) 0.16f else 0.12f),
-                                            RoundedCornerShape(20.dp)
-                                        )
-                                        .border(
-                                            BorderStroke(
-                                                1.dp,
-                                                animatedAccent.copy(alpha = if (isDark) 0.30f else 0.20f)
-                                            ),
-                                            RoundedCornerShape(20.dp)
-                                        )
-                                )
-                            }
-
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
