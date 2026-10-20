@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Branch-BETA--V2-blue?style=flat-square" alt="Branch BETA-V2" />
-  <img src="https://img.shields.io/badge/Version-1.0.4%20(Code%2017)-informational?style=flat-square" alt="Version 1.0.4, version code 17" />
+  <img src="https://img.shields.io/badge/Branch-v1.0.5-blue?style=flat-square" alt="Branch v1.0.5" />
+  <img src="https://img.shields.io/badge/Version-1.0.5%20(Code%2018)-informational?style=flat-square" alt="Version 1.0.5, version code 18" />
   <img src="https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-success?style=flat-square" alt="Android API 26-36" />
   <img src="https://img.shields.io/badge/Kotlin-2.0.21-blueviolet?style=flat-square" alt="Kotlin 2.0.21" />
   <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=flat-square" alt="Jetpack Compose" />
@@ -61,7 +61,7 @@ The application combines local playback with online discovery:
 
 ## Interface & Screenshot Plan
 
-Aura Music centers on a four-tab navigation model (`Home`, `Explore`/`Online`, `Library`, and `Search`) paired with an animated bottom navigation area, a mini-player, and an expanded player sheet.
+Aura Music centers on a four-tab navigation model (`Home`, `Explore`/`Online`, `Library`, and `Search`) paired with an interactive floating liquid glass or modern bottom navigation bar, a mini-player, and an expanded player sheet.
 
 > **Screenshots**: App screenshots can be added here when release captures are available. This README intentionally avoids placeholder or mockup images. 
 
@@ -294,9 +294,14 @@ To verify code compilation without building APK packages:
 
 ## Versioning & Release Information
 
-* **Current branch**: `BETA-V2` (prepared for merge into `main`).
-* **Application version**: `1.0.4` (`versionCode = 17`).
-* **Release status**: Version metadata is set to 1.0.4; build, device testing, and release signing should be verified before publishing.
+* **Current branch**: `v1.0.5`.
+* **Application version**: `1.0.5` (`versionCode = 18`).
+* **Release status**: Version metadata is set to 1.0.5; release builds, automated regressions, and UI interactions verified.
+* **Changelog Highlights (v1.0.5)**:
+  * **AniWhere Floating Liquid Glass Navigation**: Restored the floating liquid glass navigation bar with smooth physics-based spring transitions, interactive drag-to-switch tab gesture, active indicator capsule, and configurable navigation styles (Glass, Modern, and Minimal) with optional dynamic artwork tinting.
+  * **Adaptive & Themed App Icon**: Full support for Android 13+ Material You themed launcher icons (`ic_launcher_monochrome`) alongside refreshed high-resolution adaptive launcher assets.
+  * **Lifecycle & Task Dismissal Streamlining**: Playback reliably and cleanly stops when the application task is dismissed from the recent apps overview, providing predictable service termination.
+  * **Online Sleep Timer & Service Disconnect Fallback**: Added robust sleep timer fallback handling ensuring both local and online streaming sessions reliably stop and fade even if playback service connection state changes.
 * **Changelog Highlights (v1.0.4)**:
   * **Settings Dark Mode UI & Contrast Fixes**: Standardized dark-mode color tokens, containers, and borders across Settings (Personalization, Appearance, Playback, System & Files, and About). Hairline dividers and interactive controls now maintain crisp, accessible contrast in both light and dark themes.
   * **Retracted Theme Options by Default**: When the master Change Theme (dynamic colour) setting is enabled, additional configuration options remain retracted/collapsed by default, preserving user preferences with responsive expand/retract controls.
