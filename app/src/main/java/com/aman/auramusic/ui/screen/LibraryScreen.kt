@@ -703,7 +703,7 @@ fun LibraryScreen(
                                         Icon(
                                             imageVector = Icons.Default.PlayArrow,
                                             contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(15.dp)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text("Play All (${filteredSongs.size})", fontWeight = FontWeight.Bold)
@@ -798,7 +798,7 @@ fun LibraryScreen(
                                         Icon(
                                             imageVector = Icons.Default.PlayArrow,
                                             contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(15.dp)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text("Play All (${filteredFavorites.size})", fontWeight = FontWeight.Bold)
