@@ -99,6 +99,11 @@ fun SettingsScreen(
     val context = LocalContext.current
 
     AuraScreenBackground(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(if (LocalIsDark.current) Color(0xFF000000) else Color(0xFFFFFFFF))
+        ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 140.dp),
@@ -721,6 +726,7 @@ fun SettingsScreen(
                     )
                 }
             }
+        }
         }
     }
     }
