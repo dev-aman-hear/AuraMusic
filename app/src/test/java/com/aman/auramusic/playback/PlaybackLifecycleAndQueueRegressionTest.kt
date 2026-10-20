@@ -99,21 +99,17 @@ class PlaybackLifecycleAndQueueRegressionTest {
         isOnlineBuffering: Boolean,
         isOnlineTransitioning: Boolean
     ): LifecycleDecision {
-        val isLocalActive = isLocalPlaying || isLocalTransitioning
-        val isOnlineEngineActive = isOnlineActive &&
-            (isOnlinePlaying || isOnlineBuffering || isOnlineTransitioning)
-        val isAnyPlaying = isLocalActive || isOnlineEngineActive
-
-        return if (!isAnyPlaying) {
-            LifecycleDecision(true, false, true)
-        } else {
-            // The foreground media service owns playback after task dismissal.
-            LifecycleDecision(false, false, false)
-        }
+        // The Keep Playing on App Close feature has been removed. Dismissing the task
+        // stops both playback engines and cleans up the media foreground notification.
+        return LifecycleDecision(
+            shouldStopService = true,
+            shouldStopPlaybackEngines = true,
+            shouldClearNotification = true
+        )
     }
 
     @Test
-    fun task_removal_preserves_active_local_playback() {
+    fun task_removal_stops_active_local_playback_and_cleans_up_notification() {
         val decision = evaluateTaskRemoval(
             isLocalPlaying = true,
             isLocalTransitioning = false,
@@ -122,13 +118,13 @@ class PlaybackLifecycleAndQueueRegressionTest {
             isOnlineBuffering = false,
             isOnlineTransitioning = false
         )
-        assertFalse(decision.shouldStopService)
-        assertFalse(decision.shouldStopPlaybackEngines)
-        assertFalse(decision.shouldClearNotification)
+        assertTrue(decision.shouldStopService)
+        assertTrue(decision.shouldStopPlaybackEngines)
+        assertTrue(decision.shouldClearNotification)
     }
 
     @Test
-    fun task_removal_preserves_online_playback_during_playing_buffering_and_transition() {
+    fun task_removal_stops_active_online_playback_even_while_buffering_or_transitioning() {
         listOf(
             Triple(true, false, false),
             Triple(false, true, false),
@@ -142,9 +138,9 @@ class PlaybackLifecycleAndQueueRegressionTest {
                 isOnlineBuffering = buffering,
                 isOnlineTransitioning = transitioning
             )
-            assertFalse(decision.shouldStopService)
-            assertFalse(decision.shouldStopPlaybackEngines)
-            assertFalse(decision.shouldClearNotification)
+            assertTrue(decision.shouldStopService)
+            assertTrue(decision.shouldStopPlaybackEngines)
+            assertTrue(decision.shouldClearNotification)
         }
     }
 
@@ -159,7 +155,7 @@ class PlaybackLifecycleAndQueueRegressionTest {
             isOnlineTransitioning = false
         )
         assertTrue(decision.shouldStopService)
-        assertFalse(decision.shouldStopPlaybackEngines)
+        assertTrue(decision.shouldStopPlaybackEngines)
         assertTrue(decision.shouldClearNotification)
     }
 
