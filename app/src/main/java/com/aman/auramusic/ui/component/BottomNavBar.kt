@@ -271,13 +271,13 @@ fun BottomNavBar(
                                 alpha = homePillAlpha
                             }
                             .background(
-                                animatedAccent.copy(alpha = if (isDark) 0.10f else 0.06f),
+                                (if (isDark) Color.White else Color.Black).copy(alpha = if (isDark) 0.08f else 0.045f),
                                 RoundedCornerShape(23.dp)
                             )
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    animatedAccent.copy(alpha = if (isDark) 0.38f else 0.28f)
+                                    animatedAccent.copy(alpha = if (isDynamicActive) 0.72f else 0.30f)
                                 ),
                                 RoundedCornerShape(23.dp)
                             )
@@ -409,13 +409,13 @@ fun BottomNavBar(
                                 alpha = searchPillAlpha
                             }
                             .background(
-                                animatedAccent.copy(alpha = if (isDark) 0.10f else 0.06f),
+                                (if (isDark) Color.White else Color.Black).copy(alpha = if (isDark) 0.08f else 0.045f),
                                 RoundedCornerShape(23.dp)
                             )
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    animatedAccent.copy(alpha = if (isDark) 0.38f else 0.28f)
+                                    animatedAccent.copy(alpha = if (isDynamicActive) 0.72f else 0.30f)
                                 ),
                                 RoundedCornerShape(23.dp)
                             )
@@ -850,13 +850,13 @@ fun BottomNavBar(
                                 alpha = searchPillAlpha
                             }
                             .background(
-                                animatedAccent.copy(alpha = if (isDark) 0.10f else 0.06f),
+                                (if (isDark) Color.White else Color.Black).copy(alpha = if (isDark) 0.08f else 0.045f),
                                 RoundedCornerShape(23.dp)
                             )
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    animatedAccent.copy(alpha = if (isDark) 0.38f else 0.28f)
+                                    animatedAccent.copy(alpha = if (isDynamicActive) 0.72f else 0.30f)
                                 ),
                                 RoundedCornerShape(23.dp)
                             )
