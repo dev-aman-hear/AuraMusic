@@ -934,7 +934,11 @@ private fun FeaturedExploreCard(
                     .size(54.dp)
                     .clip(CircleShape)
                     .background(Color.Transparent, CircleShape)
-                    .border(1.dp, Color.White.copy(alpha = 0.82f), CircleShape)
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.82f),
+                        CircleShape
+                    )
                     .clickable(onClick = onClick),
                 contentAlignment = Alignment.Center
             ) {
