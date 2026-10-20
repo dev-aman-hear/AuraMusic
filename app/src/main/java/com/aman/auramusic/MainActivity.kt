@@ -862,7 +862,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onKaraokeChange = { musicViewModel.setKaraokeMode(it) },
                                     onLyricFontScaleChange = { musicViewModel.setLyricFontScale(it) },
                                     onSmartAudioFocusChange = { musicViewModel.setSmartAudioFocus(it) },
-                                    onKeepPlayingOnCloseChange = { musicViewModel.setKeepPlayingOnClose(it) },
                                     onPlaylistGridColumnsChange = { musicViewModel.setPlaylistGridColumns(it) },
                                     onImportPlaylistFile = {
                                         importFileLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*"))
