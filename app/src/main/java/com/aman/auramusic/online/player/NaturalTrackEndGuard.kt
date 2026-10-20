@@ -7,6 +7,7 @@ package com.aman.auramusic.online.player
 internal object NaturalTrackEndGuard {
     private const val END_EVENT_DEBOUNCE_MS = 500L
     private const val MIN_TRACK_DURATION_FOR_PREMATURE_CHECK_MS = 20_000L
+    private const val VERY_EARLY_POSITION_MS = 15_000L
     private const val MIN_COMPLETION_FRACTION = 0.85
 
     fun shouldHandle(
@@ -19,6 +20,7 @@ internal object NaturalTrackEndGuard {
 
         if (
             durationMs > MIN_TRACK_DURATION_FOR_PREMATURE_CHECK_MS &&
+            positionMs < VERY_EARLY_POSITION_MS &&
             positionMs < (durationMs * MIN_COMPLETION_FRACTION).toLong()
         ) {
             return false
