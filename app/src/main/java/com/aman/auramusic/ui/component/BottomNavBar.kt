@@ -504,10 +504,11 @@ fun BottomNavBar(
                     .clip(navShape)
                     .background(surfaceGlassColor, navShape)
                     .border(
-                        BorderStroke(
-                            1.dp,
-                            if (isDynamicActive) animatedAccent.copy(alpha = 0.78f) else surfaceBorderBrush
-                        ),
+                        if (isDynamicActive) {
+                            BorderStroke(1.dp, animatedAccent.copy(alpha = 0.78f))
+                        } else {
+                            BorderStroke(1.dp, surfaceBorderBrush)
+                        },
                         navShape
                     )
                     .padding(4.dp)
@@ -824,7 +825,11 @@ fun BottomNavBar(
                     .clip(navShape)
                     .background(surfaceGlassColor, navShape)
                     .border(
-                        BorderStroke(1.dp, if (isSearchSelected && isDynamicActive) animatedAccent.copy(alpha = 0.78f) else surfaceBorderBrush),
+                        if (isSearchSelected && isDynamicActive) {
+                            BorderStroke(1.dp, animatedAccent.copy(alpha = 0.78f))
+                        } else {
+                            BorderStroke(1.dp, surfaceBorderBrush)
+                        },
                         navShape
                     )
                     .clickable(
