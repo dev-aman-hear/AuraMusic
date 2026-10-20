@@ -642,38 +642,63 @@ class PlayerViewModel @Inject constructor(
             playbackService?.cancelSleepTimer()
             return
         }
+
         if (minutes == -1) {
-            // -1 represents the existing "end of current track" option.
+            // PlaybackService pauses the active engine at this track's natural end.
             sleepTimerRemaining = -1L
-            playbackService?.cancelSleepTimer()
+            val service = playbackService
+            if (service != null) {
+                service.startSleepTimer(-1)
+            } else {
+                viewModelScope.launch {
+                    repeat(50) {
+                        val connectedService = playbackService
+                        if (isServiceBound && connectedService != null) {
+                            connectedService.startSleepTimer(-1)
+                            return@launch
+                        }
+                        delay(100)
+                    }
+                    if (playbackService == null) sleepTimerRemaining = 0L
+                }
+            }
             return
         }
+
         if (minutes < 1) {
             sleepTimerRemaining = 0L
             playbackService?.cancelSleepTimer()
             return
         }
 
-        sleepTimerRemaining = minutes * 60_000L
-        // The service owns the actual timer so Activity/ViewModel teardown cannot cancel it.
-        playbackService?.startSleepTimer(minutes)
+        val durationMs = minutes * 60_000L
+        sleepTimerRemaining = durationMs
+        val service = playbackService
+        if (service != null) {
+            service.startSleepTimer(minutes)
+        } else {
+            // Avoid a ViewModel-only timer if the service binding is still completing.
+            viewModelScope.launch {
+                repeat(50) {
+                    val connectedService = playbackService
+                    if (isServiceBound && connectedService != null) {
+                        connectedService.startSleepTimer(minutes)
+                        return@launch
+                    }
+                    delay(100)
+                }
+                if (playbackService == null) sleepTimerRemaining = 0L
+            }
+        }
+
+        // Display countdown only; PlaybackService exclusively owns expiry and pausing.
         sleepTimerJob = viewModelScope.launch {
-            val deadline = android.os.SystemClock.elapsedRealtime() + minutes * 60_000L
+            val deadline = android.os.SystemClock.elapsedRealtime() + durationMs
             while (true) {
-                kotlinx.coroutines.delay(1000L)
+                delay(1000L)
                 val remaining = (deadline - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(0L)
                 sleepTimerRemaining = remaining
                 if (remaining == 0L) break
-            }
-
-            // Normally PlaybackService owns expiry so the timer survives task dismissal.
-            // If the service disconnected unexpectedly, still pause whichever engine is active.
-            if (playbackService == null) {
-                if (isOnlinePlaying) {
-                    PlaybackActionRegistry.onPlayPause?.invoke()
-                } else if (isPlaying) {
-                    pause()
-                }
             }
             sleepTimerJob = null
         }
