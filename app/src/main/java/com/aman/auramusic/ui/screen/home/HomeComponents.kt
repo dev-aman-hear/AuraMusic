@@ -697,9 +697,6 @@ fun ArtistDetailSheet(
     onSelectSimilarArtist: ((ArtistItem) -> Unit)? = null,
     appSettings: AppSettings = AppSettings()
 ) {
-    val pageBackground = MaterialTheme.colorScheme.background
-    val titleColor = MaterialTheme.colorScheme.onBackground
-    val secondaryColor = MaterialTheme.colorScheme.onSurfaceVariant
     val realAlbums = remember(localSongs) {
         localSongs.filter { it.album.isNotBlank() && !it.album.equals("unknown", true) }
             .groupBy { it.album.trim() }
@@ -715,6 +712,12 @@ fun ArtistDetailSheet(
         artworkModel = artist.artworkModel,
         appSettings = appSettings
     ) {
+        // Read colors inside the area-specific theme so the hero gradient follows
+        // the artwork-derived palette instead of retaining the root black/white theme.
+        val pageBackground = MaterialTheme.colorScheme.background
+        val titleColor = MaterialTheme.colorScheme.onBackground
+        val secondaryColor = MaterialTheme.colorScheme.onSurfaceVariant
+
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
