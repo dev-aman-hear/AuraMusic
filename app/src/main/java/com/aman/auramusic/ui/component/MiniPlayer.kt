@@ -28,7 +28,17 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import com.aman.auramusic.ui.theme.DynamicArtworkColorsHelper
+import com.aman.auramusic.ui.theme.LocalIsDark
+import com.aman.auramusic.ui.theme.PlayerArtworkPalette
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -39,7 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color\nimport androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
 
@@ -56,6 +66,16 @@ fun MiniPlayer(
     compact: Boolean = false,
 ) {
     val progress = if (duration > 0) position.toFloat() / duration.toFloat() else 0f
+    val context = LocalContext.current
+    val isDark = LocalIsDark.current
+    var mediaBorderColor by remember(song.id, song.artworkUri, song.uri, isDark) {
+        mutableStateOf<Color?>(null)
+    }
+    LaunchedEffect(song.id, song.artworkUri, song.uri, isDark) {
+        mediaBorderColor = runCatching {
+            DynamicArtworkColorsHelper.extractPalette(context, song, isDark).accent
+        }.getOrNull()
+    }
     var dragX by remember { mutableFloatStateOf(0f) }
     var dragY by remember { mutableFloatStateOf(0f) }
     val pillShape = RoundedCornerShape(27.dp)
@@ -93,7 +113,7 @@ fun MiniPlayer(
             }
             .clip(pillShape)
             .background(MaterialTheme.colorScheme.surface, pillShape)
-            .border(androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline), pillShape)
+            .border(androidx.compose.foundation.BorderStroke(1.dp, mediaBorderColor ?: MaterialTheme.colorScheme.outline), pillShape)
             .clickable(onClick = onOpen)
     ) {
         Row(
