@@ -35,27 +35,25 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         prefs[Keys.username] ?: "Master"
     }.distinctUntilChanged()
 
-    private fun isMasterThemeEnabled(prefs: Preferences): Boolean {
-        val explicit = prefs[Keys.changeThemeEnabled]
-        if (explicit != null) return explicit
+    private fun isLegacyFullAppThemeEnabled(prefs: Preferences): Boolean =
+        prefs[Keys.enableFullAppDynamicTheme] ?: false
 
-        val legacyFullApp = prefs[Keys.enableFullAppDynamicTheme] ?: false
-        val legacyPlayerColored = (prefs[Keys.dynamicArtworkColors] ?: false) ||
+    private fun isLegacyPlayerThemeColored(prefs: Preferences): Boolean =
+        (prefs[Keys.dynamicArtworkColors] ?: false) ||
             prefs[Keys.playerThemeMode]?.equals("Dynamic Artwork", ignoreCase = true) == true ||
             prefs[Keys.playerThemeMode]?.equals("Custom", ignoreCase = true) == true ||
-            (prefs[Keys.colorPreset] != null && !prefs[Keys.colorPreset].equals("Monochrome", ignoreCase = true))
+            (prefs[Keys.colorPreset] != null &&
+                !prefs[Keys.colorPreset].equals("Monochrome", ignoreCase = true))
 
-        return legacyFullApp || legacyPlayerColored
+    private fun isMasterThemeEnabled(prefs: Preferences): Boolean {
+        prefs[Keys.changeThemeEnabled]?.let { return it }
+        return isLegacyFullAppThemeEnabled(prefs) || isLegacyPlayerThemeColored(prefs)
     }
 
     val settingsFlow: Flow<AppSettings> = dataStore.data.map { prefs ->
         val masterEnabled = isMasterThemeEnabled(prefs)
-
-        val legacyFullApp = prefs[Keys.enableFullAppDynamicTheme] ?: false
-        val legacyPlayerColored = (prefs[Keys.dynamicArtworkColors] ?: false) ||
-            prefs[Keys.playerThemeMode]?.equals("Dynamic Artwork", ignoreCase = true) == true ||
-            prefs[Keys.playerThemeMode]?.equals("Custom", ignoreCase = true) == true ||
-            (prefs[Keys.colorPreset] != null && !prefs[Keys.colorPreset].equals("Monochrome", ignoreCase = true))
+        val legacyFullApp = isLegacyFullAppThemeEnabled(prefs)
+        val legacyPlayerColored = isLegacyPlayerThemeColored(prefs)
 
         val scope = prefs[Keys.themeScope] ?: if (legacyFullApp) "Entire App" else if (legacyPlayerColored) "Player Only" else "Entire App"
 
