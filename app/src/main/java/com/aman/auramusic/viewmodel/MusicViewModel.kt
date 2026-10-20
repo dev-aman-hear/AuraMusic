@@ -301,11 +301,6 @@ class MusicViewModel @Inject constructor(
         }
     }
 
-    fun setKeepPlayingOnClose(enabled: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
-            userRepository.setKeepPlayingOnClose(enabled)
-        }
-    }
 
     sealed interface OperationMessage {
         data class Success(val message: String) : OperationMessage
