@@ -206,7 +206,7 @@ fun BottomNavBar(
             // 1. Home Button (54.dp circular glass button)
             val isHomeSelected = selectedTab == AppTab.Home
             val homeTint by animateColorAsState(
-                targetValue = if (isHomeSelected) animatedAccent else unselectedNavTint,
+                targetValue = if (isHomeSelected) monochromeAccent else unselectedNavTint,
                 animationSpec = tween(220),
                 label = "compactHomeTint"
             )
@@ -264,13 +264,13 @@ fun BottomNavBar(
                                 alpha = homePillAlpha
                             }
                             .background(
-                                animatedAccent.copy(alpha = if (isDark) 0.16f else 0.12f),
+                                monochromeAccent.copy(alpha = if (isDark) 0.10f else 0.06f),
                                 RoundedCornerShape(23.dp)
                             )
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    animatedAccent.copy(alpha = if (isDark) 0.30f else 0.20f)
+                                    monochromeAccent.copy(alpha = if (isDark) 0.22f else 0.14f)
                                 ),
                                 RoundedCornerShape(23.dp)
                             )
@@ -337,7 +337,7 @@ fun BottomNavBar(
             // 3. Search Button (54.dp circular glass button)
             val isSearchSelected = selectedTab == AppTab.Search
             val searchTint by animateColorAsState(
-                targetValue = if (isSearchSelected) animatedAccent else unselectedNavTint,
+                targetValue = if (isSearchSelected) monochromeAccent else unselectedNavTint,
                 animationSpec = tween(220),
                 label = "compactSearchTint"
             )
@@ -395,13 +395,13 @@ fun BottomNavBar(
                                 alpha = searchPillAlpha
                             }
                             .background(
-                                animatedAccent.copy(alpha = if (isDark) 0.16f else 0.12f),
+                                monochromeAccent.copy(alpha = if (isDark) 0.10f else 0.06f),
                                 RoundedCornerShape(23.dp)
                             )
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    animatedAccent.copy(alpha = if (isDark) 0.30f else 0.20f)
+                                    monochromeAccent.copy(alpha = if (isDark) 0.22f else 0.14f)
                                 ),
                                 RoundedCornerShape(23.dp)
                             )
@@ -786,7 +786,7 @@ fun BottomNavBar(
                 label = "searchScale"
             )
             val searchTint by animateColorAsState(
-                targetValue = if (isSearchSelected) animatedAccent else unselectedNavTint,
+                targetValue = if (isSearchSelected) monochromeAccent else unselectedNavTint,
                 animationSpec = tween(220),
                 label = "searchTint"
             )
@@ -836,13 +836,13 @@ fun BottomNavBar(
                                 alpha = searchPillAlpha
                             }
                             .background(
-                                animatedAccent.copy(alpha = if (isDark) 0.16f else 0.12f),
+                                monochromeAccent.copy(alpha = if (isDark) 0.10f else 0.06f),
                                 RoundedCornerShape(23.dp)
                             )
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    animatedAccent.copy(alpha = if (isDark) 0.30f else 0.20f)
+                                    monochromeAccent.copy(alpha = if (isDark) 0.22f else 0.14f)
                                 ),
                                 RoundedCornerShape(23.dp)
                             )
