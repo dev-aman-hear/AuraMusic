@@ -244,10 +244,11 @@ fun BottomNavBar(
                     .clip(navShape)
                     .background(surfaceGlassColor, navShape)
                     .border(
-                        BorderStroke(
-                            1.dp,
-                            if (isHomeSelected) animatedAccent.copy(alpha = 0.72f) else surfaceBorderBrush
-                        ),
+                        if (isHomeSelected) {
+                            BorderStroke(1.dp, animatedAccent.copy(alpha = 0.72f))
+                        } else {
+                            BorderStroke(1.dp, surfaceBorderBrush)
+                        },
                         navShape
                     )
                     .clickable(
@@ -381,10 +382,11 @@ fun BottomNavBar(
                     .clip(navShape)
                     .background(surfaceGlassColor, navShape)
                     .border(
-                        BorderStroke(
-                            1.dp,
-                            if (isSearchSelected) animatedAccent.copy(alpha = 0.72f) else surfaceBorderBrush
-                        ),
+                        if (isSearchSelected) {
+                            BorderStroke(1.dp, animatedAccent.copy(alpha = 0.72f))
+                        } else {
+                            BorderStroke(1.dp, surfaceBorderBrush)
+                        },
                         navShape
                     )
                     .clickable(
