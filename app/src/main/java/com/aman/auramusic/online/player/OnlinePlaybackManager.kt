@@ -55,6 +55,8 @@ class OnlinePlaybackManager(
 
     interface PlaybackEventListener {
         fun onSongChanged(song: OnlineSong) {}
+        /** Return true to consume natural completion and prevent queue advancement. */
+        fun onSongEnded(song: OnlineSong): Boolean = false
         fun onPlaybackStateChanged(song: OnlineSong, isPlaying: Boolean, positionMs: Long) {}
         fun onProgressUpdate(song: OnlineSong, positionMs: Long, durationMs: Long = 0L) {}
         fun onSeek(song: OnlineSong, positionMs: Long) {}
@@ -703,6 +705,18 @@ class OnlinePlaybackManager(
     }
 
     private fun handleSongEnded() {
+        val endedSong = _playbackState.value.currentSong
+        if (endedSong != null) {
+            val consumed = (eventListener?.let { listener ->
+                runCatching { listener.onSongEnded(endedSong) }.getOrDefault(false)
+            } == true) || listeners.any { listener ->
+                runCatching { listener.onSongEnded(endedSong) }.getOrDefault(false)
+            }
+            if (consumed) {
+                Log.d("AuraPlaybackDebug", "Natural end consumed by sleep timer")
+                return
+            }
+        }
         val now = System.currentTimeMillis()
         if (now - lastEndHandledTimeMs < 500L) {
             Log.d("AuraPlaybackDebug", "handleSongEnded debounced duplicate trigger within 500ms")
