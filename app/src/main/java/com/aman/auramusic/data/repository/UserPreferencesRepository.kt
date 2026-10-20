@@ -78,7 +78,6 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             gaplessEnabled = prefs[Keys.gaplessEnabled] ?: true,
             skipSilence = prefs[Keys.skipSilence] ?: false,
             smartAudioFocus = prefs[Keys.smartAudioFocus] ?: true,
-            keepPlayingOnClose = prefs[Keys.keepPlayingOnClose] ?: true,
             playlistGridColumns = prefs[Keys.playlistGridColumns] ?: 2,
             dynamicArtworkColors = masterEnabled && style.equals("Dynamic Artwork", ignoreCase = true),
             colorPreset = preset,
@@ -165,13 +164,6 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it[Keys.smartAudioFocus] = enabled }
     }
 
-    suspend fun setKeepPlayingOnClose(enabled: Boolean) {
-        dataStore.edit { it[Keys.keepPlayingOnClose] = enabled }
-    }
-
-    suspend fun getKeepPlayingOnClose(): Boolean {
-        return settingsFlow.first().keepPlayingOnClose
-    }
 
     suspend fun setPlaylistGridColumns(columns: Int) {
         dataStore.edit { it[Keys.playlistGridColumns] = columns.coerceIn(1, 2) }
@@ -623,7 +615,6 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             val gaplessEnabled = booleanPreferencesKey("gapless_enabled")
             val skipSilence = booleanPreferencesKey("skip_silence")
             val smartAudioFocus = booleanPreferencesKey("smart_audio_focus")
-            val keepPlayingOnClose = booleanPreferencesKey("keep_playing_on_close")
             val playlistGridColumns = intPreferencesKey("playlist_grid_columns")
             val dynamicArtworkColors = booleanPreferencesKey("dynamic_artwork_colors")
             val colorPreset = stringPreferencesKey("color_preset")
