@@ -590,13 +590,25 @@ object DynamicArtworkColorsHelper {
         }
 
         // 6. Select ACCENT (controlled highlight color for progress, selected queue, and important playback controls)
-        val accentCandidate = candidates.maxByOrNull { rgb ->
+        // Prefer a colour genuinely represented in this artwork instead of simply choosing
+        // the most saturated swatch (which can make unrelated tracks look orange).
+        val accentCandidate = dominantRgb?.takeIf { dominant ->
+            val hsl = ColorHarmonizer.rgbToHsl(dominant)
+            hsl[1] >= 0.18f && hsl[2] in 0.12f..0.88f
+        } ?: candidates.maxByOrNull { rgb ->
             val hsl = ColorHarmonizer.rgbToHsl(rgb)
-            val s = hsl[1]
-            val l = hsl[2]
-            val satScore = s
-            val lScore = if (isDark) (1f - kotlin.math.abs(l - 0.55f)) else (1f - kotlin.math.abs(l - 0.45f))
-            satScore * 0.70f + lScore * 0.30f
+            val saturationScore = 1f - kotlin.math.abs(hsl[1] - 0.52f)
+            val lightnessTarget = if (isDark) 0.58f else 0.42f
+            val lightnessScore = 1f - kotlin.math.abs(hsl[2] - lightnessTarget)
+            val dominantHueBonus = if (dominantRgb != null) {
+                val dominantHsl = ColorHarmonizer.rgbToHsl(dominantRgb)
+                val hueDifference = minOf(
+                    kotlin.math.abs(hsl[0] - dominantHsl[0]),
+                    360f - kotlin.math.abs(hsl[0] - dominantHsl[0])
+                )
+                1f - (hueDifference / 180f)
+            } else 0f
+            saturationScore * 0.25f + lightnessScore * 0.20f + dominantHueBonus * 0.55f
         } ?: primaryInt
 
         // 7. Harmonize luminance, saturation, and contrast for theme roles
