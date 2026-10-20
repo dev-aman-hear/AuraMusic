@@ -86,7 +86,6 @@ fun SettingsScreen(
     onKaraokeChange: (Boolean) -> Unit = {},
     onLyricFontScaleChange: (Float) -> Unit,
     onSmartAudioFocusChange: (Boolean) -> Unit,
-    onKeepPlayingOnCloseChange: (Boolean) -> Unit,
     onPlaylistGridColumnsChange: (Int) -> Unit,
     onImportPlaylistFile: () -> Unit,
     onExportAllSongs: () -> Unit,
@@ -653,7 +652,6 @@ fun SettingsScreen(
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("Playback", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     ToggleRow(title = "Smart audio focus", checked = appSettings.smartAudioFocus, onCheckedChange = onSmartAudioFocusChange)
-                    ToggleRow(title = "Keep playing on app close", checked = appSettings.keepPlayingOnClose, onCheckedChange = onKeepPlayingOnCloseChange)
                 }
             }
         }
