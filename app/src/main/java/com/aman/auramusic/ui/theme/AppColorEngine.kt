@@ -27,7 +27,10 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.aman.auramusic.data.model.AppSettings
+import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.util.ArtworkQualityOptimizer
+import com.aman.auramusic.util.ArtworkExtractor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Collections
@@ -384,6 +387,8 @@ object AppColorEngine {
     fun buildArtworkKey(model: Any?): String {
         return when (model) {
             null -> ""
+            is Song -> model.artworkUri?.takeIf { it.isNotBlank() } ?: model.uri.trim()
+            is OnlineSong -> model.artworkUrl.takeIf { it.isNotBlank() } ?: "online_song_${model.id}"
             is String -> model.trim()
             is Uri -> model.toString()
             is Number -> "content_id_$model"
@@ -423,6 +428,29 @@ object AppColorEngine {
     }
 
     private suspend fun decodeThumbnail(context: Context, model: Any?): Bitmap? {
+        // Accept the models passed by screens directly. Previously Song.toString() was treated
+        // as a URI, so dynamic app theming silently fell back to the selected preset.
+        when (model) {
+            is Song -> {
+                val artworkUri = model.artworkUri?.takeIf { it.isNotBlank() }
+                if (artworkUri != null) {
+                    decodeThumbnail(context, artworkUri)?.let { return it }
+                }
+                return ArtworkExtractor.getArtwork(context, model.uri)?.let { bitmap ->
+                    Bitmap.createScaledBitmap(
+                        bitmap,
+                        bitmap.width.coerceAtMost(THUMBNAIL_SIZE).coerceAtLeast(1),
+                        bitmap.height.coerceAtMost(THUMBNAIL_SIZE).coerceAtLeast(1),
+                        true
+                    )
+                }
+            }
+            is OnlineSong -> {
+                val artworkUrl = model.artworkUrl.takeIf { it.isNotBlank() } ?: return null
+                return decodeThumbnail(context, artworkUrl)
+            }
+        }
+
         val modelStr = model?.toString()?.trim() ?: return null
 
         // 1. Online artwork HTTP/HTTPS
