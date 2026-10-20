@@ -17,7 +17,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -83,6 +82,7 @@ import com.aman.auramusic.ui.theme.CustomPaletteValidator
 import com.aman.auramusic.ui.theme.DarkMonochromeColors
 import com.aman.auramusic.ui.theme.DynamicArtworkColorsHelper
 import com.aman.auramusic.ui.theme.LightMonochromeColors
+import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.ui.theme.PlayerArtworkPalette
 import kotlin.math.abs
 
@@ -121,7 +121,8 @@ fun BottomNavBar(
     song: Song? = null,
     appSettings: AppSettings? = null
 ) {
-    val isDark = isSystemInDarkTheme()
+    // Follow AuraMusic's selected theme, not the device's independent system theme.
+    val isDark = LocalIsDark.current
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
