@@ -213,64 +213,26 @@ data class AppColorScheme(
          * Strictly uses solid colors with no transparency effects, blooms, or gradients.
          */
         fun fromPalette(palette: PlayerArtworkPalette, isDark: Boolean, isColored: Boolean): AppColorScheme {
-            if (!isColored) return monochrome(isDark)
+            val monochrome = monochrome(isDark)
+            if (!isColored) return monochrome
 
-            val p = palette.primary
-            val s = palette.secondary
-            val a = palette.accent
+            // Full-app dynamic colouring is outline-only: keep all surfaces, backgrounds,
+            // text and controls monochrome, and use artwork colour solely for borders.
+            val borderTint = ensureBorderContrast(palette.accent, isDark)
+            return monochrome.copy(
+                isColored = true,
+                border = blendColors(monochrome.border, borderTint, 0.42f)
+            )
+        }
 
-            return if (isDark) {
-                // Dark mode: Deep solid surfaces tinted with artwork/preset hues
-                // Blend with pure black to guarantee high contrast (WCAG AAA for text)
-                val bg = blendColors(Color(0xFF070709), p, 0.12f)
-                val surf = blendColors(Color(0xFF121216), p, 0.18f)
-                val secSurf = blendColors(Color(0xFF1B1B22), s, 0.22f)
-                val ctrlBg = blendColors(Color(0xFF24242E), a, 0.25f)
-                val borderCol = blendColors(Color(0xFF2C2C36), a, 0.30f)
-                val dividerCol = Color(0xFF1E1E26)
-
-                AppColorScheme(
-                    isColored = true,
-                    isDark = true,
-                    background = bg,
-                    surface = surf,
-                    secondarySurface = secSurf,
-                    primaryText = Color(0xFFFFFFFF),
-                    secondaryText = Color(0xFFB0B4C0),
-                    accent = a,
-                    selectedItem = a,
-                    border = borderCol,
-                    divider = dividerCol,
-                    controlBackground = ctrlBg,
-                    controlContent = Color(0xFFFFFFFF)
-                )
+        private fun ensureBorderContrast(color: Color, isDark: Boolean): Color {
+            val luminance = 0.299f * color.red + 0.587f * color.green + 0.114f * color.blue
+            return if (isDark && luminance > 0.88f) {
+                Color(0xFFB8B8B8)
+            } else if (!isDark && luminance < 0.12f) {
+                Color(0xFF777777)
             } else {
-                // Light mode: Clean, crisp solid surfaces tinted gently
-                val bg = blendColors(Color(0xFFF7F8FA), p, 0.08f)
-                val surf = Color(0xFFFFFFFF)
-                val secSurf = blendColors(Color(0xFFF0F2F6), s, 0.12f)
-                val ctrlBg = blendColors(Color(0xFFE7EAF0), a, 0.16f)
-                val borderCol = blendColors(Color(0xFFD6D9E2), a, 0.22f)
-                val dividerCol = Color(0xFFE6E8EF)
-
-                // Ensure accent has readable contrast against light surfaces
-                val readableAccent = ensureLightModeContrast(a)
-
-                AppColorScheme(
-                    isColored = true,
-                    isDark = false,
-                    background = bg,
-                    surface = surf,
-                    secondarySurface = secSurf,
-                    primaryText = Color(0xFF0F1218),
-                    secondaryText = Color(0xFF535866),
-                    accent = readableAccent,
-                    selectedItem = readableAccent,
-                    border = borderCol,
-                    divider = dividerCol,
-                    controlBackground = ctrlBg,
-                    controlContent = Color(0xFF0F1218)
-                )
+                color
             }
         }
 
