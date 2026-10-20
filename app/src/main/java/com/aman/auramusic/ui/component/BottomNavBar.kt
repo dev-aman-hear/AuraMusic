@@ -184,6 +184,13 @@ fun BottomNavBar(
 
     val ambientShadowColor = Color.Black.copy(alpha = if (isDark) 0.50f else 0.12f)
     val unselectedTint = if (isDark) Color.White.copy(alpha = 0.58f) else Color.Black.copy(alpha = 0.52f)
+    // Keep every navigation destination artwork-themed, even while it is not selected.
+    // Use a softer accent for inactive items so the selected destination remains obvious.
+    val unselectedNavTint = if (isDynamicActive) {
+        animatedAccent.copy(alpha = if (isDark) 0.78f else 0.72f)
+    } else {
+        unselectedTint
+    }
 
     if (compact) {
         Row(
@@ -203,7 +210,7 @@ fun BottomNavBar(
             // 1. Home Button (54.dp circular glass button)
             val isHomeSelected = selectedTab == AppTab.Home
             val homeTint by animateColorAsState(
-                targetValue = if (isHomeSelected) animatedAccent else unselectedTint,
+                targetValue = if (isHomeSelected) animatedAccent else unselectedNavTint,
                 animationSpec = tween(220),
                 label = "compactHomeTint"
             )
@@ -334,7 +341,7 @@ fun BottomNavBar(
             // 3. Search Button (54.dp circular glass button)
             val isSearchSelected = selectedTab == AppTab.Search
             val searchTint by animateColorAsState(
-                targetValue = if (isSearchSelected) animatedAccent else unselectedTint,
+                targetValue = if (isSearchSelected) animatedAccent else unselectedNavTint,
                 animationSpec = tween(220),
                 label = "compactSearchTint"
             )
@@ -707,7 +714,7 @@ fun BottomNavBar(
                     mainTabs.forEach { tab ->
                         val selected = activeTab == tab && isMainTabActive
                         val tabTint by animateColorAsState(
-                            targetValue = if (selected) animatedAccent else unselectedTint,
+                            targetValue = if (selected) animatedAccent else unselectedNavTint,
                             animationSpec = tween(220),
                             label = "tabTint_${tab.name}"
                         )
@@ -783,7 +790,7 @@ fun BottomNavBar(
                 label = "searchScale"
             )
             val searchTint by animateColorAsState(
-                targetValue = if (isSearchSelected) animatedAccent else unselectedTint,
+                targetValue = if (isSearchSelected) animatedAccent else unselectedNavTint,
                 animationSpec = tween(220),
                 label = "searchTint"
             )
