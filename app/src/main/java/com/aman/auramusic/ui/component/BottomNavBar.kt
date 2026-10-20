@@ -503,7 +503,13 @@ fun BottomNavBar(
                     )
                     .clip(navShape)
                     .background(surfaceGlassColor, navShape)
-                    .border(BorderStroke(1.dp, surfaceBorderBrush), navShape)
+                    .border(
+                        BorderStroke(
+                            1.dp,
+                            if (isDynamicActive) animatedAccent.copy(alpha = 0.78f) else surfaceBorderBrush
+                        ),
+                        navShape
+                    )
                     .padding(4.dp)
                     .onGloballyPositioned { coords ->
                         parentCoordinates = coords
@@ -657,32 +663,20 @@ fun BottomNavBar(
                     )
 
                     // Animated Traveling Liquid Glass Pill
+                    // Keep the active pill monochrome; use the resolved theme accent on its outline.
                     val pillBackgroundBrush = Brush.verticalGradient(
                         colors = if (isDark) {
-                            listOf(
-                                animatedAccent.copy(alpha = if (isDragging) 0.26f else 0.18f),
-                                animatedAccent.copy(alpha = if (isDragging) 0.14f else 0.08f)
-                            )
+                            listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.025f))
                         } else {
-                            listOf(
-                                animatedAccent.copy(alpha = if (isDragging) 0.20f else 0.14f),
-                                animatedAccent.copy(alpha = if (isDragging) 0.08f else 0.04f)
-                            )
+                            listOf(Color.Black.copy(alpha = 0.045f), Color.Black.copy(alpha = 0.015f))
                         }
                     )
 
                     val pillBorderBrush = Brush.verticalGradient(
-                        colors = if (isDark) {
-                            listOf(
-                                Color.White.copy(alpha = if (isDragging) 0.60f else 0.45f),
-                                animatedAccent.copy(alpha = if (isDragging) 0.40f else 0.25f)
-                            )
-                        } else {
-                            listOf(
-                                animatedAccent.copy(alpha = if (isDragging) 0.65f else 0.50f),
-                                animatedAccent.copy(alpha = if (isDragging) 0.30f else 0.15f)
-                            )
-                        }
+                        colors = listOf(
+                            animatedAccent.copy(alpha = if (isDragging) 0.95f else 0.82f),
+                            animatedAccent.copy(alpha = if (isDragging) 0.68f else 0.58f)
+                        )
                     )
 
                     Box(
@@ -829,7 +823,10 @@ fun BottomNavBar(
                     )
                     .clip(navShape)
                     .background(surfaceGlassColor, navShape)
-                    .border(BorderStroke(1.dp, surfaceBorderBrush), navShape)
+                    .border(
+                        BorderStroke(1.dp, if (isSearchSelected && isDynamicActive) animatedAccent.copy(alpha = 0.78f) else surfaceBorderBrush),
+                        navShape
+                    )
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
