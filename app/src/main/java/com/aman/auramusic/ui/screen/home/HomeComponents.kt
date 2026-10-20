@@ -628,7 +628,9 @@ fun ArtistSquareCard(
                 .clip(CircleShape)
                 .border(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
+                    // Use the active screen theme's border token: monochrome when
+                    // theming is disabled, artwork/preset/custom accent when enabled.
+                    color = MaterialTheme.colorScheme.outline,
                     shape = CircleShape
                 )
                 .background(MaterialTheme.colorScheme.surfaceVariant),
