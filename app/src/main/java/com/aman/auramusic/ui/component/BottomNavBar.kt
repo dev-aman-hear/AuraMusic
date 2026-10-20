@@ -206,7 +206,7 @@ fun BottomNavBar(
             // 1. Home Button (54.dp circular glass button)
             val isHomeSelected = selectedTab == AppTab.Home
             val homeTint by animateColorAsState(
-                targetValue = if (isHomeSelected) monochromeAccent else unselectedNavTint,
+                targetValue = if (isHomeSelected) animatedAccent else unselectedNavTint,
                 animationSpec = tween(220),
                 label = "compactHomeTint"
             )
@@ -243,7 +243,13 @@ fun BottomNavBar(
                     )
                     .clip(navShape)
                     .background(surfaceGlassColor, navShape)
-                    .border(BorderStroke(1.dp, surfaceBorderBrush), navShape)
+                    .border(
+                        BorderStroke(
+                            1.dp,
+                            if (isHomeSelected) animatedAccent.copy(alpha = 0.72f) else surfaceBorderBrush
+                        ),
+                        navShape
+                    )
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -264,13 +270,13 @@ fun BottomNavBar(
                                 alpha = homePillAlpha
                             }
                             .background(
-                                monochromeAccent.copy(alpha = if (isDark) 0.10f else 0.06f),
+                                animatedAccent.copy(alpha = if (isDark) 0.10f else 0.06f),
                                 RoundedCornerShape(23.dp)
                             )
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    monochromeAccent.copy(alpha = if (isDark) 0.22f else 0.14f)
+                                    animatedAccent.copy(alpha = if (isDark) 0.38f else 0.28f)
                                 ),
                                 RoundedCornerShape(23.dp)
                             )
@@ -337,7 +343,7 @@ fun BottomNavBar(
             // 3. Search Button (54.dp circular glass button)
             val isSearchSelected = selectedTab == AppTab.Search
             val searchTint by animateColorAsState(
-                targetValue = if (isSearchSelected) monochromeAccent else unselectedNavTint,
+                targetValue = if (isSearchSelected) animatedAccent else unselectedNavTint,
                 animationSpec = tween(220),
                 label = "compactSearchTint"
             )
@@ -374,7 +380,13 @@ fun BottomNavBar(
                     )
                     .clip(navShape)
                     .background(surfaceGlassColor, navShape)
-                    .border(BorderStroke(1.dp, surfaceBorderBrush), navShape)
+                    .border(
+                        BorderStroke(
+                            1.dp,
+                            if (isSearchSelected) animatedAccent.copy(alpha = 0.72f) else surfaceBorderBrush
+                        ),
+                        navShape
+                    )
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -395,13 +407,13 @@ fun BottomNavBar(
                                 alpha = searchPillAlpha
                             }
                             .background(
-                                monochromeAccent.copy(alpha = if (isDark) 0.10f else 0.06f),
+                                animatedAccent.copy(alpha = if (isDark) 0.10f else 0.06f),
                                 RoundedCornerShape(23.dp)
                             )
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    monochromeAccent.copy(alpha = if (isDark) 0.22f else 0.14f)
+                                    animatedAccent.copy(alpha = if (isDark) 0.38f else 0.28f)
                                 ),
                                 RoundedCornerShape(23.dp)
                             )
@@ -786,7 +798,7 @@ fun BottomNavBar(
                 label = "searchScale"
             )
             val searchTint by animateColorAsState(
-                targetValue = if (isSearchSelected) monochromeAccent else unselectedNavTint,
+                targetValue = if (isSearchSelected) animatedAccent else unselectedNavTint,
                 animationSpec = tween(220),
                 label = "searchTint"
             )
@@ -836,13 +848,13 @@ fun BottomNavBar(
                                 alpha = searchPillAlpha
                             }
                             .background(
-                                monochromeAccent.copy(alpha = if (isDark) 0.10f else 0.06f),
+                                animatedAccent.copy(alpha = if (isDark) 0.10f else 0.06f),
                                 RoundedCornerShape(23.dp)
                             )
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    monochromeAccent.copy(alpha = if (isDark) 0.22f else 0.14f)
+                                    animatedAccent.copy(alpha = if (isDark) 0.38f else 0.28f)
                                 ),
                                 RoundedCornerShape(23.dp)
                             )
