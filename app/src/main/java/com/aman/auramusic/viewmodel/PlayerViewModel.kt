@@ -635,24 +635,37 @@ class PlayerViewModel @Inject constructor(
 
     fun setSleepTimer(minutes: Int) {
         sleepTimerJob?.cancel()
+        sleepTimerJob = null
+
         if (minutes == 0) {
             sleepTimerRemaining = 0L
+            playbackService?.cancelSleepTimer()
             return
         }
         if (minutes == -1) {
+            // -1 represents the existing "end of current track" option.
             sleepTimerRemaining = -1L
+            playbackService?.cancelSleepTimer()
             return
         }
-        sleepTimerRemaining = minutes * 60 * 1000L
-        sleepTimerJob = viewModelScope.launch {
-            while (sleepTimerRemaining > 0) {
-                kotlinx.coroutines.delay(1000)
-                sleepTimerRemaining -= 1000
-            }
-            if (isPlaying) {
-                togglePlayPause()
-            }
+        if (minutes < 1) {
             sleepTimerRemaining = 0L
+            playbackService?.cancelSleepTimer()
+            return
+        }
+
+        sleepTimerRemaining = minutes * 60_000L
+        // The service owns the actual timer so Activity/ViewModel teardown cannot cancel it.
+        playbackService?.startSleepTimer(minutes)
+        sleepTimerJob = viewModelScope.launch {
+            val deadline = android.os.SystemClock.elapsedRealtime() + minutes * 60_000L
+            while (true) {
+                kotlinx.coroutines.delay(1000L)
+                val remaining = (deadline - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+                sleepTimerRemaining = remaining
+                if (remaining == 0L) break
+            }
+            sleepTimerJob = null
         }
     }
 
@@ -689,14 +702,5 @@ class PlayerViewModel @Inject constructor(
         playerManager = null
         notificationManager = null
 
-        if (!appSettings.keepPlayingOnClose) {
-            val intent = Intent(getApplication(), PlaybackService::class.java)
-            getApplication<Application>().stopService(intent)
-
-            PlaybackActionRegistry.onPlayPause = null
-            PlaybackActionRegistry.onNext = null
-            PlaybackActionRegistry.onPrevious = null
-            PlaybackActionRegistry.onFavorite = null
-        }
     }
 }
