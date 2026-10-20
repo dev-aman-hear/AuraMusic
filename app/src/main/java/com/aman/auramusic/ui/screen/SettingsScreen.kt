@@ -316,15 +316,8 @@ fun SettingsScreen(
                                         verticalArrangement = Arrangement.spacedBy(14.dp),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        // 3a. Compact Live Theme Preview
-                                        ThemeLivePreview(
-                                            isDark = LocalIsDark.current,
-                                            scope = appSettings.themeScope,
-                                            style = appSettings.themeColorStyle,
-                                            preset = appSettings.appColorPreset,
-                                            customHexes = appSettings.appCustomPaletteHexes
-                                        )
 
+                                        // Theme options start directly with the configuration controls.
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
                                         // 3b. Theme Scope Selector
