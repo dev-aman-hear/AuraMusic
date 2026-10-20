@@ -297,28 +297,36 @@ fun AuraPlayButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     size: Dp = 36.dp,
-    iconSize: Dp = (size.value * 0.52f).dp
+    iconSize: Dp = (size.value * 0.52f).dp,
+    glassStyle: Boolean = false
 ) {
+    val isDark = LocalIsDark.current
+    val buttonBackground = if (glassStyle) {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = AuraActionButtons.BackgroundAlpha)
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    val buttonBorder = if (glassStyle) {
+        MaterialTheme.colorScheme.outline.copy(alpha = AuraActionButtons.BorderAlpha)
+    } else {
+        MaterialTheme.colorScheme.outline
+    }
+    val iconTint = if (glassStyle) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary
+
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary, CircleShape)
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline,
-                shape = CircleShape
-            )
+            .background(buttonBackground, CircleShape)
+            .border(width = 1.dp, color = buttonBorder, shape = CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = Icons.Default.PlayArrow,
             contentDescription = "Play",
-            tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier
-                .size(iconSize)
-                .offset(x = 1.dp)
+            tint = iconTint,
+            modifier = Modifier.size(iconSize).offset(x = 1.dp)
         )
     }
 }
@@ -814,7 +822,8 @@ fun ArtistDetailSheet(
                         AuraPlayButton(
                             onClick = onPlayAll,
                             size = 54.dp,
-                            iconSize = 28.dp
+                            iconSize = 28.dp,
+                            glassStyle = true
                         )
                     }
                 }
