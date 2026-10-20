@@ -73,6 +73,7 @@ class PlaybackService : Service() {
 
     private var isTaskRemoved = false
     private var sleepTimerJob: Job? = null
+    @Volatile private var sleepAtTrackEnd = false
 
     var isOnlinePlaybackActive: Boolean = false
         private set
@@ -155,6 +156,14 @@ class PlaybackService : Service() {
     }
 
     private val onlinePlayerListener = object : OnlinePlaybackManager.PlaybackEventListener {
+        override fun onSongEnded(song: OnlineSong): Boolean {
+            if (!sleepAtTrackEnd) return false
+            sleepAtTrackEnd = false
+            cancelSleepTimer()
+            pausePlaybackForSleepTimer()
+            return true
+        }
+
         override fun onSongChanged(song: OnlineSong) {
             Log.d("AuraPlaybackDebug", "PlaybackService onlinePlayerListener.onSongChanged: ${song.title}")
             isOnlinePlaybackActive = true
@@ -329,6 +338,12 @@ class PlaybackService : Service() {
     private var lastEndHandledTimeMs: Long = 0L
 
     private fun handlePlaybackEnd() {
+        if (sleepAtTrackEnd) {
+            sleepAtTrackEnd = false
+            cancelSleepTimer()
+            pausePlaybackForSleepTimer()
+            return
+        }
         val now = System.currentTimeMillis()
         if (now - lastEndHandledTimeMs < 500) {
             Log.d("AuraPlaybackDebug", "handlePlaybackEnd debounced duplicate trigger within 500ms")
@@ -522,7 +537,16 @@ class PlaybackService : Service() {
 
     fun startSleepTimer(minutes: Int) {
         sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        sleepAtTrackEnd = false
+
+        if (minutes == -1) {
+            // Consume natural completion before the queue can advance to another track.
+            sleepAtTrackEnd = true
+            return
+        }
         if (minutes <= 0) return
+
         sleepTimerJob = serviceScope.launch {
             kotlinx.coroutines.delay(minutes * 60_000L)
             pausePlaybackForSleepTimer()
@@ -533,17 +557,23 @@ class PlaybackService : Service() {
     fun cancelSleepTimer() {
         sleepTimerJob?.cancel()
         sleepTimerJob = null
+        sleepAtTrackEnd = false
     }
 
     fun pausePlaybackForSleepTimer() {
         Log.d("AuraPlaybackDebug", "Sleep timer expired; pausing active playback")
+        cancelSleepTimer()
         if (::onlinePlaybackManager.isInitialized && isOnlinePlaybackActive) {
             onlinePlaybackManager.pause()
+            isOnlinePlaying = false
+            currentOnlineSong?.let {
+                updateOnlinePlaybackState(it, isPlaying = false, positionMs = currentOnlinePosition, durationMs = currentOnlineDuration)
+            }
         }
         if (playerManager.isPlaying()) {
             playerManager.pause()
         }
-        isOnlinePlaying = false
+        currentSong?.let { startAsForeground(it, false) }
     }
 
     fun stopOnlinePlayback() {
