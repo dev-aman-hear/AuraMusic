@@ -5,6 +5,7 @@ import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.Song
 import com.aman.auramusic.data.repository.UserPreferencesRepository
 import com.aman.auramusic.viewmodel.QueueEntry
+import com.aman.auramusic.online.player.NaturalTrackEndGuard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -958,4 +959,42 @@ class PlaybackLifecycleAndQueueRegressionTest {
         assertEquals(2, PlaybackQueueCoordinator.queueFlow.value.size)
         PlaybackQueueCoordinator.resetForTesting()
     }
+
+    @Test
+    fun naturalTrackEndGuard_acceptsCompletedTrack() {
+        assertTrue(
+            NaturalTrackEndGuard.shouldHandle(
+                nowMs = 10_000L,
+                lastHandledTimeMs = 0L,
+                durationMs = 200_000L,
+                positionMs = 199_500L
+            )
+        )
+    }
+
+    @Test
+    fun naturalTrackEndGuard_rejectsPrematureCompletion() {
+        assertFalse(
+            NaturalTrackEndGuard.shouldHandle(
+                nowMs = 10_000L,
+                lastHandledTimeMs = 0L,
+                durationMs = 200_000L,
+                positionMs = 30_000L
+            )
+        )
+    }
+
+    @Test
+    fun naturalTrackEndGuard_rejectsDuplicateCompletionWithinDebounceWindow() {
+        assertFalse(
+            NaturalTrackEndGuard.shouldHandle(
+                nowMs = 10_400L,
+                lastHandledTimeMs = 10_000L,
+                durationMs = 200_000L,
+                positionMs = 199_500L
+            )
+        )
+    }
+
+
 }
