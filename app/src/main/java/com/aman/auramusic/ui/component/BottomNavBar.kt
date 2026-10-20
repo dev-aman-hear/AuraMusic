@@ -825,10 +825,14 @@ fun BottomNavBar(
                     .clip(navShape)
                     .background(surfaceGlassColor, navShape)
                     .border(
-                        if (isSearchSelected && isDynamicActive) {
-                            BorderStroke(1.dp, animatedAccent.copy(alpha = 0.78f))
+                        if (isDynamicActive) {
+                            BorderStroke(
+                                1.dp,
+                                animatedAccent.copy(alpha = if (isSearchSelected) 0.82f else 0.58f)
+                            )
                         } else {
-                            BorderStroke(1.dp, surfaceBorderBrush)
+                            // Dynamic Colour OFF: keep the Search button outline monochrome.
+                            BorderStroke(1.dp, if (isDark) Color(0xFF666666) else Color(0xFFB8B8B8))
                         },
                         navShape
                     )
