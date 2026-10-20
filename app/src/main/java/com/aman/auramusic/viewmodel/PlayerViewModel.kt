@@ -665,6 +665,16 @@ class PlayerViewModel @Inject constructor(
                 sleepTimerRemaining = remaining
                 if (remaining == 0L) break
             }
+
+            // Normally PlaybackService owns expiry so the timer survives task dismissal.
+            // If the service disconnected unexpectedly, still pause whichever engine is active.
+            if (playbackService == null) {
+                if (isOnlinePlaying) {
+                    PlaybackActionRegistry.onPlayPause?.invoke()
+                } else if (isPlaying) {
+                    pause()
+                }
+            }
             sleepTimerJob = null
         }
     }
