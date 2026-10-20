@@ -1243,6 +1243,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                                 onPrevious = { onlinePlaybackManager.playPrevious() },
                                                 onOpen = { showPlayer = true },
                                                 compact = true
+                                                appSettings = appSettings,
                                             )
                                         } else {
                                             localMiniSong?.let { song ->
@@ -1256,6 +1257,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                                     onPrevious = { playerViewModel.playPrevious() },
                                                     onOpen = { showPlayer = true },
                                                     compact = true
+                                                    appSettings = appSettings,
                                                 )
                                             }
                                         }
@@ -1285,6 +1287,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                             onNext = { onlinePlaybackManager.playNext() },
                                             onPrevious = { onlinePlaybackManager.playPrevious() },
                                             onOpen = { showPlayer = true }
+                                            appSettings = appSettings,
                                         )
                                     } else {
                                         localMiniSong?.let { song ->
@@ -1297,6 +1300,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                                 onNext = { playerViewModel.playNext() },
                                                 onPrevious = { playerViewModel.playPrevious() },
                                                 onOpen = { showPlayer = true }
+                                                appSettings = appSettings,
                                             )
                                         }
                                     }
