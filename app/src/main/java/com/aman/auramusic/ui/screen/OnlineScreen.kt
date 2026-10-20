@@ -931,23 +931,19 @@ private fun FeaturedExploreCard(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(16.dp)
-                    .size(48.dp)
+                    .size(54.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape)
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.outline,
-                        CircleShape
-                    )
+                    .background(Color.White, CircleShape)
+                    .border(1.dp, Color.White.copy(alpha = 0.82f), CircleShape)
                     .clickable(onClick = onClick),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Play featured music",
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    tint = Color.Black,
                     modifier = Modifier
-                        .size(26.dp)
+                        .size(30.dp)
                         .offset(x = 1.dp)
                 )
             }
