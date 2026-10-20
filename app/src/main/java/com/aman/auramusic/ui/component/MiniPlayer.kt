@@ -71,17 +71,18 @@ fun MiniPlayer(
     val progress = if (duration > 0) position.toFloat() / duration.toFloat() else 0f
     val context = LocalContext.current
     val isDark = LocalIsDark.current
-    var mediaBorderColor by remember(song.id, song.artworkUri, song.uri, isDark) {
+    var mediaBorderColor by remember(song.id, song.artworkUri, song.uri, isDark, dynamicColorsEnabled = appSettings?.isFullAppThemeActive() == true) {
         mutableStateOf<Color?>(null)
     }
     val dynamicColorsEnabled = appSettings?.isFullAppThemeActive() == true
-    LaunchedEffect(song.id, song.artworkUri, song.uri, isDark, dynamicColorsEnabled) {
-        mediaBorderColor = if (dynamicColorsEnabled) {
-            runCatching {
+    LaunchedEffect(song.id, song.title, song.artist, song.artworkUri, song.uri, isDark, dynamicColorsEnabled) {
+        mediaBorderColor = null
+        if (dynamicColorsEnabled) {
+            mediaBorderColor = runCatching {
                 DynamicArtworkColorsHelper.extractPalette(context, song, isDark).accent
-            }.getOrNull()
-        } else {
-            null
+            }.getOrElse {
+                PlayerArtworkPalette.neutral(isDark).accent
+            }
         }
     }
     var dragX by remember { mutableFloatStateOf(0f) }
