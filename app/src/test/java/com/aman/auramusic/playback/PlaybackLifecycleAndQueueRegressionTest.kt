@@ -979,7 +979,7 @@ class PlaybackLifecycleAndQueueRegressionTest {
                 nowMs = 10_000L,
                 lastHandledTimeMs = 0L,
                 durationMs = 200_000L,
-                positionMs = 30_000L
+                positionMs = 5_000L
             )
         )
     }
