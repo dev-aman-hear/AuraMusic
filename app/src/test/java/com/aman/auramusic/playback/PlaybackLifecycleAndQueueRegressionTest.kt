@@ -27,7 +27,7 @@ import java.io.File
 
 /**
  * Regression test suite covering:
- * 1. "Keep playing on app close" setting defaults and lifecycle decisions.
+ * 1. Playback task-removal lifecycle decisions.
  * 2. Playback state synchronization (buffering, transitions, local vs online).
  * 3. Custom playlist queue operations: Add to Queue (single song and whole collection).
  * 4. Queue preservation against playlist/favorites observers.
@@ -82,30 +82,8 @@ class PlaybackLifecycleAndQueueRegressionTest {
     }
 
     // =========================================================================
-    // TASK 2: "Keep playing on app close" Lifecycle & State Tests
+    // Playback task-removal lifecycle regression tests
     // =========================================================================
-
-    @Test
-    fun keep_playing_on_close_defaults_to_true_reliably_in_repo_and_app_settings() = runBlocking {
-        // AppSettings default must be true
-        val defaultSettings = AppSettings()
-        assertTrue("AppSettings.keepPlayingOnClose must default to true", defaultSettings.keepPlayingOnClose)
-
-        // UserPreferencesRepository without explicit configuration must default to true
-        val repoSettings = repository.settingsFlow.first()
-        assertTrue("Repository settingsFlow must default keepPlayingOnClose to true", repoSettings.keepPlayingOnClose)
-
-        val directValue = repository.getKeepPlayingOnClose()
-        assertTrue("getKeepPlayingOnClose() must return true by default", directValue)
-
-        // Toggling to false must persist and reflect reliably
-        repository.setKeepPlayingOnClose(false)
-        assertFalse("Toggling to false must update repository setting", repository.getKeepPlayingOnClose())
-
-        // Toggling back to true
-        repository.setKeepPlayingOnClose(true)
-        assertTrue("Toggling to true must update repository setting", repository.getKeepPlayingOnClose())
-    }
 
     private data class LifecycleDecision(
         val shouldStopService: Boolean,
@@ -114,7 +92,6 @@ class PlaybackLifecycleAndQueueRegressionTest {
     )
 
     private fun evaluateTaskRemoval(
-        keepPlayingOnClose: Boolean,
         isLocalPlaying: Boolean,
         isLocalTransitioning: Boolean,
         isOnlineActive: Boolean,
@@ -123,35 +100,21 @@ class PlaybackLifecycleAndQueueRegressionTest {
         isOnlineTransitioning: Boolean
     ): LifecycleDecision {
         val isLocalActive = isLocalPlaying || isLocalTransitioning
-        val isOnlineEngineActive = isOnlineActive && (isOnlinePlaying || isOnlineBuffering || isOnlineTransitioning)
+        val isOnlineEngineActive = isOnlineActive &&
+            (isOnlinePlaying || isOnlineBuffering || isOnlineTransitioning)
         val isAnyPlaying = isLocalActive || isOnlineEngineActive
 
-        return if (!keepPlayingOnClose) {
-            LifecycleDecision(
-                shouldStopService = true,
-                shouldStopPlaybackEngines = true,
-                shouldClearNotification = true
-            )
-        } else if (!isAnyPlaying) {
-            LifecycleDecision(
-                shouldStopService = true,
-                shouldStopPlaybackEngines = false,
-                shouldClearNotification = true
-            )
+        return if (!isAnyPlaying) {
+            LifecycleDecision(true, false, true)
         } else {
-            // Keep playing enabled & actively playing: keep foreground service and notification alive!
-            LifecycleDecision(
-                shouldStopService = false,
-                shouldStopPlaybackEngines = false,
-                shouldClearNotification = false
-            )
+            // The foreground media service owns playback after task dismissal.
+            LifecycleDecision(false, false, false)
         }
     }
 
     @Test
-    fun task_removal_when_keep_playing_enabled_preserves_active_local_playback() {
+    fun task_removal_preserves_active_local_playback() {
         val decision = evaluateTaskRemoval(
-            keepPlayingOnClose = true,
             isLocalPlaying = true,
             isLocalTransitioning = false,
             isOnlineActive = false,
@@ -159,86 +122,35 @@ class PlaybackLifecycleAndQueueRegressionTest {
             isOnlineBuffering = false,
             isOnlineTransitioning = false
         )
-        assertFalse("Active local playback must NOT stop service", decision.shouldStopService)
-        assertFalse("Active local playback must NOT stop audio engine", decision.shouldStopPlaybackEngines)
-        assertFalse("Active local playback must NOT clear notification", decision.shouldClearNotification)
+        assertFalse(decision.shouldStopService)
+        assertFalse(decision.shouldStopPlaybackEngines)
+        assertFalse(decision.shouldClearNotification)
     }
 
     @Test
-    fun task_removal_when_keep_playing_enabled_preserves_active_online_playback() {
+    fun task_removal_preserves_online_playback_during_playing_buffering_and_transition() {
+        listOf(
+            Triple(true, false, false),
+            Triple(false, true, false),
+            Triple(false, false, true)
+        ).forEach { (playing, buffering, transitioning) ->
+            val decision = evaluateTaskRemoval(
+                isLocalPlaying = false,
+                isLocalTransitioning = false,
+                isOnlineActive = true,
+                isOnlinePlaying = playing,
+                isOnlineBuffering = buffering,
+                isOnlineTransitioning = transitioning
+            )
+            assertFalse(decision.shouldStopService)
+            assertFalse(decision.shouldStopPlaybackEngines)
+            assertFalse(decision.shouldClearNotification)
+        }
+    }
+
+    @Test
+    fun task_removal_cleans_up_when_playback_is_inactive() {
         val decision = evaluateTaskRemoval(
-            keepPlayingOnClose = true,
-            isLocalPlaying = false,
-            isLocalTransitioning = false,
-            isOnlineActive = true,
-            isOnlinePlaying = true,
-            isOnlineBuffering = false,
-            isOnlineTransitioning = false
-        )
-        assertFalse("Active online playback must NOT stop service", decision.shouldStopService)
-        assertFalse("Active online playback must NOT stop audio engine", decision.shouldStopPlaybackEngines)
-        assertFalse("Active online playback must NOT clear notification", decision.shouldClearNotification)
-    }
-
-    @Test
-    fun task_removal_does_not_confuse_transient_buffering_or_transition_with_paused_state() {
-        // Local track transitioning
-        val localTransitioning = evaluateTaskRemoval(
-            keepPlayingOnClose = true,
-            isLocalPlaying = false,
-            isLocalTransitioning = true,
-            isOnlineActive = false,
-            isOnlinePlaying = false,
-            isOnlineBuffering = false,
-            isOnlineTransitioning = false
-        )
-        assertFalse("Local track transition must NOT terminate service", localTransitioning.shouldStopService)
-
-        // JioSaavn ExoPlayer buffering
-        val onlineBuffering = evaluateTaskRemoval(
-            keepPlayingOnClose = true,
-            isLocalPlaying = false,
-            isLocalTransitioning = false,
-            isOnlineActive = true,
-            isOnlinePlaying = false,
-            isOnlineBuffering = true,
-            isOnlineTransitioning = false
-        )
-        assertFalse("Online buffering must NOT terminate service", onlineBuffering.shouldStopService)
-
-        // YouTube IFrame transitioning
-        val onlineTransitioning = evaluateTaskRemoval(
-            keepPlayingOnClose = true,
-            isLocalPlaying = false,
-            isLocalTransitioning = false,
-            isOnlineActive = true,
-            isOnlinePlaying = false,
-            isOnlineBuffering = false,
-            isOnlineTransitioning = true
-        )
-        assertFalse("Online track transition must NOT terminate service", onlineTransitioning.shouldStopService)
-    }
-
-    @Test
-    fun task_removal_when_keep_playing_disabled_cleans_up_playback_and_service() {
-        val decision = evaluateTaskRemoval(
-            keepPlayingOnClose = false,
-            isLocalPlaying = true,
-            isLocalTransitioning = false,
-            isOnlineActive = false,
-            isOnlinePlaying = false,
-            isOnlineBuffering = false,
-            isOnlineTransitioning = false
-        )
-        assertTrue("Disabled keep-playing must stop service on app close", decision.shouldStopService)
-        assertTrue("Disabled keep-playing must stop playback engines on app close", decision.shouldStopPlaybackEngines)
-        assertTrue("Disabled keep-playing must remove media notification on app close", decision.shouldClearNotification)
-    }
-
-    @Test
-    fun task_removal_when_playback_inactive_cleans_up_to_avoid_permanent_foreground_service() {
-        val decision = evaluateTaskRemoval(
-            keepPlayingOnClose = true,
             isLocalPlaying = false,
             isLocalTransitioning = false,
             isOnlineActive = false,
@@ -246,8 +158,9 @@ class PlaybackLifecycleAndQueueRegressionTest {
             isOnlineBuffering = false,
             isOnlineTransitioning = false
         )
-        assertTrue("Inactive playback when app dismissed must cleanly stop service", decision.shouldStopService)
-        assertTrue("Inactive playback when app dismissed must remove notification", decision.shouldClearNotification)
+        assertTrue(decision.shouldStopService)
+        assertFalse(decision.shouldStopPlaybackEngines)
+        assertTrue(decision.shouldClearNotification)
     }
 
     @Test
