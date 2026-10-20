@@ -300,9 +300,8 @@ fun AuraPlayButton(
     iconSize: Dp = (size.value * 0.52f).dp,
     glassStyle: Boolean = false
 ) {
-    val isDark = LocalIsDark.current
     val buttonBackground = if (glassStyle) {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = AuraActionButtons.BackgroundAlpha)
+        Color.Transparent
     } else {
         MaterialTheme.colorScheme.primary
     }
