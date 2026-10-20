@@ -49,6 +49,7 @@ import com.aman.auramusic.R
 import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.ThemeMode
 import com.aman.auramusic.ui.theme.AuraScreenBackground
+import com.aman.auramusic.ui.theme.AppColors
 import com.aman.auramusic.ui.theme.Monochrome
 import com.aman.auramusic.ui.theme.LocalIsDark
 import com.aman.auramusic.ui.theme.AppPaletteMode
@@ -144,8 +145,8 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(24.dp))
-                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
-                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
+                        .background(if (LocalIsDark.current) Color(0xFF121212) else Color(0xFFFFFFFF), RoundedCornerShape(24.dp))
+                        .border(BorderStroke(1.dp, AppColors.border), RoundedCornerShape(24.dp))
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Text("Personalization", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -164,8 +165,8 @@ fun SettingsScreen(
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = MaterialTheme.colorScheme.onSurface,
                                 unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                focusedContainerColor = if (LocalIsDark.current) Color(0xFF1C1C1E) else Color(0xFFF2F2F2),
+                                unfocusedContainerColor = if (LocalIsDark.current) Color(0xFF1C1C1E) else Color(0xFFF2F2F2),
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                                 focusedLabelColor = MaterialTheme.colorScheme.primary,
@@ -205,8 +206,8 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(24.dp))
-                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
-                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
+                        .background(if (LocalIsDark.current) Color(0xFF121212) else Color(0xFFFFFFFF), RoundedCornerShape(24.dp))
+                        .border(BorderStroke(1.dp, AppColors.border), RoundedCornerShape(24.dp))
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -513,8 +514,8 @@ fun SettingsScreen(
                                                     colors = OutlinedTextFieldDefaults.colors(
                                                         focusedTextColor = MaterialTheme.colorScheme.onSurface,
                                                         unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                        focusedContainerColor = if (LocalIsDark.current) Color(0xFF1C1C1E) else Color(0xFFF2F2F2),
+                                                        unfocusedContainerColor = if (LocalIsDark.current) Color(0xFF1C1C1E) else Color(0xFFF2F2F2),
                                                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                                                         unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                                                         focusedLabelColor = MaterialTheme.colorScheme.primary,
@@ -639,8 +640,8 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
-                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
+                    .background(if (LocalIsDark.current) Color(0xFF121212) else Color(0xFFFFFFFF), RoundedCornerShape(24.dp))
+                    .border(BorderStroke(1.dp, AppColors.border), RoundedCornerShape(24.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("Playback", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -654,8 +655,8 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
-                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
+                    .background(if (LocalIsDark.current) Color(0xFF121212) else Color(0xFFFFFFFF), RoundedCornerShape(24.dp))
+                    .border(BorderStroke(1.dp, AppColors.border), RoundedCornerShape(24.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("System & Files", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -701,8 +702,8 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
-                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
+                    .background(if (LocalIsDark.current) Color(0xFF121212) else Color(0xFFFFFFFF), RoundedCornerShape(24.dp))
+                    .border(BorderStroke(1.dp, AppColors.border), RoundedCornerShape(24.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     SettingsRow(
