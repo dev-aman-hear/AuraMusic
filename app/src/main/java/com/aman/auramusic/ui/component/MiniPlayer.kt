@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.data.model.Song
+import com.aman.auramusic.data.model.AppSettings
 
 @Composable
 fun MiniPlayer(
@@ -65,6 +66,7 @@ fun MiniPlayer(
     onNext: () -> Unit,
     onPrevious: () -> Unit = {},
     compact: Boolean = false,
+    appSettings: AppSettings? = null,
 ) {
     val progress = if (duration > 0) position.toFloat() / duration.toFloat() else 0f
     val context = LocalContext.current
@@ -72,10 +74,15 @@ fun MiniPlayer(
     var mediaBorderColor by remember(song.id, song.artworkUri, song.uri, isDark) {
         mutableStateOf<Color?>(null)
     }
-    LaunchedEffect(song.id, song.artworkUri, song.uri, isDark) {
-        mediaBorderColor = runCatching {
-            DynamicArtworkColorsHelper.extractPalette(context, song, isDark).accent
-        }.getOrNull()
+    val dynamicColorsEnabled = appSettings?.isFullAppThemeActive() == true
+    LaunchedEffect(song.id, song.artworkUri, song.uri, isDark, dynamicColorsEnabled) {
+        mediaBorderColor = if (dynamicColorsEnabled) {
+            runCatching {
+                DynamicArtworkColorsHelper.extractPalette(context, song, isDark).accent
+            }.getOrNull()
+        } else {
+            null
+        }
     }
     var dragX by remember { mutableFloatStateOf(0f) }
     var dragY by remember { mutableFloatStateOf(0f) }
@@ -113,8 +120,8 @@ fun MiniPlayer(
                 }
             }
             .clip(pillShape)
-            .background(MaterialTheme.colorScheme.surface, pillShape)
-            .border(androidx.compose.foundation.BorderStroke(1.dp, mediaBorderColor ?: MaterialTheme.colorScheme.outline), pillShape)
+            .background(if (isDark) Color(0xFF121212) else Color(0xFFF7F7F7), pillShape)
+            .border(androidx.compose.foundation.BorderStroke(1.dp, mediaBorderColor ?: (if (isDark) Color(0xFF555555) else Color(0xFFB8B8B8))), pillShape)
             .clickable(onClick = onOpen)
     ) {
         Row(
@@ -196,7 +203,7 @@ fun MiniPlayer(
                 progress = { progress.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxSize(),
                 color = mediaBorderColor ?: MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                trackColor = (if (isDark) Color(0xFF555555) else Color(0xFFB8B8B8)).copy(alpha = 0.4f)
             )
         }
     }
