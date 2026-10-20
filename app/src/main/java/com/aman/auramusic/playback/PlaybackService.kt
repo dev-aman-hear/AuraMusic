@@ -38,7 +38,6 @@ class PlaybackService : Service() {
     private lateinit var onlinePlaybackManager: OnlinePlaybackManager
     private val lyricsRepository = LyricsRepository()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    private var keepPlayingOnClose = true
     private val binder = LocalBinder()
     
     var currentSong: Song? = null
@@ -73,6 +72,7 @@ class PlaybackService : Service() {
     }
 
     private var isTaskRemoved = false
+    private var sleepTimerJob: Job? = null
 
     var isOnlinePlaybackActive: Boolean = false
         private set
@@ -184,11 +184,10 @@ class PlaybackService : Service() {
                 releaseWakeLock()
             }
             if (!isPlaying && !playerManager.isPlaying() && isTaskRemoved) {
-                val isOnlineActive = isOnlinePlaying || (::onlinePlaybackManager.isInitialized && (onlinePlaybackManager.playbackState.value.isBuffering || onlinePlaybackManager.isTransitioning))
-                Log.d("AuraPlaybackDebug", "PlaybackService: Task removed and online state changed, isOnlineActive=$isOnlineActive, keepPlayingOnClose=$keepPlayingOnClose")
-                if (!isOnlineActive && !keepPlayingOnClose) {
-                    stopSelf()
-                }
+                val onlineState = if (::onlinePlaybackManager.isInitialized) onlinePlaybackManager.playbackState.value else null
+                val isOnlineActive = isOnlinePlaybackActive &&
+                    (isOnlinePlaying || onlineState?.isPlaying == true || onlineState?.isBuffering == true || onlinePlaybackManager.isTransitioning)
+                if (!isOnlineActive) stopSelf()
             }
         }
 
@@ -213,9 +212,7 @@ class PlaybackService : Service() {
         override fun onPlaybackStopped(song: OnlineSong?) {
             Log.d("AuraPlaybackDebug", "PlaybackService onlinePlayerListener.onPlaybackStopped")
             stopOnlinePlayback()
-            if (isTaskRemoved && !keepPlayingOnClose) {
-                stopSelf()
-            }
+            if (isTaskRemoved) stopSelf()
         }
     }
 
@@ -270,7 +267,6 @@ class PlaybackService : Service() {
 
         serviceScope.launch {
             userRepository.settingsFlow.collect { settings ->
-                keepPlayingOnClose = settings.keepPlayingOnClose
                 playerManager.smartAudioFocusEnabled = settings.smartAudioFocus
             }
         }
@@ -317,10 +313,7 @@ class PlaybackService : Service() {
                     }
                 }
                 if (!isPlaying && !isOnlinePlaybackActive && isTaskRemoved && !playerManager.isTransitioning) {
-                    if (!keepPlayingOnClose) {
-                        Log.d("AuraPlaybackDebug", "PlaybackService: Task was removed and playback stopped with keepPlayingOnClose=false, stopping service")
-                        stopSelf()
-                    }
+                    stopSelf()
                 }
             }
 
@@ -527,6 +520,32 @@ class PlaybackService : Service() {
         colorOSBridge.onSeek(displaySong, positionMs, isOnlinePlaying)
     }
 
+    fun startSleepTimer(minutes: Int) {
+        sleepTimerJob?.cancel()
+        if (minutes <= 0) return
+        sleepTimerJob = serviceScope.launch {
+            kotlinx.coroutines.delay(minutes * 60_000L)
+            pausePlaybackForSleepTimer()
+            sleepTimerJob = null
+        }
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+    }
+
+    fun pausePlaybackForSleepTimer() {
+        Log.d("AuraPlaybackDebug", "Sleep timer expired; pausing active playback")
+        if (::onlinePlaybackManager.isInitialized && isOnlinePlaybackActive) {
+            onlinePlaybackManager.pause()
+        }
+        if (playerManager.isPlaying()) {
+            playerManager.pause()
+        }
+        isOnlinePlaying = false
+    }
+
     fun stopOnlinePlayback() {
         if (!isOnlinePlaybackActive) return
         Log.d("AuraPlaybackDebug", "stopOnlinePlayback called")
@@ -636,19 +655,14 @@ class PlaybackService : Service() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
         isTaskRemoved = true
+
+        // Do not tear down an active media session merely because the task was dismissed.
+        val onlineState = if (::onlinePlaybackManager.isInitialized) onlinePlaybackManager.playbackState.value else null
         val isLocalActive = playerManager.isPlaying() || playerManager.isTransitioning
-        val isOnlineActive = isOnlinePlaybackActive && (isOnlinePlaying || (::onlinePlaybackManager.isInitialized && (onlinePlaybackManager.playbackState.value.isBuffering || onlinePlaybackManager.isTransitioning)))
-        val isAnyPlaying = isLocalActive || isOnlineActive
-        Log.d("AuraPlaybackDebug", "onTaskRemoved: keepPlayingOnClose=$keepPlayingOnClose, isAnyPlaying=$isAnyPlaying, isLocalActive=$isLocalActive, isOnlineActive=$isOnlineActive")
-        if (!keepPlayingOnClose) {
-            if (::onlinePlaybackManager.isInitialized) {
-                onlinePlaybackManager.pause()
-            }
-            playerManager.pause()
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            notificationManager.clear()
-            stopSelf()
-        } else if (!isAnyPlaying) {
+        val isOnlineActive = isOnlinePlaybackActive &&
+            (isOnlinePlaying || onlineState?.isPlaying == true || onlineState?.isBuffering == true || onlinePlaybackManager.isTransitioning)
+
+        if (!isLocalActive && !isOnlineActive) {
             stopForeground(STOP_FOREGROUND_REMOVE)
             notificationManager.clear()
             stopSelf()
@@ -738,6 +752,8 @@ class PlaybackService : Service() {
     }
 
     override fun onDestroy() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
         Log.d("AuraPlaybackDebug", "PlaybackService onDestroy called")
         val activeSong = currentSong ?: currentOnlineSong?.toSong()
         colorOSBridge.onPlaybackStopped(activeSong)
