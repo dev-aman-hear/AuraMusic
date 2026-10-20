@@ -87,9 +87,17 @@ fun MiniPlayer(
             }.getOrElse {
                 PlayerArtworkPalette.neutral(isDark).accent
             }
-            paletteMode == com.aman.auramusic.ui.theme.AppPaletteMode.CUSTOM -> runCatching {
-                Color(android.graphics.Color.parseColor(appSettings?.appCustomPaletteHexes?.split(",")?.firstOrNull()?.trim()))
-            }.getOrElse { defaultPrimaryColor }
+            paletteMode == com.aman.auramusic.ui.theme.AppPaletteMode.PRESET -> {
+                val presetName = appSettings?.appColorPreset
+                    ?.takeUnless { it.equals("Monochrome", ignoreCase = true) }
+                    ?: "Midnight Indigo"
+                PlayerArtworkPalette.fromPreset(presetName, isDark).accent
+            }
+            paletteMode == com.aman.auramusic.ui.theme.AppPaletteMode.CUSTOM -> {
+                val customPalette = com.aman.auramusic.ui.theme.CustomPaletteValidator
+                    .createPaletteFromCustomHexes(appSettings?.appCustomPaletteHexes.orEmpty(), isDark)
+                customPalette.accent
+            }
             else -> defaultPrimaryColor
         }
     }
