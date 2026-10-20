@@ -71,18 +71,25 @@ fun MiniPlayer(
     val progress = if (duration > 0) position.toFloat() / duration.toFloat() else 0f
     val context = LocalContext.current
     val isDark = LocalIsDark.current
-    val dynamicColorsEnabled = appSettings?.isFullAppThemeActive() == true
-    var mediaBorderColor by remember(song.id, song.artworkUri, song.uri, isDark, dynamicColorsEnabled) {
+    val themeActive = appSettings?.isPlayerThemeActive() == true
+    val paletteMode = appSettings?.let {
+        com.aman.auramusic.ui.theme.AppPaletteMode.fromString(it.themeColorStyle.ifBlank { it.appPaletteMode })
+    } ?: com.aman.auramusic.ui.theme.AppPaletteMode.PRESET
+    var mediaBorderColor by remember(song.id, song.artworkUri, song.uri, isDark, themeActive, paletteMode, appSettings?.appColorPreset, appSettings?.appCustomPaletteHexes) {
         mutableStateOf<Color?>(null)
     }
-    LaunchedEffect(song.id, song.title, song.artist, song.artworkUri, song.uri, isDark, dynamicColorsEnabled) {
-        mediaBorderColor = null
-        if (dynamicColorsEnabled) {
-            mediaBorderColor = runCatching {
+    LaunchedEffect(song.id, song.title, song.artist, song.artworkUri, song.uri, isDark, themeActive, paletteMode, appSettings?.appColorPreset, appSettings?.appCustomPaletteHexes) {
+        mediaBorderColor = when {
+            !themeActive -> null
+            paletteMode == com.aman.auramusic.ui.theme.AppPaletteMode.DYNAMIC_ARTWORK -> runCatching {
                 DynamicArtworkColorsHelper.extractPalette(context, song, isDark).accent
             }.getOrElse {
                 PlayerArtworkPalette.neutral(isDark).accent
             }
+            paletteMode == com.aman.auramusic.ui.theme.AppPaletteMode.CUSTOM -> runCatching {
+                Color(android.graphics.Color.parseColor(appSettings?.appCustomPaletteHexes?.split(",")?.firstOrNull()?.trim()))
+            }.getOrElse { MaterialTheme.colorScheme.primary }
+            else -> MaterialTheme.colorScheme.primary
         }
     }
     var dragX by remember { mutableFloatStateOf(0f) }
