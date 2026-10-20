@@ -933,7 +933,7 @@ private fun FeaturedExploreCard(
                     .padding(16.dp)
                     .size(54.dp)
                     .clip(CircleShape)
-                    .background(Color.White, CircleShape)
+                    .background(Color.Transparent, CircleShape)
                     .border(1.dp, Color.White.copy(alpha = 0.82f), CircleShape)
                     .clickable(onClick = onClick),
                 contentAlignment = Alignment.Center
@@ -941,7 +941,7 @@ private fun FeaturedExploreCard(
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Play featured music",
-                    tint = Color.Black,
+                    tint = Color.White,
                     modifier = Modifier
                         .size(30.dp)
                         .offset(x = 1.dp)
