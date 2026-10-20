@@ -75,10 +75,11 @@ fun MiniPlayer(
     val paletteMode = appSettings?.let {
         com.aman.auramusic.ui.theme.AppPaletteMode.fromString(it.themeColorStyle.ifBlank { it.appPaletteMode })
     } ?: com.aman.auramusic.ui.theme.AppPaletteMode.PRESET
-    var mediaBorderColor by remember(song.id, song.artworkUri, song.uri, isDark, themeActive, paletteMode, appSettings?.appColorPreset, appSettings?.appCustomPaletteHexes) {
+    val defaultPrimaryColor = MaterialTheme.colorScheme.primary
+    var mediaBorderColor by remember(song.id, song.artworkUri, song.uri, isDark, themeActive, paletteMode, appSettings?.appColorPreset, appSettings?.appCustomPaletteHexes, defaultPrimaryColor) {
         mutableStateOf<Color?>(null)
     }
-    LaunchedEffect(song.id, song.title, song.artist, song.artworkUri, song.uri, isDark, themeActive, paletteMode, appSettings?.appColorPreset, appSettings?.appCustomPaletteHexes) {
+    LaunchedEffect(song.id, song.title, song.artist, song.artworkUri, song.uri, isDark, themeActive, paletteMode, appSettings?.appColorPreset, appSettings?.appCustomPaletteHexes, defaultPrimaryColor) {
         mediaBorderColor = when {
             !themeActive -> null
             paletteMode == com.aman.auramusic.ui.theme.AppPaletteMode.DYNAMIC_ARTWORK -> runCatching {
@@ -88,8 +89,8 @@ fun MiniPlayer(
             }
             paletteMode == com.aman.auramusic.ui.theme.AppPaletteMode.CUSTOM -> runCatching {
                 Color(android.graphics.Color.parseColor(appSettings?.appCustomPaletteHexes?.split(",")?.firstOrNull()?.trim()))
-            }.getOrElse { MaterialTheme.colorScheme.primary }
-            else -> MaterialTheme.colorScheme.primary
+            }.getOrElse { defaultPrimaryColor }
+            else -> defaultPrimaryColor
         }
     }
     var dragX by remember { mutableFloatStateOf(0f) }
