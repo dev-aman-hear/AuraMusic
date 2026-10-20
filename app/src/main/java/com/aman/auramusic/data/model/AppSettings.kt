@@ -7,7 +7,6 @@ data class AppSettings(
     val gaplessEnabled: Boolean = true,
     val skipSilence: Boolean = false,
     val smartAudioFocus: Boolean = true,
-    val keepPlayingOnClose: Boolean = true,
     val playlistGridColumns: Int = 2,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicArtworkColors: Boolean = false,
