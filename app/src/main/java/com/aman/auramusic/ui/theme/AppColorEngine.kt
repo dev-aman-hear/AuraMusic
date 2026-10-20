@@ -437,12 +437,18 @@ object AppColorEngine {
                     decodeThumbnail(context, artworkUri)?.let { return it }
                 }
                 return ArtworkExtractor.getArtwork(context, model.uri)?.let { bitmap ->
-                    Bitmap.createScaledBitmap(
-                        bitmap,
-                        bitmap.width.coerceAtMost(THUMBNAIL_SIZE).coerceAtLeast(1),
-                        bitmap.height.coerceAtMost(THUMBNAIL_SIZE).coerceAtLeast(1),
-                        true
+                    val scale = minOf(
+                        1f,
+                        THUMBNAIL_SIZE.toFloat() / bitmap.width.coerceAtLeast(1),
+                        THUMBNAIL_SIZE.toFloat() / bitmap.height.coerceAtLeast(1)
                     )
+                    val targetWidth = (bitmap.width * scale).toInt().coerceAtLeast(1)
+                    val targetHeight = (bitmap.height * scale).toInt().coerceAtLeast(1)
+                    if (targetWidth == bitmap.width && targetHeight == bitmap.height) {
+                        bitmap
+                    } else {
+                        Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
+                    }
                 }
             }
             is OnlineSong -> {
