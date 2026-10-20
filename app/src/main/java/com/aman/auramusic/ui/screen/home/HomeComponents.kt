@@ -818,8 +818,8 @@ fun ArtistDetailSheet(
                         }
                         AuraPlayButton(
                             onClick = onPlayAll,
-                            size = 54.dp,
-                            iconSize = 28.dp,
+                            size = 44.dp,
+                            iconSize = 23.dp,
                             glassStyle = true
                         )
                     }
