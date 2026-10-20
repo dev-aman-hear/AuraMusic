@@ -705,7 +705,34 @@ class OnlinePlaybackManager(
     }
 
     private fun handleSongEnded() {
-        val endedSong = _playbackState.value.currentSong
+        val now = System.currentTimeMillis()
+        val state = _playbackState.value
+
+        // Validate the completion before allowing the sleep timer to consume it. Some online
+        // engines can emit transient/duplicate end callbacks during source transitions.
+        if (!NaturalTrackEndGuard.shouldHandle(
+                nowMs = now,
+                lastHandledTimeMs = lastEndHandledTimeMs,
+                durationMs = state.durationMs,
+                positionMs = state.currentPositionMs
+            )
+        ) {
+            if (now - lastEndHandledTimeMs < 500L) {
+                Log.d("AuraPlaybackDebug", "handleSongEnded debounced duplicate trigger within 500ms")
+            } else {
+                Log.w(
+                    "AuraPlaybackDebug",
+                    "handleSongEnded ignored: premature end event at pos=${state.currentPositionMs}ms (duration=${state.durationMs}ms)"
+                )
+            }
+            return
+        }
+
+        // Record every accepted completion, including one consumed by the sleep timer, so a
+        // second callback from the same track cannot advance the queue after the timer fires.
+        lastEndHandledTimeMs = now
+
+        val endedSong = state.currentSong
         if (endedSong != null) {
             val consumed = (eventListener?.let { listener ->
                 runCatching { listener.onSongEnded(endedSong) }.getOrDefault(false)
@@ -717,21 +744,7 @@ class OnlinePlaybackManager(
                 return
             }
         }
-        val now = System.currentTimeMillis()
-        if (now - lastEndHandledTimeMs < 500L) {
-            Log.d("AuraPlaybackDebug", "handleSongEnded debounced duplicate trigger within 500ms")
-            return
-        }
 
-        val state = _playbackState.value
-        val curPos = state.currentPositionMs
-        val duration = state.durationMs
-        if (duration > 20_000L && curPos < 15_000L && curPos < (duration * 0.85).toLong()) {
-            Log.w("AuraPlaybackDebug", "handleSongEnded ignored: premature end event at pos=${curPos}ms (duration=${duration}ms)")
-            return
-        }
-
-        lastEndHandledTimeMs = now
         val currentRepeatMode = com.aman.auramusic.playback.PlaybackQueueCoordinator.repeatMode
         Log.d("AuraPlaybackDebug", "handleSongEnded triggered: repeatMode=$currentRepeatMode")
 
