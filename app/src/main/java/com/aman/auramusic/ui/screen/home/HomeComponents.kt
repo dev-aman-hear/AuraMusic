@@ -305,12 +305,9 @@ fun AuraPlayButton(
     } else {
         MaterialTheme.colorScheme.primary
     }
-    val buttonBorder = if (glassStyle) {
-        // Neutral monochrome outline: light in dark mode, dark in light mode.
-        if (LocalIsDark.current) Color(0xFFE0E0E0) else Color(0xFF222222)
-    } else {
-        MaterialTheme.colorScheme.outline
-    }
+    val buttonBorder = MaterialTheme.colorScheme.outline.copy(
+        alpha = if (glassStyle) AuraActionButtons.BorderAlpha else 1f
+    )
     val iconTint = if (glassStyle) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary
 
     Box(
