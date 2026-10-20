@@ -656,17 +656,16 @@ class PlaybackService : Service() {
         super.onTaskRemoved(rootIntent)
         isTaskRemoved = true
 
-        // Do not tear down an active media session merely because the task was dismissed.
-        val onlineState = if (::onlinePlaybackManager.isInitialized) onlinePlaybackManager.playbackState.value else null
-        val isLocalActive = playerManager.isPlaying() || playerManager.isTransitioning
-        val isOnlineActive = isOnlinePlaybackActive &&
-            (isOnlinePlaying || onlineState?.isPlaying == true || onlineState?.isBuffering == true || onlinePlaybackManager.isTransitioning)
-
-        if (!isLocalActive && !isOnlineActive) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            notificationManager.clear()
-            stopSelf()
+        // Explicitly stop playback when the user dismisses AuraMusic from Recents.
+        // Normal lock-screen/background playback remains supported while the task is alive.
+        Log.d("AuraPlaybackDebug", "Task removed; stopping online and local playback")
+        if (::onlinePlaybackManager.isInitialized && isOnlinePlaybackActive) {
+            onlinePlaybackManager.pause()
         }
+        playerManager.pause()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        notificationManager.clear()
+        stopSelf()
     }
 
     fun getPlayerManager(): VlcPlayerManager = playerManager
