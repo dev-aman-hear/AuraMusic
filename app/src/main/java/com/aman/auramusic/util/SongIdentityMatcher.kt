@@ -31,66 +31,54 @@ object SongIdentityMatcher {
         "(?i)\\s*[\\[(](official video|official audio|official music video|lyric video|lyrics|audio|4k|hd|visualizer|audio visualizer)[\\])]"
     )
 
-    fun cleanTitle(title: String): String {
-        return title.replace(VIDEO_NOISE_REGEX, "")
-            .trim()
+    fun cleanTitle(title: String): String =
+        title.replace(VIDEO_NOISE_REGEX, "")
             .lowercase()
-    }
+            .replace(Regex("\\s*[\\[(](?:feat(?:uring)?|ft)\\.?\\s+[^\\])]+[\\])]"), "")
+            .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
+            .trim()
+            .replace(Regex("\\s+"), " ")
 
     private fun extractVersionTags(text: String): Set<String> {
-        val lower = text.lowercase()
-        return VERSION_TAGS.filter { lower.contains(it) }.toSet()
+        val normalized = " ${cleanTitle(text)} "
+        return VERSION_TAGS.filter { tag ->
+            normalized.contains(" ${tag.lowercase()} ") ||
+                normalized.contains(" ${tag.lowercase().replace('-', ' ')} ")
+        }.toSet()
     }
 
+    private fun artistTokens(artist: String): Set<String> =
+        artist.lowercase()
+            .split(Regex("[,&/;]|\\\\bfeat(?:uring)?\\.?\\\\b|\\\\bft\\.?\\\\b|\\\\band\\\\b"))
+            .map { cleanTitle(it) }
+            .filter { it.length >= 2 && it !in setOf("unknown", "unknown artist", "various artists") }
+            .toSet()
+
     fun isConfidentMatch(local: Song, online: OnlineSong): Boolean {
-        // 1. Direct deterministic ID match
-        val deterministicOnlineId = (online.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L)
-        if (local.id == deterministicOnlineId || online.id == local.id.toString()) {
-            return true
-        }
+        // Exact deterministic IDs are the strongest available signal.
+        val deterministicOnlineId =
+            (online.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L)
+        if (local.id == deterministicOnlineId || online.id == local.id.toString()) return true
 
-        // 2. Duration verification (tolerance +/- 10 seconds)
+        val localTitle = cleanTitle(local.title)
+        val onlineTitle = cleanTitle(online.title)
+        if (localTitle.isBlank() || onlineTitle.isBlank() || localTitle != onlineTitle) return false
+
+        // Do not merge different editions such as remixes, live recordings, or remasters.
+        if (extractVersionTags(local.title) != extractVersionTags(online.title)) return false
+
         val localDurationSec = local.duration / 1000L
-        if (localDurationSec > 0 && online.durationSeconds > 0) {
-            if (abs(localDurationSec - online.durationSeconds) > 10) {
-                return false
-            }
-        }
+        if (localDurationSec > 0 && online.durationSeconds > 0 &&
+            abs(localDurationSec - online.durationSeconds) > 10L
+        ) return false
 
-        val localCleanTitle = cleanTitle(local.title)
-        val onlineCleanTitle = cleanTitle(online.title)
+        // Require artist evidence unless both names are unavailable. This avoids
+        // matching unrelated songs that happen to share a title.
+        val localArtists = artistTokens(local.artist)
+        val onlineArtists = artistTokens(online.artist)
+        if (localArtists.isEmpty() || onlineArtists.isEmpty()) return false
 
-        // 3. Strict version tag verification: if one has a version tag that the other lacks, reject match
-        val localTags = extractVersionTags(local.title)
-        val onlineTags = extractVersionTags(online.title)
-        if (localTags != onlineTags) {
-            return false
-        }
-
-        // 4. Title comparison
-        val titlesMatch = localCleanTitle == onlineCleanTitle ||
-                localCleanTitle.contains(onlineCleanTitle) ||
-                onlineCleanTitle.contains(localCleanTitle)
-        if (!titlesMatch) {
-            return false
-        }
-
-        // 5. Artist comparison (must share at least one primary artist keyword)
-        val localArtistWords = local.artist.lowercase().split(Regex("[,&/]|\\bfeat\\.?\\b|\\bft\\.?\\b"))
-            .map { it.trim() }.filter { it.length > 2 }
-        val onlineArtistWords = online.artist.lowercase().split(Regex("[,&/]|\\bfeat\\.?\\b|\\bft\\.?\\b"))
-            .map { it.trim() }.filter { it.length > 2 }
-
-        if (localArtistWords.isNotEmpty() && onlineArtistWords.isNotEmpty()) {
-            val hasCommonArtist = localArtistWords.any { l ->
-                onlineArtistWords.any { o -> l.contains(o) || o.contains(l) }
-            }
-            if (!hasCommonArtist) {
-                return false
-            }
-        }
-
-        return true
+        return localArtists.intersect(onlineArtists).isNotEmpty()
     }
 
     fun findOnlineMatch(song: Song, candidates: List<OnlineSong>): OnlineSong? {
