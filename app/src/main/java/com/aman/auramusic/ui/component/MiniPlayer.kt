@@ -114,7 +114,7 @@ fun MiniPlayer(
                 horizontal = if (compact) 0.dp else 14.dp,
                 vertical = if (compact) 0.dp else 3.dp
             )
-             .height(32.dp)
+             .height(if (compact) 32.dp else 40.dp)
             .animateContentSize(animationSpec = tween(220))
             .pointerInput(Unit) {
                 detectDragGestures(
@@ -144,12 +144,12 @@ fun MiniPlayer(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                 .padding(horizontal = if (compact) 7.dp else 8.dp, vertical = 2.dp),
+                 .padding(horizontal = if (compact) 7.dp else 8.dp, vertical = if (compact) 2.dp else 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             SongArtwork(
                 song = song,
-                size = if (compact) 23 else 24,
+                size = if (compact) 23 else 30,
                 shape = RoundedCornerShape(7.dp),
                 elevation = 0.dp
             )
@@ -176,7 +176,7 @@ fun MiniPlayer(
                 horizontalArrangement = Arrangement.spacedBy(if (compact) 0.dp else 1.dp)
             ) {
                 if (!compact) {
-                    IconButton(onClick = onPrevious, modifier = Modifier.size(22.dp)) {
+                    IconButton(onClick = onPrevious, modifier = Modifier.size(27.dp)) {
                         Icon(
                             imageVector = Icons.Default.SkipPrevious,
                             contentDescription = "Previous track",
@@ -187,7 +187,7 @@ fun MiniPlayer(
                 }
                 IconButton(
                     onClick = onPlayPause,
-                    modifier = Modifier.size(if (compact) 20.dp else 22.dp)
+                    modifier = Modifier.size(if (compact) 20.dp else 27.dp)
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
