@@ -861,6 +861,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onThemeAreaChange = { area, enabled -> musicViewModel.setThemeAreaEnabled(area, enabled) },
                                     onKaraokeChange = { musicViewModel.setKaraokeMode(it) },
                                     onLyricFontScaleChange = { musicViewModel.setLyricFontScale(it) },
+                                    onLyricBlurStrengthChange = { musicViewModel.setLyricBlurStrength(it) },
                                     onSmartAudioFocusChange = { musicViewModel.setSmartAudioFocus(it) },
                                     onPlaylistGridColumnsChange = { musicViewModel.setPlaylistGridColumns(it) },
                                     onImportPlaylistFile = {
