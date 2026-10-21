@@ -20,7 +20,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aman.auramusic.ui.component.AuraArtwork
-import com.aman.auramusic.ui.theme.LocalIsDark
 
 /**
  * Clean monochrome category card for search genres.
@@ -65,7 +64,6 @@ fun TopArtistResultCard(
     artworkModel: Any?,
     onClick: () -> Unit
 ) {
-    val isDark = LocalIsDark.current
     val textPrimary = MaterialTheme.colorScheme.onSurface
     val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
 
