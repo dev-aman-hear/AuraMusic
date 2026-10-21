@@ -72,6 +72,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         AppSettings(
             karaokeMode = prefs[Keys.karaokeMode] ?: false,
             lyricFontScale = prefs[Keys.lyricFontScale] ?: 1.0f,
+            lyricBlurStrength = prefs[Keys.lyricBlurStrength] ?: 12f,
             crossfadeEnabled = prefs[Keys.crossfadeEnabled] ?: false,
             gaplessEnabled = prefs[Keys.gaplessEnabled] ?: true,
             skipSilence = prefs[Keys.skipSilence] ?: false,
@@ -144,6 +145,10 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setLyricFontScale(scale: Float) {
         dataStore.edit { it[Keys.lyricFontScale] = scale }
+    }
+
+    suspend fun setLyricBlurStrength(strength: Float) {
+        dataStore.edit { it[Keys.lyricBlurStrength] = strength.coerceIn(0f, 20f) }
     }
 
     suspend fun setCrossfadeEnabled(enabled: Boolean) {
@@ -609,6 +614,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             val username = stringPreferencesKey("username")
             val karaokeMode = booleanPreferencesKey("karaoke_mode")
             val lyricFontScale = floatPreferencesKey("lyric_font_scale")
+            val lyricBlurStrength = floatPreferencesKey("lyric_blur_strength")
             val crossfadeEnabled = booleanPreferencesKey("crossfade_enabled")
             val gaplessEnabled = booleanPreferencesKey("gapless_enabled")
             val skipSilence = booleanPreferencesKey("skip_silence")
