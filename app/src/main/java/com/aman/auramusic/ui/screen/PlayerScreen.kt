@@ -76,8 +76,6 @@ import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -90,7 +88,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -115,7 +112,6 @@ import coil.request.ImageRequest
 import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.data.model.LyricLine
 import com.aman.auramusic.data.model.Song
-import com.aman.auramusic.online.util.ArtworkQualityOptimizer
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
@@ -128,7 +124,6 @@ import com.aman.auramusic.ui.theme.PlayerArtworkPalette
 import com.aman.auramusic.ui.theme.PlayerColorScheme
 import com.aman.auramusic.ui.theme.PlayerPaletteMode
 import com.aman.auramusic.ui.theme.rememberPlayerColorScheme
-import com.aman.auramusic.ui.theme.resolvePlayerPaletteMode
 import com.aman.auramusic.util.audioQuality
 import com.aman.auramusic.util.formatDuration
 import com.aman.auramusic.viewmodel.PlayerViewModel
