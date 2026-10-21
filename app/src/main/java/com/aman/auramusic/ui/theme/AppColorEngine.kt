@@ -44,6 +44,25 @@ import java.util.LinkedHashMap
 /**
  * Identifies distinct screen-scoped content areas in AuraMusic that support independent color theming.
  */
+/**
+ * Shared RGB outline animation used by themed screens and navigation.
+ * Always creates its animation in a stable composition position; disabled mode only
+ * suppresses the returned color, leaving the base palette untouched.
+ */
+@Composable
+fun rememberRgbBorderColor(enabled: Boolean, isDark: Boolean): Color? {
+    val transition = rememberInfiniteTransition(label = "rgbBorderTransition")
+    val hue by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 6000, easing = LinearEasing)
+        ),
+        label = "rgbBorderHue"
+    )
+    return if (enabled) Color.hsv(hue, 0.82f, if (isDark) 1f else 0.78f) else null
+}
+
 enum class AppArea {
     HOME,
     EXPLORE,
@@ -610,17 +629,12 @@ fun AppThemedScreen(
     val rgbBordersActive = appSettings.rgbModeEnabled &&
         appSettings.isFullAppThemeActive() &&
         appSettings.isAreaThemingEnabled(area.name)
-    val areaColorScheme = if (rgbBordersActive) {
-        val transition = rememberInfiniteTransition(label = "rgbBorderTransition")
-        val hue by transition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 6000, easing = LinearEasing)
-            ),
-            label = "rgbBorderHue"
-        )
-        baseAreaColorScheme.copy(border = Color.hsv(hue, 0.82f, if (baseAreaColorScheme.isDark) 1f else 0.78f))
+    val rgbBorderColor = rememberRgbBorderColor(
+        enabled = rgbBordersActive,
+        isDark = baseAreaColorScheme.isDark
+    )
+    val areaColorScheme = if (rgbBorderColor != null) {
+        baseAreaColorScheme.copy(border = rgbBorderColor)
     } else {
         baseAreaColorScheme
     }
