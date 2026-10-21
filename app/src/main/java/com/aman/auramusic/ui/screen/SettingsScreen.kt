@@ -63,6 +63,7 @@ fun SettingsScreen(
     onChangeThemeEnabled: (Boolean) -> Unit = {},
     onThemeScopeChange: (String) -> Unit = {},
     onThemeColorStyleChange: (String) -> Unit = {},
+    onRgbModeChange: (Boolean) -> Unit = {},
     onThemePresetChange: (String) -> Unit = {},
     onThemeCustomHexesChange: (String) -> Unit = {},
     onDynamicArtworkColorsChange: (Boolean) -> Unit = {},
@@ -407,6 +408,30 @@ fun SettingsScreen(
                                                     )
                                                 )
                                             }
+                                        }
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "RGB Mode",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Text(
+                                                    text = "Cycle rainbow colors through borders in themed sections.",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            Switch(
+                                                checked = appSettings.rgbModeEnabled,
+                                                onCheckedChange = onRgbModeChange
+                                            )
                                         }
 
                                         // 3d. Style-specific configuration
