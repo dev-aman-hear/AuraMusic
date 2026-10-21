@@ -6,9 +6,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -86,6 +83,7 @@ import com.aman.auramusic.ui.theme.DarkMonochromeColors
 import com.aman.auramusic.ui.theme.DynamicArtworkColorsHelper
 import com.aman.auramusic.ui.theme.LightMonochromeColors
 import com.aman.auramusic.ui.theme.LocalIsDark
+import com.aman.auramusic.ui.theme.rememberRgbBorderColor
 import com.aman.auramusic.ui.theme.PlayerArtworkPalette
 import kotlin.math.abs
 
@@ -184,20 +182,10 @@ fun BottomNavBar(
             isDynamicActive &&
             settings.isAreaThemingEnabled(rgbAreaName)
     } == true
-    val rgbBorderColor: Color? = if (rgbBordersActive) {
-        val transition = rememberInfiniteTransition(label = "navigationRgbBorder")
-        val hue by transition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 6000, easing = LinearEasing)
-            ),
-            label = "navigationRgbHue"
-        )
-        Color.hsv(hue, 0.82f, if (isDark) 1f else 0.78f)
-    } else {
-        null
-    }
+    val rgbBorderColor = rememberRgbBorderColor(
+        enabled = rgbBordersActive,
+        isDark = isDark
+    )
 
     val navBarCornerRadius = 27.dp
     val navShape = RoundedCornerShape(navBarCornerRadius)
