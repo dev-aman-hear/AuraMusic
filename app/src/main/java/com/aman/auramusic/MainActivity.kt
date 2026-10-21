@@ -83,6 +83,7 @@ import com.aman.auramusic.online.network.repository.OnlineMusicRepository
 import com.aman.auramusic.online.model.SavedOnlineArtist
 import com.aman.auramusic.online.model.AudioSource
 import com.aman.auramusic.util.SongIdentityMatcher
+import com.aman.auramusic.util.OnlineSongQueueResolver
 import com.aman.auramusic.ui.component.BottomNavBar
 import com.aman.auramusic.ui.component.AppTab
 import com.aman.auramusic.ui.component.AddToPlaylistDialog
@@ -684,25 +685,13 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                         runCatching { Gson().fromJson(it, OnlineSong::class.java) }.getOrNull()
                                     }
                                 }
-                                val savedOnlineSongs = favoriteOnlineSongs +
+                                val onlineCandidates = favoriteOnlineSongs +
                                     historyOnlineSongs +
                                     playlists.flatMap { it.onlineSongs }
 
-                                fun findOnlineMatch(librarySong: Song): OnlineSong? =
-                                    SongIdentityMatcher.findOnlineMatch(librarySong, savedOnlineSongs)
-
-                                val onlineMatch = findOnlineMatch(song)
-                                if (onlineMatch != null) {
-                                    // Never fabricate an online track with an empty stream URL.
-                                    // Unresolved queue items are omitted, and the selected track is guaranteed
-                                    // to remain in the queue so playback starts from a valid online item.
-                                    val resolvedQueue = queue.mapNotNull { queueSong -> findOnlineMatch(queueSong) }
-                                        .distinctBy { it.id }
-                                        .toMutableList()
-                                    if (resolvedQueue.none { it.id == onlineMatch.id }) {
-                                        resolvedQueue.add(0, onlineMatch)
-                                    }
-                                    playOnlineSong(onlineMatch, resolvedQueue)
+                                val resolution = OnlineSongQueueResolver.resolve(song, queue, onlineCandidates)
+                                if (resolution != null) {
+                                    playOnlineSong(resolution.selectedSong, resolution.songs)
                                 } else {
                                     playSong(song, queue)
                                 }
