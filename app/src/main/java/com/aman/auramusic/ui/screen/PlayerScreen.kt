@@ -907,7 +907,7 @@ private fun LyricsPage(lyrics: List<LyricLine>, position: Long, onSeek: (Long) -
                         label = "lyricBlurRadius"
                     )
                     val lyricScale by animateFloatAsState(
-                        targetValue = if (isActive) 1.1f else 1f,
+                        targetValue = if (isActive) 1.05f else 1f,
                         animationSpec = tween(220),
                         label = "activeLyricScale"
                     )
