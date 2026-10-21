@@ -49,7 +49,7 @@ object SongIdentityMatcher {
 
     private fun artistTokens(artist: String): Set<String> =
         artist.lowercase()
-            .split(Regex("[,&/;]|\\\\bfeat(?:uring)?\\.?\\\\b|\\\\bft\\.?\\\\b|\\\\band\\\\b"))
+            .split(Regex("[,&/;]|\\bfeat(?:uring)?\\.?\\b|\\bft\\.?\\b|\\band\\b"))
             .map { cleanTitle(it) }
             .filter { it.length >= 2 && it !in setOf("unknown", "unknown artist", "various artists") }
             .toSet()
