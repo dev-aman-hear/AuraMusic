@@ -556,65 +556,6 @@ fun SettingsScreen(
                                             }
                                         }
 
-                                        // 3e. Themed Content Areas (visible only when Entire App is selected)
-                                        if (appSettings.themeScope.equals("Entire App", ignoreCase = true)) {
-                                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
-
-                                            Text(
-                                                text = "Themed Content Areas",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Text(
-                                                text = "Choose which screens use theme colors when full-app theming is active.",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-
-                                            ToggleRow(
-                                                title = "Home Screen",
-                                                subtitle = "Featured cards and recommendations",
-                                                checked = appSettings.themeHomeEnabled,
-                                                onCheckedChange = { onThemeAreaChange("HOME", it) }
-                                            )
-
-                                            ToggleRow(
-                                                title = "Explore & Search",
-                                                subtitle = "Online feeds, mood charts, and search screens",
-                                                checked = appSettings.themeExploreEnabled,
-                                                onCheckedChange = { onThemeAreaChange("EXPLORE", it) }
-                                            )
-
-                                            ToggleRow(
-                                                title = "Library",
-                                                subtitle = "Tracks, favorites, and playlists lists",
-                                                checked = appSettings.themeLibraryEnabled,
-                                                onCheckedChange = { onThemeAreaChange("LIBRARY", it) }
-                                            )
-
-                                            ToggleRow(
-                                                title = "Album Details",
-                                                subtitle = "Album view and song collections",
-                                                checked = appSettings.themeAlbumDetailEnabled,
-                                                onCheckedChange = { onThemeAreaChange("ALBUM_DETAIL", it) }
-                                            )
-
-                                            ToggleRow(
-                                                title = "Artist Pages",
-                                                subtitle = "Artist bio, discography, and profile headers",
-                                                checked = appSettings.themeArtistDetailEnabled,
-                                                onCheckedChange = { onThemeAreaChange("ARTIST_DETAIL", it) }
-                                            )
-
-                                            ToggleRow(
-                                                title = "Playlist Details",
-                                                subtitle = "Local and online playlist views",
-                                                checked = appSettings.themePlaylistDetailEnabled,
-                                                onCheckedChange = { onThemeAreaChange("PLAYLIST_DETAIL", it) }
-                                            )
-                                        }
-
                                         // Bottom Retract helper
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
