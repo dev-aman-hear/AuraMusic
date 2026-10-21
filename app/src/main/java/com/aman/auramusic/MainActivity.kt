@@ -461,16 +461,17 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
 
     fun toggleSongFavorite(song: Song) {
         val isFav = song.id in favoriteIds
-        val onlineMatch = favoriteOnlineSongs.find { 
-            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title.equals(song.title, ignoreCase = true) 
-        } ?: playbackHistory.mapNotNull { entry ->
-            entry.onlineSongJson?.let { runCatching { Gson().fromJson(it, OnlineSong::class.java) }.getOrNull() }
-        }.find {
-            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title.equals(song.title, ignoreCase = true)
-        } ?: playlists.flatMap { it.onlineSongs }.find {
-            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title.equals(song.title, ignoreCase = true)
-        } ?: (onlinePlaybackState.currentSong ?: activeOnlineSong)?.takeIf {
-            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title.equals(song.title, ignoreCase = true)
+        val onlineCandidates = favoriteOnlineSongs +
+            playbackHistory.mapNotNull { entry ->
+                entry.onlineSongJson?.let { runCatching { Gson().fromJson(it, OnlineSong::class.java) }.getOrNull() }
+            } +
+            playlists.flatMap { it.onlineSongs } +
+            listOfNotNull(onlinePlaybackState.currentSong ?: activeOnlineSong)
+        val onlineMatch = onlineCandidates.firstOrNull {
+            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id
+        } ?: onlineCandidates.firstOrNull {
+            it.title.trim().equals(song.title.trim(), ignoreCase = true) &&
+                it.artist.trim().equals(song.artist.trim(), ignoreCase = true)
         } ?: if (song.album == "Online Stream" || song.filePath.isNullOrBlank() || !File(song.filePath).exists()) {
             OnlineSong(
                 id = song.id.toString(),
