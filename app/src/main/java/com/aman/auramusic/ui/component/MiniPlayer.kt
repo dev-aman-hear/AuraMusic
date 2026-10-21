@@ -176,7 +176,7 @@ fun MiniPlayer(
                 horizontalArrangement = Arrangement.spacedBy(if (compact) 0.dp else 1.dp)
             ) {
                 if (!compact) {
-                    IconButton(onClick = onPrevious, modifier = Modifier.size(16.dp)) {
+                    IconButton(onClick = onPrevious, modifier = Modifier.size(22.dp)) {
                         Icon(
                             imageVector = Icons.Default.SkipPrevious,
                             contentDescription = "Previous track",
@@ -193,11 +193,11 @@ fun MiniPlayer(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Pause" else "Play",
                         tint = iconTint,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
                 if (!compact) {
-                    IconButton(onClick = onNext, modifier = Modifier.size(30.dp)) {
+                    IconButton(onClick = onNext, modifier = Modifier.size(22.dp)) {
                         Icon(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = "Next track",
