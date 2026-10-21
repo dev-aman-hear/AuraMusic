@@ -49,6 +49,7 @@ import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.data.model.AppSettings
 import com.aman.auramusic.ui.theme.AppArea
 import com.aman.auramusic.ui.theme.AppThemedScreen
+import com.aman.auramusic.ui.theme.LocalIsDark
 import kotlinx.coroutines.delay
 
 data class SearchCategory(
