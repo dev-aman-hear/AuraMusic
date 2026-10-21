@@ -60,6 +60,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material.icons.filled.Close
@@ -348,7 +349,7 @@ fun PlayerScreen(
 
             HorizontalPager(state = pagerState, modifier = Modifier.weight(1f), verticalAlignment = Alignment.Top, beyondViewportPageCount = 1) { page ->
                 when (page) {
-                    0 -> LyricsPage(lyrics, position, onSeek, appSettings.lyricFontScale, appSettings.karaokeMode)
+                    0 -> LyricsPage(lyrics, position, onSeek, appSettings.lyricFontScale, appSettings.karaokeMode, appSettings.lyricBlurStrength)
                     1 -> NowPlayingPage(
                         song = song,
                         isPlaying = isPlaying,
@@ -867,7 +868,7 @@ private fun NowPlayingPage(
 }
 
 @Composable
-private fun LyricsPage(lyrics: List<LyricLine>, position: Long, onSeek: (Long) -> Unit, fontScale: Float, karaokeMode: Boolean) {
+private fun LyricsPage(lyrics: List<LyricLine>, position: Long, onSeek: (Long) -> Unit, fontScale: Float, karaokeMode: Boolean, blurStrengthPercent: Float) {
     val activeIndex = lyrics.indexOfLast { it.timeMs <= position }.coerceAtLeast(0)
     val listState = rememberLazyListState()
     val density = LocalDensity.current
@@ -895,8 +896,39 @@ private fun LyricsPage(lyrics: List<LyricLine>, position: Long, onSeek: (Long) -
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
                 item { Spacer(modifier = Modifier.height(100.dp)) }
                 itemsIndexed(lyrics) { index, line ->
-                    val opacity by animateFloatAsState(if (index == activeIndex) 1f else if (karaokeMode) 0.08f else 0.25f, label = "lyricOpacity")
-                    Text(line.text, style = MaterialTheme.typography.headlineLarge.copy(fontSize = MaterialTheme.typography.headlineLarge.fontSize * fontScale), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground.copy(alpha = opacity), modifier = Modifier.fillMaxWidth().pointerInput(line.timeMs) { detectTapGestures(onTap = { onSeek(line.timeMs) }) })
+                    val isActive = index == activeIndex
+                    val opacity by animateFloatAsState(if (isActive) 1f else if (karaokeMode) 0.08f else 0.25f, label = "lyricOpacity")
+                    val blurRadius by animateDpAsState(
+                        targetValue = when {
+                            isActive -> 0.dp
+                            index == activeIndex - 1 || index == activeIndex + 1 -> (blurStrengthPercent / 2f * 0.5f).dp
+                            else -> (blurStrengthPercent / 2f).dp
+                        },
+                        label = "lyricBlurRadius"
+                    )
+                    val lyricScale by animateFloatAsState(
+                        targetValue = if (isActive) 1.1f else 1f,
+                        animationSpec = tween(220),
+                        label = "activeLyricScale"
+                    )
+                    Text(
+                        text = line.text,
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontSize = MaterialTheme.typography.headlineLarge.fontSize * fontScale
+                        ),
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = opacity),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer {
+                                scaleX = lyricScale
+                                scaleY = lyricScale
+                            }
+                            .blur(blurRadius)
+                            .pointerInput(line.timeMs) {
+                                detectTapGestures(onTap = { onSeek(line.timeMs) })
+                            }
+                    )
                 }
                 item { Spacer(modifier = Modifier.height(240.dp)) }
             }
