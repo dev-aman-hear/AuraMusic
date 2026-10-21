@@ -10,6 +10,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
@@ -597,11 +602,28 @@ fun AppThemedScreen(
     appSettings: AppSettings,
     content: @Composable () -> Unit
 ) {
-    val areaColorScheme = rememberAreaColorScheme(
+    val baseAreaColorScheme = rememberAreaColorScheme(
         area = area,
         artworkModel = artworkModel,
         appSettings = appSettings
     )
+    val rgbBordersActive = appSettings.rgbModeEnabled &&
+        appSettings.isFullAppThemeActive() &&
+        appSettings.isAreaThemingEnabled(area.name)
+    val areaColorScheme = if (rgbBordersActive) {
+        val transition = rememberInfiniteTransition(label = "rgbBorderTransition")
+        val hue by transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 6000, easing = LinearEasing)
+            ),
+            label = "rgbBorderHue"
+        )
+        baseAreaColorScheme.copy(border = Color.hsv(hue, 0.82f, if (baseAreaColorScheme.isDark) 1f else 0.78f))
+    } else {
+        baseAreaColorScheme
+    }
 
     CompositionLocalProvider(
         LocalAppColorScheme provides areaColorScheme
