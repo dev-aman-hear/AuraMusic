@@ -26,13 +26,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.material.icons.filled.BrightnessAuto
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.foundation.border
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -41,7 +36,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.semantics.Role
 import com.aman.auramusic.BuildConfig
@@ -52,13 +46,9 @@ import com.aman.auramusic.ui.theme.AuraScreenBackground
 import com.aman.auramusic.ui.theme.AppColors
 import com.aman.auramusic.ui.theme.Monochrome
 import com.aman.auramusic.ui.theme.LocalIsDark
-import com.aman.auramusic.ui.theme.AppPaletteMode
 import com.aman.auramusic.ui.theme.CustomPaletteValidator
-import com.aman.auramusic.ui.theme.PlayerThemeMode
 import com.aman.auramusic.ui.theme.PlayerArtworkPalette
-import com.aman.auramusic.ui.theme.resolvePlayerColorScheme
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
