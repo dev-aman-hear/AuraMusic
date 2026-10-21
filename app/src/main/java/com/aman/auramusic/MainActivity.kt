@@ -82,6 +82,7 @@ import com.aman.auramusic.online.network.repository.YouTubeArtistRepositoryImpl
 import com.aman.auramusic.online.network.repository.OnlineMusicRepository
 import com.aman.auramusic.online.model.SavedOnlineArtist
 import com.aman.auramusic.online.model.AudioSource
+import com.aman.auramusic.util.SongIdentityMatcher
 import com.aman.auramusic.ui.component.BottomNavBar
 import com.aman.auramusic.ui.component.AppTab
 import com.aman.auramusic.ui.component.AddToPlaylistDialog
@@ -467,12 +468,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
             } +
             playlists.flatMap { it.onlineSongs } +
             listOfNotNull(onlinePlaybackState.currentSong ?: activeOnlineSong)
-        val onlineMatch = onlineCandidates.firstOrNull {
-            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id
-        } ?: onlineCandidates.firstOrNull {
-            it.title.trim().equals(song.title.trim(), ignoreCase = true) &&
-                it.artist.trim().equals(song.artist.trim(), ignoreCase = true)
-        } ?: if (song.album == "Online Stream" || song.filePath.isNullOrBlank() || !File(song.filePath).exists()) {
+        val onlineMatch = SongIdentityMatcher.findOnlineMatch(song, onlineCandidates)
+            ?: if (song.album == "Online Stream" || song.filePath.isNullOrBlank() || !File(song.filePath).exists()) {
             OnlineSong(
                 id = song.id.toString(),
                 title = song.title,
@@ -691,18 +688,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     historyOnlineSongs +
                                     playlists.flatMap { it.onlineSongs }
 
-                                fun findOnlineMatch(librarySong: Song): OnlineSong? {
-                                    val byId = savedOnlineSongs.firstOrNull { online ->
-                                        (online.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL)
-                                            .coerceAtLeast(1L) == librarySong.id
-                                    }
-                                    if (byId != null) return byId
-
-                                    return savedOnlineSongs.firstOrNull { online ->
-                                        online.title.trim().equals(librarySong.title.trim(), ignoreCase = true) &&
-                                            online.artist.trim().equals(librarySong.artist.trim(), ignoreCase = true)
-                                    }
-                                }
+                                fun findOnlineMatch(librarySong: Song): OnlineSong? =
+                                    SongIdentityMatcher.findOnlineMatch(librarySong, savedOnlineSongs)
 
                                 val onlineMatch = findOnlineMatch(song)
                                 if (onlineMatch != null) {
@@ -874,15 +861,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onAddCollectionToPlaylist = { songsToAddToPlaylist = playlistSongs },
                                     onFavoriteCollection = {
                                         val items = playlistSongs.map { song ->
-                                            val match = p.onlineSongs.find {
-                                                (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
-                                                it.id == song.id.toString() ||
-                                                it.title.equals(song.title, ignoreCase = true)
-                                            } ?: favoriteOnlineSongs.find {
-                                                (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
-                                                it.id == song.id.toString() ||
-                                                it.title.equals(song.title, ignoreCase = true)
-                                            }
+                                            val match = SongIdentityMatcher.findOnlineMatch(song, p.onlineSongs)
+                                                ?: SongIdentityMatcher.findOnlineMatch(song, favoriteOnlineSongs)
                                             song.id to match
                                         }
                                         musicViewModel.toggleFavorites(items, true)
@@ -977,15 +957,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 onAddCollectionToPlaylist = { songsToAddToPlaylist = displaySongs },
                                 onFavoriteCollection = {
                                     val items = displaySongs.map { song ->
-                                        val match = onlineAlbumSongs.find {
-                                            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
-                                            it.id == song.id.toString() ||
-                                            it.title.equals(song.title, ignoreCase = true)
-                                        } ?: favoriteOnlineSongs.find {
-                                            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id ||
-                                            it.id == song.id.toString() ||
-                                            it.title.equals(song.title, ignoreCase = true)
-                                        }
+                                        val match = SongIdentityMatcher.findOnlineMatch(song, onlineAlbumSongs)
+                                            ?: SongIdentityMatcher.findOnlineMatch(song, favoriteOnlineSongs)
                                         song.id to match
                                     }
                                     musicViewModel.toggleFavorites(items, true)
