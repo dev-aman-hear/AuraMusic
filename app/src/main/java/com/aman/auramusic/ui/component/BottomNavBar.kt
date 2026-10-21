@@ -179,15 +179,17 @@ fun BottomNavBar(
         AppTab.Online, AppTab.Search -> "EXPLORE"
         AppTab.Library -> "LIBRARY"
     }
-    val rgbBordersActive = appSettings?.rgbModeEnabled == true &&
-        isDynamicActive &&
-        appSettings.isAreaThemingEnabled(rgbAreaName)
+    val rgbBordersActive = appSettings?.let { settings ->
+        settings.rgbModeEnabled &&
+            isDynamicActive &&
+            settings.isAreaThemingEnabled(rgbAreaName)
+    } == true
     val rgbBorderColor: Color? = if (rgbBordersActive) {
         val transition = rememberInfiniteTransition(label = "navigationRgbBorder")
         val hue by transition.animateFloat(
             initialValue = 0f,
             targetValue = 360f,
-            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animationSpec = infiniteRepeatable(
                 animation = tween(durationMillis = 6000, easing = LinearEasing)
             ),
             label = "navigationRgbHue"
