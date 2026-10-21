@@ -93,6 +93,7 @@ import com.aman.auramusic.ui.component.NewPlaylistDialog
 import com.aman.auramusic.ui.component.RenamePlaylistDialog
 import com.aman.auramusic.ui.screen.AboutDialog
 import com.aman.auramusic.ui.theme.AuraMusicTheme
+import com.aman.auramusic.ui.theme.RgbBorderAnimationHost
 import com.aman.auramusic.viewmodel.MusicViewModel
 import com.aman.auramusic.viewmodel.PlayerViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -118,7 +119,9 @@ class MainActivity : ComponentActivity() {
             AuraMusicTheme(
                 themeMode = appSettings.themeMode
             ) {
-                MusicScreen(musicViewModel)
+                RgbBorderAnimationHost(enabled = appSettings.rgbModeEnabled) {
+                    MusicScreen(musicViewModel)
+                }
             }
         }
     }
