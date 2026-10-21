@@ -863,35 +863,7 @@ private fun FeaturedExploreCard(
                 )
             }
 
-            // Horizontal gradient overlay for left-side text contrast
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(
-                                Color.Black.copy(alpha = 0.85f),
-                                Color.Black.copy(alpha = 0.45f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
-
-            // Vertical gradient overlay for bottom text and play button contrast
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.35f),
-                                Color.Black.copy(alpha = 0.85f)
-                            )
-                        )
-                    )
-            )
+            // Keep the featured artwork untinted: no theme tint or dark gradient overlay.
 
             Column(
                 modifier = Modifier
