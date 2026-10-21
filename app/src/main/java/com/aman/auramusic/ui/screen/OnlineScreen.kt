@@ -873,7 +873,11 @@ private fun FeaturedExploreCard(
                 verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
                 Text(
-                    text = if (song.album.isNotBlank()) "MOVIE MUSIC SPOTLIGHT" else "FEATURED MUSIC",
+                    text = if (song.album.isNotBlank() && !song.album.equals("YouTube Music", ignoreCase = true)) {
+                        "MOVIE MUSIC SPOTLIGHT"
+                    } else {
+                        "FEATURED MUSIC"
+                    },
                     color = Color.White.copy(alpha = 0.85f),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
@@ -881,15 +885,20 @@ private fun FeaturedExploreCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = song.album.ifBlank { song.title },
-                    color = Color.White,
-                    fontSize = 25.sp,
-                    lineHeight = 29.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                val featuredTitle = song.album
+                    .takeIf { it.isNotBlank() && !it.equals("YouTube Music", ignoreCase = true) }
+                    ?: song.title.takeIf { !it.equals("YouTube Music", ignoreCase = true) }.orEmpty()
+                if (featuredTitle.isNotBlank()) {
+                    Text(
+                        text = featuredTitle,
+                        color = Color.White,
+                        fontSize = 25.sp,
+                        lineHeight = 29.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Text(
                     text = song.artist,
                     color = Color.White.copy(alpha = 0.88f),
