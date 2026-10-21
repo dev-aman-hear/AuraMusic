@@ -6,6 +6,9 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -169,6 +172,31 @@ fun BottomNavBar(
         label = "bottomNavAccentColor"
     )
 
+    // Navigation is shared by all tabs, so use the selected section's theming toggle.
+    // RGB affects outlines only; the selected icon/accent and surface colors remain unchanged.
+    val rgbAreaName = when (selectedTab) {
+        AppTab.Home -> "HOME"
+        AppTab.Online, AppTab.Search -> "EXPLORE"
+        AppTab.Library -> "LIBRARY"
+    }
+    val rgbBordersActive = appSettings?.rgbModeEnabled == true &&
+        isDynamicActive &&
+        appSettings.isAreaThemingEnabled(rgbAreaName)
+    val rgbBorderColor: Color? = if (rgbBordersActive) {
+        val transition = rememberInfiniteTransition(label = "navigationRgbBorder")
+        val hue by transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                animation = tween(durationMillis = 6000, easing = LinearEasing)
+            ),
+            label = "navigationRgbHue"
+        )
+        Color.hsv(hue, 0.82f, if (isDark) 1f else 0.78f)
+    } else {
+        null
+    }
+
     val navBarCornerRadius = 27.dp
     val navShape = RoundedCornerShape(navBarCornerRadius)
 
@@ -246,7 +274,7 @@ fun BottomNavBar(
                     .border(
                         // Keep the Home control's dynamic outline visible even when another tab is selected.
                         if (isDynamicActive) {
-                            BorderStroke(1.dp, animatedAccent.copy(alpha = 0.72f))
+                            BorderStroke(1.dp, (rgbBorderColor ?: animatedAccent).copy(alpha = 0.72f))
                         } else {
                             BorderStroke(1.dp, surfaceBorderBrush)
                         },
@@ -278,7 +306,7 @@ fun BottomNavBar(
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    animatedAccent.copy(alpha = if (isDynamicActive) 0.72f else 0.30f)
+                                    (rgbBorderColor ?: animatedAccent).copy(alpha = if (isDynamicActive) 0.72f else 0.30f)
                                 ),
                                 RoundedCornerShape(23.dp)
                             )
@@ -386,7 +414,7 @@ fun BottomNavBar(
                         if (isDynamicActive) {
                             BorderStroke(
                                 1.dp,
-                                animatedAccent.copy(alpha = if (isSearchSelected) 0.82f else 0.62f)
+                                (rgbBorderColor ?: animatedAccent).copy(alpha = if (isSearchSelected) 0.82f else 0.62f)
                             )
                         } else {
                             BorderStroke(
@@ -422,7 +450,7 @@ fun BottomNavBar(
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    animatedAccent.copy(alpha = if (isDynamicActive) 0.72f else 0.30f)
+                                    (rgbBorderColor ?: animatedAccent).copy(alpha = if (isDynamicActive) 0.72f else 0.30f)
                                 ),
                                 RoundedCornerShape(23.dp)
                             )
@@ -512,7 +540,7 @@ fun BottomNavBar(
                     .background(surfaceGlassColor, navShape)
                     .border(
                         if (isDynamicActive) {
-                            BorderStroke(1.dp, animatedAccent.copy(alpha = 0.78f))
+                            BorderStroke(1.dp, (rgbBorderColor ?: animatedAccent).copy(alpha = 0.78f))
                         } else {
                             BorderStroke(1.dp, surfaceBorderBrush)
                         },
@@ -835,7 +863,7 @@ fun BottomNavBar(
                         if (isDynamicActive) {
                             BorderStroke(
                                 1.dp,
-                                animatedAccent.copy(alpha = if (isSearchSelected) 0.82f else 0.58f)
+                                (rgbBorderColor ?: animatedAccent).copy(alpha = if (isSearchSelected) 0.82f else 0.58f)
                             )
                         } else {
                             // Dynamic Colour OFF: keep the Search button outline monochrome.
@@ -869,7 +897,7 @@ fun BottomNavBar(
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    animatedAccent.copy(alpha = if (isDynamicActive) 0.72f else 0.30f)
+                                    (rgbBorderColor ?: animatedAccent).copy(alpha = if (isDynamicActive) 0.72f else 0.30f)
                                 ),
                                 RoundedCornerShape(23.dp)
                             )
