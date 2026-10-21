@@ -34,7 +34,7 @@ object SongIdentityMatcher {
     fun cleanTitle(title: String): String =
         title.replace(VIDEO_NOISE_REGEX, "")
             .lowercase()
-            .replace(Regex("\\s*[\\[(](?:feat(?:uring)?|ft)\\.?\\s+[^\\])]+[\\])]"), "")
+            .replace(Regex("""\\s*\\((?:feat(?:uring)?|ft)\\.?\\s+[^)]*\\)|\\s*\\[(?:feat(?:uring)?|ft)\\.?\\s+[^]]*]""", RegexOption.IGNORE_CASE), "")
             .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
             .trim()
             .replace(Regex("\\s+"), " ")
