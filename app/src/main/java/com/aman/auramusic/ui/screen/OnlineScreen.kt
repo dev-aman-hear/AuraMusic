@@ -90,6 +90,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 private data class MoodCollection(
     val title: String,
@@ -267,7 +269,9 @@ fun OnlineScreen(
         selectedCollection = null
     }
 
-    suspend fun loadMovieSoundtracks(): List<AlbumCollection> = coroutineScope {
+    suspend fun loadMovieSoundtracks(forceRefresh: Boolean = false): List<AlbumCollection> = coroutineScope {
+        // Keep provider requests bounded to avoid a burst of simultaneous network calls.
+        val requestPermits = Semaphore(permits = 3)
         // Search real YouTube Music album/playlist entities and browse each collection
         // by its provider browse ID. Do not infer albums from song-search metadata.
         val queries = listOf(
@@ -281,7 +285,9 @@ fun OnlineScreen(
         val collectionResults = queries.map { query ->
             async {
                 try {
-                    repository.searchYouTubeMusicCollections(query, limit = 10)
+                    requestPermits.withPermit {
+                        repository.searchYouTubeMusicCollections(query, limit = 10)
+                    }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
@@ -303,12 +309,40 @@ fun OnlineScreen(
 
         val collections = candidates.map { collection ->
             async {
-                val tracks = try {
-                    repository.getYouTubeMusicCollectionSongs(collection)
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (_: Exception) {
+                val cacheKey = "collection_tracks_${collection.id.hashCode()}"
+                val cachedAtKey = "${cacheKey}_fetched_at"
+                val cachedAt = feedCachePrefs.getLong(cachedAtKey, 0L)
+                val cachedTracks = if (!forceRefresh &&
+                    System.currentTimeMillis() - cachedAt in 0..feedCacheTtlMs
+                ) {
+                    runCatching {
+                        val songsType = object : TypeToken<List<OnlineSong>>() {}.type
+                        feedCacheGson.fromJson<List<OnlineSong>>(
+                            feedCachePrefs.getString(cacheKey, null), songsType
+                        ).orEmpty()
+                    }.getOrDefault(emptyList())
+                } else {
                     emptyList()
+                }
+                val tracks = if (cachedTracks.isNotEmpty()) {
+                    cachedTracks
+                } else {
+                    try {
+                        requestPermits.withPermit {
+                            repository.getYouTubeMusicCollectionSongs(collection)
+                        }.also { fetched ->
+                            if (fetched.isNotEmpty()) {
+                                feedCachePrefs.edit()
+                                    .putString(cacheKey, feedCacheGson.toJson(fetched))
+                                    .putLong(cachedAtKey, System.currentTimeMillis())
+                                    .apply()
+                            }
+                        }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
                 }
                 val uniqueTracks = deduplicateOnlineSongs(tracks)
                     .filter { it.source == AudioSource.YOUTUBE }
@@ -392,7 +426,7 @@ fun OnlineScreen(
                 emptyList()
             }
             movieAlbums = try {
-                loadMovieSoundtracks()
+                loadMovieSoundtracks(forceRefresh)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
