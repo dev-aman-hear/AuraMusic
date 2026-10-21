@@ -86,6 +86,7 @@ fun SettingsScreen(
     onThemeAreaChange: (String, Boolean) -> Unit = { _, _ -> },
     onKaraokeChange: (Boolean) -> Unit = {},
     onLyricFontScaleChange: (Float) -> Unit,
+    onLyricBlurStrengthChange: (Float) -> Unit = {},
     onSmartAudioFocusChange: (Boolean) -> Unit,
     onPlaylistGridColumnsChange: (Int) -> Unit,
     onImportPlaylistFile: () -> Unit,
@@ -193,6 +194,30 @@ fun SettingsScreen(
                             onValueChange = onLyricFontScaleChange,
                             valueRange = 0.8f..1.4f,
                             steps = 5,
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                activeTickColor = MaterialTheme.colorScheme.onPrimary,
+                                inactiveTickColor = MaterialTheme.colorScheme.outline
+                            )
+                        )
+
+                        Text(
+                            text = "Active lyric blur: " + appSettings.lyricBlurStrength.toInt() + "%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Adjust the blur on lyrics above and below the active line.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = appSettings.lyricBlurStrength,
+                            onValueChange = onLyricBlurStrengthChange,
+                            valueRange = 0f..20f,
+                            steps = 19,
                             colors = SliderDefaults.colors(
                                 thumbColor = MaterialTheme.colorScheme.primary,
                                 activeTrackColor = MaterialTheme.colorScheme.primary,
