@@ -124,6 +124,7 @@ import com.aman.auramusic.ui.theme.PlayerArtworkPalette
 import com.aman.auramusic.ui.theme.PlayerColorScheme
 import com.aman.auramusic.ui.theme.PlayerPaletteMode
 import com.aman.auramusic.ui.theme.rememberPlayerColorScheme
+import com.aman.auramusic.ui.theme.resolvePlayerPaletteMode
 import com.aman.auramusic.util.audioQuality
 import com.aman.auramusic.util.formatDuration
 import com.aman.auramusic.viewmodel.PlayerViewModel

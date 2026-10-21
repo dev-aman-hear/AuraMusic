@@ -621,6 +621,447 @@ fun SettingsScreen(
                 }
             }
 
+            // Unified Appearance / Theme Section
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
+                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(24.dp))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            text = "Appearance",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        var isThemeExpanded by rememberSaveable { mutableStateOf(false) }
+
+                        // 1. Master Switch: Change Theme
+                        ToggleRow(
+                            title = "Change Theme",
+                            subtitle = "Personalize colors across AuraMusic with dynamic artwork, presets, or custom palettes.",
+                            checked = appSettings.changeThemeEnabled,
+                            onCheckedChange = { isChecked ->
+                                onChangeThemeEnabled(isChecked)
+                                if (!isChecked) {
+                                    isThemeExpanded = false
+                                }
+                            }
+                        )
+
+                        // 2. Expand / Retract control and configuration (only shown when Change Theme is ON)
+                        AnimatedVisibility(
+                            visible = appSettings.changeThemeEnabled,
+                            enter = fadeIn(animationSpec = tween(220)) + expandVertically(animationSpec = tween(220)),
+                            exit = fadeOut(animationSpec = tween(180)) + shrinkVertically(animationSpec = tween(180))
+                        ) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+
+                                // Working Expand / Retract button control
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                            RoundedCornerShape(14.dp)
+                                        )
+                                        .border(
+                                            BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+                                            RoundedCornerShape(14.dp)
+                                        )
+                                        .clickable(
+                                            role = Role.Button,
+                                            onClick = { isThemeExpanded = !isThemeExpanded }
+                                        )
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = if (isThemeExpanded) "Theme Configuration" else "Theme Options",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        val summary = if (appSettings.themeScope.equals("Entire App", ignoreCase = true)) {
+                                            "Scope: Entire App • Style: ${appSettings.themeColorStyle}"
+                                        } else {
+                                            "Scope: Player Only • Style: ${appSettings.themeColorStyle}"
+                                        }
+                                        Text(
+                                            text = summary,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isThemeExpanded) "Retract" else "Expand",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Icon(
+                                            imageVector = if (isThemeExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            contentDescription = if (isThemeExpanded) "Retract Theme Options" else "Expand Theme Options",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+
+                                // 3. Expandable configuration options
+                                AnimatedVisibility(
+                                    visible = isThemeExpanded,
+                                    enter = fadeIn(animationSpec = tween(220)) + expandVertically(animationSpec = tween(220)),
+                                    exit = fadeOut(animationSpec = tween(180)) + shrinkVertically(animationSpec = tween(180))
+                                ) {
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        // 3a. Compact Live Theme Preview
+                                        ThemeLivePreview(
+                                            isDark = LocalIsDark.current,
+                                            scope = appSettings.themeScope,
+                                            style = appSettings.themeColorStyle,
+                                            preset = appSettings.appColorPreset,
+                                            customHexes = appSettings.appCustomPaletteHexes
+                                        )
+
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+
+                                        // 3b. Theme Scope Selector
+                                        Text(
+                                            text = "Theme Scope",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Choose where color themes are applied.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+
+                                        ThemeScopeSelector(
+                                            selectedScope = appSettings.themeScope,
+                                            onScopeSelected = { scope ->
+                                                onThemeScopeChange(scope)
+                                                onEnableFullAppDynamicThemeChange(scope.equals("Entire App", ignoreCase = true))
+                                            }
+                                        )
+
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+
+                                        // 3c. Color Style Selector
+                                        Text(
+                                            text = "Color Style",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Choose how theme colors are resolved.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+
+                                        val colorStyles = listOf("Dynamic Artwork", "Preset", "Custom")
+                                        FlowRow(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.fillMaxWidth().selectableGroup()
+                                        ) {
+                                            colorStyles.forEach { style ->
+                                                val isSelected = appSettings.themeColorStyle.equals(style, ignoreCase = true)
+                                                FilterChip(
+                                                    selected = isSelected,
+                                                    onClick = {
+                                                        onThemeColorStyleChange(style)
+                                                        onAppPaletteModeChange(style)
+                                                        onPlayerThemeModeChange(style)
+                                                    },
+                                                    label = { Text(style, style = MaterialTheme.typography.labelMedium) },
+                                                    colors = FilterChipDefaults.filterChipColors(
+                                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                                    ),
+                                                    border = FilterChipDefaults.filterChipBorder(
+                                                        enabled = true,
+                                                        selected = isSelected,
+                                                        borderColor = MaterialTheme.colorScheme.outline,
+                                                        selectedBorderColor = MaterialTheme.colorScheme.primary
+                                                    )
+                                                )
+                                            }
+                                        }
+
+                                        // 3d. Style-specific configuration
+                                        val activeStyle = appSettings.themeColorStyle
+                                        when {
+                                            activeStyle.equals("Dynamic Artwork", ignoreCase = true) -> {
+                                                Text(
+                                                    text = "Extracts a balanced, harmonious color palette from the currently playing song's artwork and adapts smoothly as tracks change.",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            activeStyle.equals("Preset", ignoreCase = true) -> {
+                                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+                                                Text(
+                                                    text = "Color Preset",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                val presets = listOf("Midnight Indigo", "Crimson Velvet", "Emerald Pine", "Nordic Slate")
+                                                val isDark = LocalIsDark.current
+                                                FlowRow(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                                    modifier = Modifier.fillMaxWidth().selectableGroup()
+                                                ) {
+                                                    presets.forEach { preset ->
+                                                        val isSelected = appSettings.appColorPreset.equals(preset, ignoreCase = true)
+                                                        val samplePal = remember(preset, isDark) {
+                                                            PlayerArtworkPalette.fromPreset(preset, isDark)
+                                                        }
+                                                        FilterChip(
+                                                            selected = isSelected,
+                                                            onClick = {
+                                                                onThemePresetChange(preset)
+                                                                onAppColorPresetChange(preset)
+                                                                onColorPresetChange(preset)
+                                                            },
+                                                            leadingIcon = {
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .size(12.dp)
+                                                                        .clip(CircleShape)
+                                                                        .background(samplePal.accent)
+                                                                )
+                                                            },
+                                                            label = { Text(preset, style = MaterialTheme.typography.labelMedium) },
+                                                            colors = FilterChipDefaults.filterChipColors(
+                                                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                                                iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary
+                                                            ),
+                                                            border = FilterChipDefaults.filterChipBorder(
+                                                                enabled = true,
+                                                                selected = isSelected,
+                                                                borderColor = MaterialTheme.colorScheme.outline,
+                                                                selectedBorderColor = MaterialTheme.colorScheme.primary
+                                                            )
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            activeStyle.equals("Custom", ignoreCase = true) || activeStyle.equals("Custom Palette", ignoreCase = true) -> {
+                                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+                                                Text(
+                                                    text = "Custom Color Editor",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Text(
+                                                    text = "Enter 2 to 5 comma-separated hex colors (e.g. #1A237E, #3949AB, #0D1642).",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+
+                                                var hexInput by remember(appSettings.appCustomPaletteHexes) {
+                                                    mutableStateOf(appSettings.appCustomPaletteHexes)
+                                                }
+                                                val parsedHexes = remember(hexInput) {
+                                                    CustomPaletteValidator.parseHexList(hexInput)
+                                                }
+                                                val isValid = remember(parsedHexes) {
+                                                    CustomPaletteValidator.validateHexList(parsedHexes)
+                                                }
+
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 4.dp)
+                                                ) {
+                                                    parsedHexes.forEach { hex ->
+                                                        val col = CustomPaletteValidator.parseHexToColor(hex)
+                                                        if (col != null) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(28.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(col, CircleShape)
+                                                                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                OutlinedTextField(
+                                                    value = hexInput,
+                                                    onValueChange = { newText ->
+                                                        hexInput = newText
+                                                        if (CustomPaletteValidator.validate(newText)) {
+                                                            onThemeCustomHexesChange(newText)
+                                                            onAppCustomPaletteHexesChange(newText)
+                                                            onCustomPaletteHexesChange(newText)
+                                                        }
+                                                    },
+                                                    label = { Text("Hex Colors") },
+                                                    singleLine = true,
+                                                    shape = RoundedCornerShape(16.dp),
+                                                    colors = OutlinedTextFieldDefaults.colors(
+                                                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        cursorColor = MaterialTheme.colorScheme.primary
+                                                    ),
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+
+                                                if (!isValid) {
+                                                    Text(
+                                                        text = "Requires between 2 and 5 valid hex codes (e.g., #1A237E, #3949AB)",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.error
+                                                    )
+                                                }
+
+                                                Row(
+                                                    horizontalArrangement = Arrangement.End,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    TextButton(
+                                                        onClick = {
+                                                            hexInput = CustomPaletteValidator.DEFAULT_HEX_STRING
+                                                            onThemeCustomHexesChange(CustomPaletteValidator.DEFAULT_HEX_STRING)
+                                                            onAppCustomPaletteHexesChange(CustomPaletteValidator.DEFAULT_HEX_STRING)
+                                                            onCustomPaletteHexesChange(CustomPaletteValidator.DEFAULT_HEX_STRING)
+                                                        }
+                                                    ) {
+                                                        Text("Reset to Default", style = MaterialTheme.typography.labelMedium)
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 3e. Themed Content Areas (visible only when Entire App is selected)
+                                        if (appSettings.themeScope.equals("Entire App", ignoreCase = true)) {
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+
+                                            Text(
+                                                text = "Themed Content Areas",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "Choose which screens use theme colors when full-app theming is active.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+
+                                            ToggleRow(
+                                                title = "Home Screen",
+                                                subtitle = "Featured cards and recommendations",
+                                                checked = appSettings.themeHomeEnabled,
+                                                onCheckedChange = { onThemeAreaChange("HOME", it) }
+                                            )
+
+                                            ToggleRow(
+                                                title = "Explore & Search",
+                                                subtitle = "Online feeds, mood charts, and search screens",
+                                                checked = appSettings.themeExploreEnabled,
+                                                onCheckedChange = { onThemeAreaChange("EXPLORE", it) }
+                                            )
+
+                                            ToggleRow(
+                                                title = "Library",
+                                                subtitle = "Tracks, favorites, and playlists lists",
+                                                checked = appSettings.themeLibraryEnabled,
+                                                onCheckedChange = { onThemeAreaChange("LIBRARY", it) }
+                                            )
+
+                                            ToggleRow(
+                                                title = "Album Details",
+                                                subtitle = "Album view and song collections",
+                                                checked = appSettings.themeAlbumDetailEnabled,
+                                                onCheckedChange = { onThemeAreaChange("ALBUM_DETAIL", it) }
+                                            )
+
+                                            ToggleRow(
+                                                title = "Artist Pages",
+                                                subtitle = "Artist bio, discography, and profile headers",
+                                                checked = appSettings.themeArtistDetailEnabled,
+                                                onCheckedChange = { onThemeAreaChange("ARTIST_DETAIL", it) }
+                                            )
+
+                                            ToggleRow(
+                                                title = "Playlist Details",
+                                                subtitle = "Local and online playlist views",
+                                                checked = appSettings.themePlaylistDetailEnabled,
+                                                onCheckedChange = { onThemeAreaChange("PLAYLIST_DETAIL", it) }
+                                            )
+                                        }
+
+                                        // Bottom Retract helper
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            TextButton(
+                                                onClick = { isThemeExpanded = false }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ExpandLess,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Retract theme options", style = MaterialTheme.typography.labelMedium)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
         item {
             Box(
                 modifier = Modifier

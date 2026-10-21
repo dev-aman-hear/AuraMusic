@@ -20,6 +20,7 @@ import com.aman.auramusic.online.model.SavedOnlineArtist
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
@@ -167,6 +168,10 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it[Keys.smartAudioFocus] = enabled }
     }
 
+
+    suspend fun getKeepPlayingOnClose(): Boolean {
+        return settingsFlow.first().keepPlayingOnClose
+    }
 
     suspend fun setPlaylistGridColumns(columns: Int) {
         dataStore.edit { it[Keys.playlistGridColumns] = columns.coerceIn(1, 2) }

@@ -260,6 +260,44 @@ fun resolvePlayerPaletteMode(appSettings: AppSettings): PlayerPaletteMode {
 }
 
 /**
+ * Pure calculation overload resolving PlayerColorScheme directly from PlayerPaletteMode.
+ */
+fun resolvePlayerColorScheme(
+    paletteMode: PlayerPaletteMode,
+    isDark: Boolean,
+    primary: Color,
+    secondary: Color,
+    tertiary: Color,
+    accent: Color,
+    surfaceVariant: Color = if (isDark) Color(0xFF2A2A2A) else Color(0xFFE5E5EA),
+    outline: Color = if (isDark) Color(0xFF38383A) else Color(0xFFD1D1D6),
+    outlineVariant: Color = if (isDark) Color(0xFF2C2C2E) else Color(0xFFE5E5EA),
+    onSurface: Color = if (isDark) Color(0xFFF2F2F7) else Color(0xFF1C1C1E),
+    onSurfaceVariant: Color = if (isDark) Color(0xFF8E8E93) else Color(0xFF8E8E93),
+    themePrimary: Color = if (isDark) Color.White else Color.Black,
+    onPrimary: Color = if (isDark) Color.Black else Color.White,
+    background: Color = if (isDark) Color(0xFF121212) else Color(0xFFFFFFFF),
+    onBackground: Color = if (isDark) Color.White else Color(0xFF111111)
+): PlayerColorScheme = resolvePlayerColorScheme(
+    isDynamic = paletteMode.isColored,
+    isDark = isDark,
+    primary = primary,
+    secondary = secondary,
+    tertiary = tertiary,
+    accent = accent,
+    surfaceVariant = surfaceVariant,
+    outline = outline,
+    outlineVariant = outlineVariant,
+    onSurface = onSurface,
+    onSurfaceVariant = onSurfaceVariant,
+    themePrimary = themePrimary,
+    onPrimary = onPrimary,
+    background = background,
+    onBackground = onBackground,
+    paletteMode = paletteMode
+)
+
+/**
  * Remember and observe unified PlayerColorScheme in Compose.
  */
 @Composable

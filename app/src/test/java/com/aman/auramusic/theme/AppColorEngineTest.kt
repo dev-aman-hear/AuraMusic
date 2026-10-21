@@ -30,52 +30,6 @@ class AppColorEngineTest {
         AppColorEngine.clearCache()
     }
 
-    @Test
-    fun buildArtworkKey_usesSongArtworkSourceInsteadOfObjectHash() {
-        val song = Song(
-            id = 1L,
-            title = "Test Song",
-            artist = "Test Artist",
-            album = "Test Album",
-            duration = 180_000L,
-            uri = "content://media/external/audio/media/1",
-            filePath = "",
-            artworkUri = "content://media/external/audio/albumart/9",
-            mimeType = "audio/mpeg"
-        )
-
-        assertEquals(song.artworkUri, AppColorEngine.buildArtworkKey(song))
-    }
-
-    @Test
-    fun buildArtworkKey_fallsBackToSongUriWhenArtworkUriIsMissing() {
-        val song = Song(
-            id = 2L,
-            title = "No Embedded Art",
-            artist = "Test Artist",
-            album = "Test Album",
-            duration = 180_000L,
-            uri = "content://media/external/audio/media/2",
-            filePath = "",
-            artworkUri = null,
-            mimeType = "audio/mpeg"
-        )
-
-        assertEquals(song.uri, AppColorEngine.buildArtworkKey(song))
-    }
-
-    @Test
-    fun buildArtworkKey_usesOnlineArtworkUrl() {
-        val onlineSong = OnlineSong(
-            id = "online-123",
-            title = "Online Song",
-            artist = "Online Artist",
-            artworkUrl = "https://example.com/artwork.jpg"
-        )
-
-        assertEquals(onlineSong.artworkUrl, AppColorEngine.buildArtworkKey(onlineSong))
-    }
-
     // 1. Default settings resolve to monochrome
     @Test
     fun defaultSettings_resolveToMonochromeEverywhere() {

@@ -28,7 +28,7 @@ import java.io.File
 
 /**
  * Regression test suite covering:
- * 1. Playback task-removal lifecycle decisions.
+ * 1. "Keep playing on app close" setting defaults and lifecycle decisions.
  * 2. Playback state synchronization (buffering, transitions, local vs online).
  * 3. Custom playlist queue operations: Add to Queue (single song and whole collection).
  * 4. Queue preservation against playlist/favorites observers.
@@ -83,8 +83,30 @@ class PlaybackLifecycleAndQueueRegressionTest {
     }
 
     // =========================================================================
-    // Playback task-removal lifecycle regression tests
+    // TASK 2: "Keep playing on app close" Lifecycle & State Tests
     // =========================================================================
+
+    @Test
+    fun keep_playing_on_close_defaults_to_true_reliably_in_repo_and_app_settings() = runBlocking {
+        // AppSettings default must be true
+        val defaultSettings = AppSettings()
+        assertTrue("AppSettings.keepPlayingOnClose must default to true", defaultSettings.keepPlayingOnClose)
+
+        // UserPreferencesRepository without explicit configuration must default to true
+        val repoSettings = repository.settingsFlow.first()
+        assertTrue("Repository settingsFlow must default keepPlayingOnClose to true", repoSettings.keepPlayingOnClose)
+
+        val directValue = repository.getKeepPlayingOnClose()
+        assertTrue("getKeepPlayingOnClose() must return true by default", directValue)
+
+        // Toggling to false must persist and reflect reliably
+        repository.setKeepPlayingOnClose(false)
+        assertFalse("Toggling to false must update repository setting", repository.getKeepPlayingOnClose())
+
+        // Toggling back to true
+        repository.setKeepPlayingOnClose(true)
+        assertTrue("Toggling to true must update repository setting", repository.getKeepPlayingOnClose())
+    }
 
     private data class LifecycleDecision(
         val shouldStopService: Boolean,
