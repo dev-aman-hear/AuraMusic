@@ -401,6 +401,12 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    fun setRgbModeEnabled(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setRgbModeEnabled(enabled)
+        }
+    }
+
     fun setThemeColorStyle(style: String) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setThemeColorStyle(style)
