@@ -271,6 +271,12 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    fun setLockscreenLyricsEnabled(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setLockscreenLyricsEnabled(enabled)
+        }
+    }
+
     fun setLyricFontScale(scale: Float) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setLyricFontScale(scale)

@@ -99,7 +99,8 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             changeThemeEnabled = masterEnabled,
             themeScope = scope,
             themeColorStyle = style,
-            rgbModeEnabled = prefs[Keys.rgbModeEnabled] ?: false
+            rgbModeEnabled = prefs[Keys.rgbModeEnabled] ?: false,
+            lockscreenLyricsEnabled = prefs[Keys.lockscreenLyricsEnabled] ?: true
         )
     }.distinctUntilChanged()
 
@@ -195,6 +196,10 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
                 prefs[Keys.changeThemeEnabled] = master
             }
         }
+    }
+
+    suspend fun setLockscreenLyricsEnabled(enabled: Boolean) {
+        dataStore.edit { prefs -> prefs[Keys.lockscreenLyricsEnabled] = enabled }
     }
 
     suspend fun setRgbModeEnabled(enabled: Boolean) {
@@ -637,7 +642,8 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             val changeThemeEnabled = booleanPreferencesKey("change_theme_enabled")
             val themeScope = stringPreferencesKey("theme_scope")
             val themeColorStyle = stringPreferencesKey("theme_color_style")
-            val rgbModeEnabled = booleanPreferencesKey("rgb_mode_enabled")
+            val lockscreenLyricsEnabled = booleanPreferencesKey("lockscreen_lyrics_enabled")
+        val rgbModeEnabled = booleanPreferencesKey("rgb_mode_enabled")
             val themeHomeEnabled = booleanPreferencesKey("theme_home_enabled")
             val themeExploreEnabled = booleanPreferencesKey("theme_explore_enabled")
             val themeLibraryEnabled = booleanPreferencesKey("theme_library_enabled")

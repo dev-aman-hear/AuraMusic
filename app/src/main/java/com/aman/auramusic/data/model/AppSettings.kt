@@ -31,7 +31,8 @@ data class AppSettings(
     val changeThemeEnabled: Boolean = false,
     val themeScope: String = "Entire App",
     val themeColorStyle: String = appPaletteMode,
-    val rgbModeEnabled: Boolean = false
+    val rgbModeEnabled: Boolean = false,
+    val lockscreenLyricsEnabled: Boolean = true
 ) {
     fun isAreaThemingEnabled(areaName: String): Boolean {
         if (!isFullAppThemeActive()) return false

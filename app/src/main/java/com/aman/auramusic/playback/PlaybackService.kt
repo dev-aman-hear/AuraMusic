@@ -28,8 +28,16 @@ import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.model.toLyricLines
 import com.aman.auramusic.online.model.toSong
 import com.aman.auramusic.online.util.LastPlayedStore
+import com.aman.auramusic.lockscreen.LockScreenManager
+import kotlinx.coroutines.flow.first
 
 class PlaybackService : Service() {
+
+    companion object {
+        @Volatile
+        var currentInstance: PlaybackService? = null
+            private set
+    }
 
     private lateinit var playerManager: VlcPlayerManager
     private lateinit var notificationManager: PlaybackNotificationManager
@@ -101,6 +109,25 @@ class PlaybackService : Service() {
                             updateOnlineNotification(activeOnline, isOnlinePlaying)
                         } else if (activeLocal != null) {
                             startAsForeground(activeLocal, playerManager.isPlaying())
+                        }
+                    }
+                }
+                Intent.ACTION_SCREEN_OFF -> {
+                    Log.d("AuraPlaybackDebug", "Screen turned off, checking lockscreen player trigger")
+                    if (isAnyPlaybackActive()) {
+                        serviceScope.launch {
+                            try {
+                                val settings = userRepository.settingsFlow.first()
+                                if (settings.lockscreenLyricsEnabled) {
+                                    LockScreenManager.showLockScreenIfNeeded(
+                                        context = this@PlaybackService,
+                                        isPlaying = isAnyPlaybackActive(),
+                                        isFeatureEnabled = true
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                Log.e("AuraPlaybackDebug", "Error triggering lockscreen lyrics", e)
+                            }
                         }
                     }
                 }
@@ -231,6 +258,7 @@ class PlaybackService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        currentInstance = this
         playerManager = VlcPlayerManager(this)
         notificationManager = PlaybackNotificationManager(this)
         userRepository = UserPreferencesRepository(this)
@@ -267,6 +295,7 @@ class PlaybackService : Service() {
         try {
             val filter = android.content.IntentFilter(Intent.ACTION_SCREEN_ON).apply {
                 addAction(Intent.ACTION_USER_PRESENT)
+                addAction(Intent.ACTION_SCREEN_OFF)
             }
             registerReceiver(screenReceiver, filter)
             isScreenReceiverRegistered = true
@@ -801,6 +830,9 @@ class PlaybackService : Service() {
         playerManager.release()
         PlaybackQueueCoordinator.unregisterDispatcher()
         PlaybackQueueCoordinator.removeEngineSyncListener(queueSyncListener)
+        if (currentInstance == this) {
+            currentInstance = null
+        }
         super.onDestroy()
     }
 }

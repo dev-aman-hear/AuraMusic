@@ -16,6 +16,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:name=".AuraMusicApp"
@@ -57,6 +58,17 @@
         <receiver
             android:name=".playback.PlaybackActionReceiver"
             android:exported="false" />
+
+        <activity
+            android:name=".lockscreen.LockScreenPlayerActivity"
+            android:exported="false"
+            android:taskAffinity="com.aman.auramusic.lockscreen"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:showWhenLocked="true"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:theme="@style/Theme.AuraMusic" />
 
         <service
             android:name=".playback.PlaybackService"

@@ -790,6 +790,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onAppCustomPaletteHexesChange = { musicViewModel.setAppCustomPaletteHexes(it) },
                                     onThemeAreaChange = { area, enabled -> musicViewModel.setThemeAreaEnabled(area, enabled) },
                                     onKaraokeChange = { musicViewModel.setKaraokeMode(it) },
+                                    onLockscreenLyricsChange = { musicViewModel.setLockscreenLyricsEnabled(it) },
                                     onLyricFontScaleChange = { musicViewModel.setLyricFontScale(it) },
                                     onLyricBlurStrengthChange = { musicViewModel.setLyricBlurStrength(it) },
                                     onSmartAudioFocusChange = { musicViewModel.setSmartAudioFocus(it) },
