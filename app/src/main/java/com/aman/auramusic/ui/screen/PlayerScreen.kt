@@ -884,7 +884,7 @@ private fun LyricsPage(lyrics: List<LyricLine>, position: Long, onSeek: (Long) -
     LaunchedEffect(activeIndex) {
         if (lyrics.isNotEmpty()) {
             val screenHeight = configuration.screenHeightDp.dp
-            val scrollOffset = with(density) { (screenHeight * 0.35f).roundToPx() }
+            val scrollOffset = with(density) { (screenHeight * 0.28f).roundToPx() }
             listState.animateScrollToItem(index = activeIndex, scrollOffset = -scrollOffset)
         }
     }
