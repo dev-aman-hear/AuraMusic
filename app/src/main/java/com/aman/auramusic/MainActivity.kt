@@ -470,19 +470,19 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
             listOfNotNull(onlinePlaybackState.currentSong ?: activeOnlineSong)
         val onlineMatch = SongIdentityMatcher.findOnlineMatch(song, onlineCandidates)
             ?: if (song.album == "Online Stream" || song.filePath.isNullOrBlank() || !File(song.filePath).exists()) {
-            OnlineSong(
-                id = song.id.toString(),
-                title = song.title,
-                artist = song.artist,
-                album = song.album,
-                artworkUrl = song.artworkUri ?: "",
-                durationSeconds = song.duration / 1000L,
-                source = AudioSource.YOUTUBE,
-                streamUrl = "",
-                bitrate = "320 kbps",
-                format = "AAC/MP4"
-            )
-        } else null
+                OnlineSong(
+                    id = song.id.toString(),
+                    title = song.title,
+                    artist = song.artist,
+                    album = song.album,
+                    artworkUrl = song.artworkUri ?: "",
+                    durationSeconds = song.duration / 1000L,
+                    source = AudioSource.YOUTUBE,
+                    streamUrl = "",
+                    bitrate = "320 kbps",
+                    format = "AAC/MP4"
+                )
+            } else null
 
         musicViewModel.toggleFavorite(song.id, !isFav, onlineMatch)
     }
