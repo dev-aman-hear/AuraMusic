@@ -5,9 +5,9 @@
 </p>
 
 <p align="center">
-  <b>A modern Android audio player combining local high-fidelity playback with online streaming discovery.</b><br />
-  Built with Kotlin and Jetpack Compose, featuring an Apple Music-inspired flat monochrome design system,<br />
-  dual-engine audio architecture (LibVLC & AndroidX Media3 ExoPlayer), synchronized lyrics, and unified library management.
+  <b>A modern Android audio player combining local playback with online music discovery.</b><br />
+  Built with Kotlin and Jetpack Compose, featuring a monochrome interface with optional RGB border accents,<br />
+  local and online playback paths, synchronized lyrics, and unified library management.
 </p>
 
 <p align="center">
@@ -27,6 +27,7 @@
 - [Interface & Screenshot Plan](#interface--screenshot-plan)
 - [Features](#features)
   - [Monochrome Interface & Appearance](#monochrome-interface--appearance)
+  - [RGB Border Mode](#rgb-border-mode)
   - [Local Music Library (LibVLC)](#local-music-library-libvlc)
   - [Online Streaming & Discovery (ExoPlayer)](#online-streaming--discovery-exoplayer)
   - [Unified Library, Favorites & Playlists](#unified-library-favorites--playlists)
@@ -54,8 +55,8 @@ Aura Music is an open-source Android music player developed to provide a unified
 
 The application combines local playback with online discovery:
 1. **LibVLC** handles local audio files, including supported lossless formats such as FLAC, WAV, and ALAC.
-2. **AndroidX Media3 ExoPlayer** handles compatible direct online audio streams, including JioSaavn-resolved streams.
-3. **YouTube player integration** supports the app’s YouTube Music playback paths, depending on the selected streaming engine and source availability.
+2. **AndroidX Media3 ExoPlayer** handles compatible direct online audio streams, including streams resolved from supported sources.
+3. **YouTube player integration** supports YouTube Music playback paths, depending on the selected engine and source availability.
 
 ---
 
@@ -86,7 +87,12 @@ Aura Music centers on a four-tab navigation model (`Home`, `Explore`/`Online`, `
   * **Dark Theme**: Background (`#000000`), Surface (`#111111`), Secondary Surface (`#1A1A1A`), Pressed Surface (`#262626`), Primary Text/Icons (`#FFFFFF`), Secondary Text (`#AAAAAA`), Tertiary Text (`#808080`), Subtle Border (`#333333`), Strong Border (`#555555`), Selected Control (White with Black text/icons).
 * **Theme & Appearance Modes**: Supports System Default, Light Theme, and Dark Theme with pure pitch-black (`#000000`) backgrounds.
 * **Artwork Fidelity**: Genuine album artwork, artist photographs, and downloaded media artwork retain their authentic colors and are never altered or desaturated.
-* **Artwork-Driven Ambient Player**: The full-screen player extracts soft ambient color swatches from active track artwork via `androidx.palette` for the player backdrop, while playback controls, menus, sheets, and typography remain strictly monochrome.
+* **Artwork-Driven Ambient Player**: The full-screen player can extract ambient colors from active track artwork for its backdrop; playback controls and typography retain their intended contrast.
+
+### RGB Border Mode
+* **Optional animated outlines**: When RGB Mode is enabled, supported navigation borders cycle through hues. The mode is intended for outlines, not as a replacement for the app's monochrome base palette.
+* **Theme-aware behavior**: RGB outlines respect the relevant theme settings. When RGB Mode is disabled, navigation borders fall back to the regular theme accent.
+* **Component coverage**: Components using the shared Material outline token can inherit the RGB border color; custom-drawn borders may require their own integration.
 
 ### Local Music Library (LibVLC)
 * **Local MediaStore Scanner**: Queries audio content from device storage with permissions handling for Android 13+ (`READ_MEDIA_AUDIO`) and older releases (`READ_EXTERNAL_STORAGE`).
@@ -223,7 +229,7 @@ app/src/main/java/com/aman/auramusic/
 
 1. **Clone the repository**:
    ```bash
-   git clone -b Exp01 https://github.com/dev-aman-hear/AuraMusic.git
+   git clone -b v1.0.5 https://github.com/dev-aman-hear/AuraMusic.git
    cd AuraMusic
    ```
 
@@ -276,7 +282,7 @@ Run the unit tests via Gradle:
   ./gradlew testDebugUnitTest
   ```
 
-Run the tests locally before merging or publishing a release. Test results depend on the current environment and are not asserted here.
+Run the tests locally before merging or publishing a release. These checks have not been run as part of this README update.
 
 ### Code Style & Compilation Check
 
@@ -296,12 +302,14 @@ To verify code compilation without building APK packages:
 
 * **Current branch**: `v1.0.5`.
 * **Application version**: `1.0.5` (`versionCode = 18`).
-* **Release status**: Version metadata is set to 1.0.5; release builds, automated regressions, and UI interactions verified.
+* **Release status**: Version metadata is set to 1.0.5. The fixes listed below have been committed to this branch; run the build and device-level checks before treating them as release-verified.
 * **Changelog Highlights (v1.0.5)**:
   * **AniWhere Floating Liquid Glass Navigation**: Restored the floating liquid glass navigation bar with smooth physics-based spring transitions, interactive drag-to-switch tab gesture, active indicator capsule, and configurable navigation styles (Glass, Modern, and Minimal) with optional dynamic artwork tinting.
   * **Adaptive & Themed App Icon**: Full support for Android 13+ Material You themed launcher icons (`ic_launcher_monochrome`) alongside refreshed high-resolution adaptive launcher assets.
   * **Lifecycle & Task Dismissal Streamlining**: Playback reliably and cleanly stops when the application task is dismissed from the recent apps overview, providing predictable service termination.
-  * **Online Sleep Timer & Service Disconnect Fallback**: Added robust sleep timer fallback handling ensuring both local and online streaming sessions reliably stop and fade even if playback service connection state changes.
+  * **Online Sleep Timer & Service Disconnect Fallback**: Added sleep timer fallback handling for local and online sessions when playback service connection state changes.
+  * **Online Song Identity & Queue Safety**: Reused the shared song identity matcher for Library and collection lookups, reducing risky title-only matches; unresolved online queue entries are skipped rather than fabricated with empty stream URLs.
+  * **RGB Navigation Outlines**: Added animated RGB border color to supported Home, Search, and navigation capsule outlines when RGB Mode and the relevant theme settings are enabled. Standard shared-outline components can use the theme border token; custom borders may need explicit wiring.
 * **Changelog Highlights (v1.0.4)**:
   * **Settings Dark Mode UI & Contrast Fixes**: Standardized dark-mode color tokens, containers, and borders across Settings (Personalization, Appearance, Playback, System & Files, and About). Hairline dividers and interactive controls now maintain crisp, accessible contrast in both light and dark themes.
   * **Retracted Theme Options by Default**: When the master Change Theme (dynamic colour) setting is enabled, additional configuration options remain retracted/collapsed by default, preserving user preferences with responsive expand/retract controls.
