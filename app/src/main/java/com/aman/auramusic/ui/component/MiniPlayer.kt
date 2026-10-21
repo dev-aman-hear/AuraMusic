@@ -114,7 +114,7 @@ fun MiniPlayer(
                 horizontal = if (compact) 0.dp else 14.dp,
                 vertical = if (compact) 0.dp else 3.dp
             )
-             .height(if (compact) 32.dp else 40.dp)
+             .height(if (compact) 54.dp else 40.dp)
             .animateContentSize(animationSpec = tween(220))
             .pointerInput(Unit) {
                 detectDragGestures(
@@ -149,7 +149,7 @@ fun MiniPlayer(
         ) {
             SongArtwork(
                 song = song,
-                size = if (compact) 23 else 30,
+                size = if (compact) 30 else 30,
                 shape = RoundedCornerShape(7.dp),
                 elevation = 0.dp
             )
