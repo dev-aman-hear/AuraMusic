@@ -41,28 +41,38 @@ import kotlinx.coroutines.withContext
 import java.util.Collections
 import java.util.LinkedHashMap
 
+private val LocalRgbHue = androidx.compose.runtime.compositionLocalOf { 0f }
+
 /**
- * Identifies distinct screen-scoped content areas in AuraMusic that support independent color theming.
- */
-/**
- * Shared RGB outline animation used by themed screens and navigation.
- * Always creates its animation in a stable composition position; disabled mode only
- * suppresses the returned color, leaving the base palette untouched.
+ * Provides one app-wide RGB hue phase so navigation and screen outlines stay synchronized.
  */
 @Composable
-fun rememberRgbBorderColor(enabled: Boolean, isDark: Boolean): Color? {
-    val transition = rememberInfiniteTransition(label = "rgbBorderTransition")
+fun RgbBorderAnimationHost(
+    enabled: Boolean,
+    content: @Composable () -> Unit
+) {
+    val transition = rememberInfiniteTransition(label = "appRgbBorderTransition")
     val hue by transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 6000, easing = LinearEasing)
         ),
-        label = "rgbBorderHue"
+        label = "appRgbBorderHue"
     )
-    return if (enabled) Color.hsv(hue, 0.82f, if (isDark) 1f else 0.78f) else null
+    CompositionLocalProvider(LocalRgbHue provides if (enabled) hue else 0f) {
+        content()
+    }
 }
 
+/** Returns the shared RGB outline color, or null when RGB is disabled for this area. */
+@Composable
+fun rememberRgbBorderColor(enabled: Boolean, isDark: Boolean): Color? =
+    if (enabled) Color.hsv(LocalRgbHue.current, 0.82f, if (isDark) 1f else 0.78f) else null
+
+/**
+ * Identifies distinct screen-scoped content areas in AuraMusic that support independent color theming.
+ */
 enum class AppArea {
     HOME,
     EXPLORE,
