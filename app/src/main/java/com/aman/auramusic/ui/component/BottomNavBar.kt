@@ -244,7 +244,8 @@ fun BottomNavBar(
                     .clip(navShape)
                     .background(surfaceGlassColor, navShape)
                     .border(
-                        if (isHomeSelected) {
+                        // Keep the Home control's dynamic outline visible even when another tab is selected.
+                        if (isDynamicActive) {
                             BorderStroke(1.dp, animatedAccent.copy(alpha = 0.72f))
                         } else {
                             BorderStroke(1.dp, surfaceBorderBrush)
