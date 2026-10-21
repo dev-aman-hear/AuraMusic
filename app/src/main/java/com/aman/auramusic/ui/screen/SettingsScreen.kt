@@ -216,8 +216,8 @@ fun SettingsScreen(
                         Slider(
                             value = appSettings.lyricBlurStrength,
                             onValueChange = onLyricBlurStrengthChange,
-                            valueRange = 0f..20f,
-                            steps = 19,
+                            valueRange = 0f..14f,
+                            steps = 13,
                             colors = SliderDefaults.colors(
                                 thumbColor = MaterialTheme.colorScheme.primary,
                                 activeTrackColor = MaterialTheme.colorScheme.primary,
