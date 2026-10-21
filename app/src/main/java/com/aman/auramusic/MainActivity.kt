@@ -678,41 +678,43 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             onQueryChange = { libraryQuery = it },
                             onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
                             onFavoriteToggle = { song -> toggleSongFavorite(song) },
-                            onSongSelected = { song, queue -> 
-                                val onlineMatch = favoriteOnlineSongs.find { 
-                                    (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title == song.title 
-                                } ?: playbackHistory.mapNotNull { entry ->
-                                    entry.onlineSongJson?.let { runCatching { Gson().fromJson(it, OnlineSong::class.java) }.getOrNull() }
-                                }.find {
-                                    (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title == song.title
-                                } ?: playlists.flatMap { it.onlineSongs }.find {
-                                    (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == song.id || it.title == song.title
+                            onSongSelected = { song, queue ->
+                                // Resolve online tracks by stable ID first, then by title + artist.
+                                // Title-only matching can select the wrong version/remix.
+                                val historyOnlineSongs = playbackHistory.mapNotNull { entry ->
+                                    entry.onlineSongJson?.let {
+                                        runCatching { Gson().fromJson(it, OnlineSong::class.java) }.getOrNull()
+                                    }
+                                }
+                                val savedOnlineSongs = favoriteOnlineSongs +
+                                    historyOnlineSongs +
+                                    playlists.flatMap { it.onlineSongs }
+
+                                fun findOnlineMatch(librarySong: Song): OnlineSong? {
+                                    val byId = savedOnlineSongs.firstOrNull { online ->
+                                        (online.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL)
+                                            .coerceAtLeast(1L) == librarySong.id
+                                    }
+                                    if (byId != null) return byId
+
+                                    return savedOnlineSongs.firstOrNull { online ->
+                                        online.title.trim().equals(librarySong.title.trim(), ignoreCase = true) &&
+                                            online.artist.trim().equals(librarySong.artist.trim(), ignoreCase = true)
+                                    }
                                 }
 
+                                val onlineMatch = findOnlineMatch(song)
                                 if (onlineMatch != null) {
-                                    val onlineQueue = queue.map { qSong ->
-                                        favoriteOnlineSongs.find { 
-                                            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == qSong.id || it.title == qSong.title 
-                                        } ?: playbackHistory.mapNotNull { entry ->
-                                            entry.onlineSongJson?.let { runCatching { Gson().fromJson(it, OnlineSong::class.java) }.getOrNull() }
-                                        }.find {
-                                            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == qSong.id || it.title == qSong.title
-                                        } ?: playlists.flatMap { it.onlineSongs }.find {
-                                            (it.id.hashCode().toLong() and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1L) == qSong.id || it.title == qSong.title
-                                        } ?: OnlineSong(
-                                            id = qSong.id.toString(),
-                                            title = qSong.title,
-                                            artist = qSong.artist,
-                                            album = qSong.album,
-                                            artworkUrl = qSong.artworkUri ?: "",
-                                            durationSeconds = qSong.duration / 1000L,
-                                            source = AudioSource.YOUTUBE,
-                                            streamUrl = "",
-                                            bitrate = "320 kbps",
-                                            format = "AAC/MP4"
-                                        )
+                                    // Never fabricate an online track with an empty stream URL.
+                                    // Unresolved queue items are omitted, and the selected track is guaranteed
+                                    // to remain in the queue so playback starts from a valid online item.
+                                    val resolvedQueue = queue.mapNotNull(::findOnlineMatch)
+                                        .distinctBy { it.id }
+                                        .toMutableList()
+                                    if (resolvedQueue.none { it.id == onlineMatch.id }) {
+                                        resolvedQueue.add(0, onlineMatch)
                                     }
-                                    playOnlineSong(onlineMatch, onlineQueue)
+                                    playOnlineSong(onlineMatch, resolvedQueue)
                                 } else {
                                     playSong(song, queue)
                                 }
