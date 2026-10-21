@@ -795,6 +795,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onChangeThemeEnabled = { musicViewModel.setChangeThemeEnabled(it) },
                                     onThemeScopeChange = { musicViewModel.setThemeScope(it) },
                                     onThemeColorStyleChange = { musicViewModel.setThemeColorStyle(it) },
+                                onRgbModeChange = { musicViewModel.setRgbModeEnabled(it) },
                                     onThemePresetChange = { musicViewModel.setThemePreset(it) },
                                     onThemeCustomHexesChange = { musicViewModel.setThemeCustomHexes(it) },
                                     onDynamicArtworkColorsChange = { musicViewModel.setDynamicArtworkColors(it) },
