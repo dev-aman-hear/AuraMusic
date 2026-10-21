@@ -277,6 +277,12 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    fun setLyricBlurStrength(strength: Float) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.setLyricBlurStrength(strength)
+        }
+    }
+
     fun setCrossfadeEnabled(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             userRepository.setCrossfadeEnabled(enabled)
