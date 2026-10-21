@@ -103,7 +103,7 @@ fun MiniPlayer(
     }
     var dragX by remember { mutableFloatStateOf(0f) }
     var dragY by remember { mutableFloatStateOf(0f) }
-    val pillShape = RoundedCornerShape(18.dp)
+    val pillShape = RoundedCornerShape(50.dp)
     val titleColor = MaterialTheme.colorScheme.onSurface
     val iconTint = MaterialTheme.colorScheme.onSurface
 
