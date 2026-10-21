@@ -775,8 +775,8 @@ fun ArtistDetailSheet(
                                 .background(
                                     Brush.verticalGradient(
                                         0f to Color.Transparent,
-                                        0.50f to Color.Transparent,
-                                        0.78f to pageBackground.copy(alpha = 0.70f),
+                                        0.75f to Color.Transparent,
+                                        0.89f to pageBackground.copy(alpha = 0.70f),
                                         1f to pageBackground
                                     )
                                 )
