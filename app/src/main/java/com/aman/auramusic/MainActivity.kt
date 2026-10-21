@@ -709,7 +709,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     // Never fabricate an online track with an empty stream URL.
                                     // Unresolved queue items are omitted, and the selected track is guaranteed
                                     // to remain in the queue so playback starts from a valid online item.
-                                    val resolvedQueue = queue.mapNotNull(::findOnlineMatch)
+                                    val resolvedQueue = queue.mapNotNull { queueSong -> findOnlineMatch(queueSong) }
                                         .distinctBy { it.id }
                                         .toMutableList()
                                     if (resolvedQueue.none { it.id == onlineMatch.id }) {
