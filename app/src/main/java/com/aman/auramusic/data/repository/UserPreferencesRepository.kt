@@ -98,7 +98,8 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             }.getOrDefault(ThemeMode.SYSTEM),
             changeThemeEnabled = masterEnabled,
             themeScope = scope,
-            themeColorStyle = style
+            themeColorStyle = style,
+            rgbModeEnabled = prefs[Keys.rgbModeEnabled] ?: false
         )
     }.distinctUntilChanged()
 
@@ -194,6 +195,10 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
                 prefs[Keys.changeThemeEnabled] = master
             }
         }
+    }
+
+    suspend fun setRgbModeEnabled(enabled: Boolean) {
+        dataStore.edit { prefs -> prefs[Keys.rgbModeEnabled] = enabled }
     }
 
     suspend fun setThemeColorStyle(style: String) {
@@ -632,6 +637,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             val changeThemeEnabled = booleanPreferencesKey("change_theme_enabled")
             val themeScope = stringPreferencesKey("theme_scope")
             val themeColorStyle = stringPreferencesKey("theme_color_style")
+            val rgbModeEnabled = booleanPreferencesKey("rgb_mode_enabled")
             val themeHomeEnabled = booleanPreferencesKey("theme_home_enabled")
             val themeExploreEnabled = booleanPreferencesKey("theme_explore_enabled")
             val themeLibraryEnabled = booleanPreferencesKey("theme_library_enabled")
