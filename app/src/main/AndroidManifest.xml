@@ -37,6 +37,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:icon="@drawable/aura_logo"
             android:screenOrientation="portrait">
 
             <intent-filter>
