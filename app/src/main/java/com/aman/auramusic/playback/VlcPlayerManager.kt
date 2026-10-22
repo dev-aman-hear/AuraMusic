@@ -214,7 +214,20 @@ class VlcPlayerManager(context: Context) {
         val jsonToSet = if (lyricInfoJson != null) lyricInfoJson else currentLyricInfoJson
         if (!jsonToSet.isNullOrBlank()) {
             builder.putString("lyricInfo", jsonToSet)
+            try {
+                val json = org.json.JSONObject(jsonToSet)
+                val lrc = json.optString("lyric", "")
+                if (lrc.isNotBlank()) {
+                    builder.putString("ucar.media.metadata.LYRICS_WHOLE", lrc)
+                    builder.putLong("ucar.media.metadata.LYRICS_STATUS", 101L)
+                } else {
+                    builder.putLong("ucar.media.metadata.LYRICS_STATUS", 102L)
+                }
+            } catch (_: Throwable) {
+            }
         }
+        builder.putString("ucar.media.metadata.UCAR_TITLE", title)
+        builder.putString("ucar.media.metadata.UCAR_ARTIST", artist)
 
         val metadata = builder.build()
         mediaSession.setMetadata(metadata)

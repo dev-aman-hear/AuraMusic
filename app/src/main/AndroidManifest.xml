@@ -62,7 +62,7 @@
         <activity
             android:name=".lockscreen.LockScreenPlayerActivity"
             android:exported="false"
-            android:taskAffinity="com.aman.auramusic.lockscreen"
+            android:taskAffinity="${applicationId}.lockscreen"
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"
             android:showWhenLocked="true"
