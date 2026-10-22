@@ -28,7 +28,7 @@ android {
             applicationId = "com.heytap.music"
             // Must exceed stock pre-installed stub (191170502) to prevent downgrade errors
             versionCode = 191170503
-            versionName = "40.17.5.3"
+            versionName = "1.0.6"
             manifestPlaceholders["appName"] = "HeyTap Music"
         } else {
             applicationId = "com.aman.auramusic"
