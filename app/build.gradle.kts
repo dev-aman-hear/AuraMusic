@@ -14,29 +14,35 @@ if (signingPropsFile.exists()) {
     signingProps.load(signingPropsFile.inputStream())
 }
 
-// Set to true to allow ColorOS / Realme UI / OxygenOS SystemUI to recognize AuraMusic
-// as the native stock HeyTap Music player (whitelisted for live lockscreen lyrics & Fluid Cloud).
-// The Kotlin/Java code, namespace, imports, and folder structure remain 100% com.aman.auramusic.
-val useHeyTapIdentity = project.findProperty("useHeyTap")?.toString()?.toBoolean() ?: false
-
 android {
     namespace = "com.aman.auramusic"
     compileSdk = 36
 
     defaultConfig {
-        if (useHeyTapIdentity) {
-            applicationId = "com.heytap.music"
-            versionCode = 19
-            versionName = "1.0.6"
-            manifestPlaceholders["appName"] = "HeyTap Music"
-        } else {
-            applicationId = "com.aman.auramusic"
-            versionCode = 19
-            versionName = "1.0.6"
-            manifestPlaceholders["appName"] = "Aura Music"
-        }
+        applicationId = "com.aman.auramusic"
         minSdk = 26
         targetSdk = 36
+        versionCode = 19
+        versionName = "1.0.6"
+
+        manifestPlaceholders["appName"] = "Aura Music"
+    }
+
+    flavorDimensions += listOf("brand")
+    productFlavors {
+        create("aura") {
+            dimension = "brand"
+            applicationId = "com.aman.auramusic"
+            manifestPlaceholders["appName"] = "Aura Music"
+        }
+        create("heytap") {
+            dimension = "brand"
+            applicationId = "com.heytap.music"
+            manifestPlaceholders["appName"] = "Aura Music"
+            ndk {
+                abiFilters += listOf("arm64-v8a")
+            }
+        }
     }
 
     signingConfigs {
@@ -50,7 +56,7 @@ android {
 
     buildTypes {
         debug {
-            manifestPlaceholders["appName"] = "Aura Music"
+            applicationIdSuffix = ".debug"
         }
 
         release {
@@ -64,36 +70,28 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            manifestPlaceholders["appName"] = "Aura Music"
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlinOptions {
         jvmTarget = "11"
     }
+
     buildFeatures {
         compose = true
         buildConfig = true
     }
-}
-
-android {
 
     splits {
         abi {
             isEnable = true
             reset()
-
-            include(
-                "arm64-v8a",
-                "armeabi-v7a",
-                "x86",
-                "x86_64"
-            )
-
+            include("arm64-v8a") //"x86", "x86_64" ,"armeabi-v7a"
             isUniversalApk = true
         }
     }
@@ -104,9 +102,7 @@ android {
 }
 
 dependencies {
-
     implementation("androidx.compose.material:material-icons-extended")
-
     implementation("org.videolan.android:libvlc-all:3.6.0-eap14")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -125,18 +121,16 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
     debugImplementation(libs.androidx.compose.ui.tooling)
 
-    // Navigation
+    // Navigation & Storage
     implementation("androidx.navigation:navigation-compose:2.9.0")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("androidx.media:media:1.7.0")
 
-// Album Art
+    // Coil & ViewModel
     implementation("io.coil-kt:coil-compose:2.7.0")
-
-// ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.1")
 
-// Runtime Permissions
+    // Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.37.3")
 
     // Hilt
@@ -144,7 +138,7 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // Retrofit
+    // Retrofit & Network
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
     implementation(libs.okhttp.logging)
