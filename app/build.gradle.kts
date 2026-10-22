@@ -32,8 +32,8 @@ android {
             manifestPlaceholders["appName"] = "HeyTap Music"
         } else {
             applicationId = "com.aman.auramusic"
-            versionCode = 18
-            versionName = "1.0.5"
+            versionCode = 19
+            versionName = "1.0.6"
             manifestPlaceholders["appName"] = "Aura Music"
         }
         minSdk = 26
