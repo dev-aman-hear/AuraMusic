@@ -26,8 +26,7 @@ android {
     defaultConfig {
         if (useHeyTapIdentity) {
             applicationId = "com.heytap.music"
-            // Must exceed stock pre-installed stub (191170502) to prevent downgrade errors
-            versionCode = 191170503
+            versionCode = 19
             versionName = "1.0.6"
             manifestPlaceholders["appName"] = "HeyTap Music"
         } else {
