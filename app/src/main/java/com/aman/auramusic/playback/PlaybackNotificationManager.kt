@@ -19,6 +19,7 @@ import com.aman.auramusic.data.model.Song
 class PlaybackNotificationManager(private val context: Context) {
 
     private val notificationManager = NotificationManagerCompat.from(context)
+    var isLyricActive: Boolean = true
 
     fun ensureChannel() {
         val channel = NotificationChannel(
@@ -37,10 +38,11 @@ class PlaybackNotificationManager(private val context: Context) {
         song: Song,
         isPlaying: Boolean,
         sessionToken: MediaSession.Token,
-        customArtwork: Bitmap? = null
+        customArtwork: Bitmap? = null,
+        isLyricEnabled: Boolean = isLyricActive
     ) {
         if (androidx.core.app.ActivityCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            notificationManager.notify(NOTIFICATION_ID, createNotification(song, isPlaying, sessionToken, customArtwork))
+            notificationManager.notify(NOTIFICATION_ID, createNotification(song, isPlaying, sessionToken, customArtwork, isLyricEnabled))
         }
     }
 
@@ -48,7 +50,8 @@ class PlaybackNotificationManager(private val context: Context) {
         song: Song,
         isPlaying: Boolean,
         sessionToken: MediaSession.Token,
-        customArtwork: Bitmap? = null
+        customArtwork: Bitmap? = null,
+        isLyricEnabled: Boolean = isLyricActive
     ): android.app.Notification {
         ensureChannel()
         val artwork = customArtwork ?: loadArtworkFast(song)
@@ -61,6 +64,9 @@ class PlaybackNotificationManager(private val context: Context) {
         val playPauseIntent = actionIntent(PlaybackActionReceiver.ACTION_PLAY_PAUSE, 1)
         val previousIntent = actionIntent(PlaybackActionReceiver.ACTION_PREVIOUS, 2)
         val nextIntent = actionIntent(PlaybackActionReceiver.ACTION_NEXT, 3)
+        val lyricIntent = actionIntent(PlaybackActionReceiver.ACTION_LYRIC, 4)
+
+        val lyricIcon = if (isLyricEnabled) R.drawable.ic_notification_lyric_open else R.drawable.ic_notification_lyric
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -92,6 +98,13 @@ class PlaybackNotificationManager(private val context: Context) {
                     android.R.drawable.ic_media_next,
                     "Next",
                     nextIntent
+                )
+            )
+            .addAction(
+                NotificationCompat.Action(
+                    lyricIcon,
+                    "lyric",
+                    lyricIntent
                 )
             )
             .setStyle(

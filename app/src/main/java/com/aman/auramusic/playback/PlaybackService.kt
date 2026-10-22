@@ -28,7 +28,9 @@ import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.model.toLyricLines
 import com.aman.auramusic.online.model.toSong
 import com.aman.auramusic.online.util.LastPlayedStore
+import android.app.KeyguardManager
 import com.aman.auramusic.lockscreen.LockScreenManager
+import com.aman.auramusic.lockscreen.LockScreenPlayerActivity
 import kotlinx.coroutines.flow.first
 
 class PlaybackService : Service() {
@@ -306,6 +308,8 @@ class PlaybackService : Service() {
         serviceScope.launch {
             userRepository.settingsFlow.collect { settings ->
                 playerManager.smartAudioFocusEnabled = settings.smartAudioFocus
+                playerManager.isLyricActive = settings.lockscreenLyricsEnabled
+                notificationManager.isLyricActive = settings.lockscreenLyricsEnabled
             }
         }
 
@@ -686,6 +690,31 @@ class PlaybackService : Service() {
         PlaybackActionRegistry.onNext = { playNext(isManual = true) }
         PlaybackActionRegistry.onPrevious = { playPrevious() }
         PlaybackActionRegistry.onSeekTo = { playerManager.seekTo(it) }
+        PlaybackActionRegistry.onLyricToggle = {
+            Log.d("AuraPlaybackDebug", "Lyric action triggered from notification or media session")
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+            val isLocked = keyguardManager?.isKeyguardLocked == true
+            if (isLocked) {
+                val intent = Intent(this@PlaybackService, LockScreenPlayerActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                startActivity(intent)
+            } else {
+                serviceScope.launch {
+                    val current = userRepository.settingsFlow.first().lockscreenLyricsEnabled
+                    val next = !current
+                    userRepository.setLockscreenLyricsEnabled(next)
+                    playerManager.isLyricActive = next
+                    notificationManager.isLyricActive = next
+                    playerManager.updatePlaybackState()
+                    if (isOnlinePlaybackActive && currentOnlineSong != null) {
+                        updateOnlineNotification(currentOnlineSong!!, isOnlinePlaying)
+                    } else if (currentSong != null) {
+                        startAsForeground(currentSong!!, playerManager.isPlaying())
+                    }
+                }
+            }
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder = binder

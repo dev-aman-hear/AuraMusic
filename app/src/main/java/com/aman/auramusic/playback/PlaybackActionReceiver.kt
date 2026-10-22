@@ -1,4 +1,4 @@
-package com.aman.auramusic.playback
+﻿package com.aman.auramusic.playback
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -12,6 +12,7 @@ class PlaybackActionReceiver : BroadcastReceiver() {
             ACTION_NEXT -> PlaybackActionRegistry.onNext?.invoke()
             ACTION_PREVIOUS -> PlaybackActionRegistry.onPrevious?.invoke()
             ACTION_FAVORITE -> PlaybackActionRegistry.onFavorite?.invoke()
+            ACTION_LYRIC -> PlaybackActionRegistry.onLyricToggle?.invoke()
         }
     }
 
@@ -20,5 +21,6 @@ class PlaybackActionReceiver : BroadcastReceiver() {
         const val ACTION_NEXT = "com.aman.auramusic.action.NEXT"
         const val ACTION_PREVIOUS = "com.aman.auramusic.action.PREVIOUS"
         const val ACTION_FAVORITE = "com.aman.auramusic.action.FAVORITE"
+        const val ACTION_LYRIC = "com.aman.auramusic.action.LYRIC"
     }
 }

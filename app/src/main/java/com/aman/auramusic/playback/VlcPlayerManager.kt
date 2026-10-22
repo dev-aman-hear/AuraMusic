@@ -8,6 +8,7 @@ import android.media.AudioManager
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import androidx.core.net.toUri
+import com.aman.auramusic.R
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
@@ -39,6 +40,7 @@ class VlcPlayerManager(context: Context) {
     private var pendingSeekMs: Long? = null
     private var shouldResumeOnFocusGain = false
     var smartAudioFocusEnabled = true
+    var isLyricActive: Boolean = true
     var isTransitioning: Boolean = false
         private set
 
@@ -90,6 +92,11 @@ class VlcPlayerManager(context: Context) {
             override fun onSkipToNext() { PlaybackActionRegistry.onNext?.invoke() }
             override fun onSkipToPrevious() { PlaybackActionRegistry.onPrevious?.invoke() }
             override fun onSeekTo(pos: Long) { PlaybackActionRegistry.onSeekTo?.invoke(pos) ?: seekTo(pos) }
+            override fun onCustomAction(action: String, extras: android.os.Bundle?) {
+                if (action.equals("lyric", ignoreCase = true)) {
+                    PlaybackActionRegistry.onLyricToggle?.invoke()
+                }
+            }
         })
         mediaSession.isActive = true
 
@@ -138,7 +145,7 @@ class VlcPlayerManager(context: Context) {
 
     fun getSessionToken(): MediaSession.Token = mediaSession.sessionToken
 
-    private fun updatePlaybackState() {
+    fun updatePlaybackState() {
         val state = try {
             if (mediaPlayer.isReleased) PlaybackState.STATE_NONE
             else if (mediaPlayer.isPlaying) PlaybackState.STATE_PLAYING 
@@ -147,6 +154,12 @@ class VlcPlayerManager(context: Context) {
             PlaybackState.STATE_NONE
         }
         
+        val lyricAction = PlaybackState.CustomAction.Builder(
+            "lyric",
+            "Lyric",
+            if (isLyricActive) R.drawable.ic_notification_lyric_open else R.drawable.ic_notification_lyric
+        ).build()
+
         val playbackState = PlaybackState.Builder()
             .setState(state, position(), 1f)
             .setActions(
@@ -157,12 +170,19 @@ class VlcPlayerManager(context: Context) {
                 PlaybackState.ACTION_SKIP_TO_PREVIOUS or
                 PlaybackState.ACTION_SEEK_TO
             )
+            .addCustomAction(lyricAction)
             .build()
         mediaSession.setPlaybackState(playbackState)
     }
 
     fun updateSessionPlaybackState(isPlaying: Boolean, positionMs: Long) {
         val state = if (isPlaying) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
+        val lyricAction = PlaybackState.CustomAction.Builder(
+            "lyric",
+            "Lyric",
+            if (isLyricActive) R.drawable.ic_notification_lyric_open else R.drawable.ic_notification_lyric
+        ).build()
+
         val playbackState = PlaybackState.Builder()
             .setState(state, positionMs.coerceAtLeast(0L), 1f)
             .setActions(
@@ -173,6 +193,7 @@ class VlcPlayerManager(context: Context) {
                 PlaybackState.ACTION_SKIP_TO_PREVIOUS or
                 PlaybackState.ACTION_SEEK_TO
             )
+            .addCustomAction(lyricAction)
             .build()
         mediaSession.setPlaybackState(playbackState)
     }

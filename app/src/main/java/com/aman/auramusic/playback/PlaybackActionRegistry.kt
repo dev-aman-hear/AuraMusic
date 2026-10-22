@@ -1,4 +1,4 @@
-package com.aman.auramusic.playback
+﻿package com.aman.auramusic.playback
 
 enum class RepeatMode {
     NONE, ONE, ALL
@@ -10,5 +10,5 @@ object PlaybackActionRegistry {
     var onPrevious: (() -> Unit)? = null
     var onFavorite: (() -> Unit)? = null
     var onSeekTo: ((Long) -> Unit)? = null
+    var onLyricToggle: (() -> Unit)? = null
 }
-
