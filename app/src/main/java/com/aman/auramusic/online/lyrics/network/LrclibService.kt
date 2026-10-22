@@ -2,6 +2,7 @@ package com.aman.auramusic.online.lyrics.network
 
 import com.aman.auramusic.online.lyrics.model.SongLyrics
 import com.aman.auramusic.online.lyrics.parser.LrcParser
+import com.google.gson.JsonElement
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,8 +12,8 @@ import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 /**
- * High-speed lyrics provider querying LRCLIB (open-source synced lyrics repository).
- * Provides millimeter-accurate word/line synced lyrics for millions of global and Bollywood songs.
+ * Fetches synchronized or plain lyrics from LRCLIB, preferring an exact track match
+ * before falling back to a text search.
  */
 class LrclibService(
     private val client: OkHttpClient = OkHttpClient.Builder()
@@ -30,141 +31,127 @@ class LrclibService(
         val cleanTitle = sanitizeTitle(title)
         val cleanArtist = sanitizeArtist(artist)
 
-        // Try exact match first: /api/get?track_name=...&artist_name=...
-        val directResult = fetchDirect(cleanTitle, cleanArtist, durationSeconds)
-        if (directResult != null && (directResult.isSynced || !directResult.plainLyrics.isNullOrBlank())) {
-            return@withContext directResult
-        }
-
-        // Fallback: /api/search?q={title + " " + artist}
-        val searchResult = searchFallback("$cleanTitle $cleanArtist", durationSeconds)
-        if (searchResult != null) {
-            return@withContext searchResult
-        }
-
-        SongLyrics(trackName = title, artistName = artist, lines = emptyList())
+        fetchDirect(cleanTitle, cleanArtist, durationSeconds)
+            ?.takeIf { it.hasLyrics() }
+            ?: searchFallback("$cleanTitle $cleanArtist", durationSeconds)
+            ?: SongLyrics(trackName = title, artistName = artist)
     }
 
     private fun fetchDirect(title: String, artist: String, durationSeconds: Long): SongLyrics? {
-        return try {
-            val encodedTitle = URLEncoder.encode(title, "UTF-8")
-            val encodedArtist = URLEncoder.encode(artist, "UTF-8")
-            var url = "$baseUrl/get?track_name=$encodedTitle&artist_name=$encodedArtist"
-            if (durationSeconds > 0) {
-                url += "&duration=$durationSeconds"
-            }
-
-            val request = Request.Builder()
-                .url(url)
-                .header("User-Agent", "AuraMusic/1.0.2 (https://github.com/dev-aman-hear/AuraMusic)")
-                .build()
-
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return null
-                val body = response.body?.string() ?: return null
-                parseLrclibResponse(body, title, artist, durationSeconds)
-            }
-        } catch (e: Exception) {
-            null
+        val encodedTitle = URLEncoder.encode(title, "UTF-8")
+        val encodedArtist = URLEncoder.encode(artist, "UTF-8")
+        val url = buildString {
+            append("$baseUrl/get?track_name=$encodedTitle&artist_name=$encodedArtist")
+            if (durationSeconds > 0L) append("&duration=$durationSeconds")
         }
+        return fetch(url, title, artist, durationSeconds, isSearch = false)
     }
 
     private fun searchFallback(query: String, durationSeconds: Long): SongLyrics? {
-        return try {
-            val encodedQuery = URLEncoder.encode(query, "UTF-8")
-            val url = "$baseUrl/search?q=$encodedQuery"
+        val encodedQuery = URLEncoder.encode(query, "UTF-8")
+        return fetch(
+            url = "$baseUrl/search?q=$encodedQuery",
+            fallbackTitle = query,
+            fallbackArtist = "",
+            durationSeconds = durationSeconds,
+            isSearch = true
+        )
+    }
 
+    private fun fetch(
+        url: String,
+        fallbackTitle: String,
+        fallbackArtist: String,
+        durationSeconds: Long,
+        isSearch: Boolean
+    ): SongLyrics? {
+        return try {
             val request = Request.Builder()
                 .url(url)
-                .header("User-Agent", "AuraMusic/1.0.2 (https://github.com/dev-aman-hear/AuraMusic)")
+                .header("User-Agent", USER_AGENT)
                 .build()
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val body = response.body?.string() ?: return null
-                val array = JsonParser.parseString(body).asJsonArray
-                if (array.size() == 0) return null
+                val json = JsonParser.parseString(body)
 
-                // Pick first item that has syncedLyrics
-                var bestCandidate = array[0].asJsonObject
-                for (item in array) {
-                    val obj = item.asJsonObject
-                    if (obj.has("syncedLyrics") && !obj.get("syncedLyrics").isJsonNull &&
-                        obj.get("syncedLyrics").asString.isNotBlank()
-                    ) {
-                        bestCandidate = obj
-                        break
-                    }
+                val candidate = if (isSearch) {
+                    if (!json.isJsonArray || json.asJsonArray.size() == 0) return null
+                    // Prefer a candidate with timed lyrics, but retain the first search result
+                    // as a fallback so plain lyrics remain available.
+                    json.asJsonArray.firstOrNull { it.hasNonBlank("syncedLyrics") }
+                        ?: json.asJsonArray.first()
+                } else {
+                    if (!json.isJsonObject) return null
+                    json
                 }
 
-                val trackName = bestCandidate.get("trackName")?.asString ?: query
-                val artistName = bestCandidate.get("artistName")?.asString ?: ""
-                val syncedLyrics = if (bestCandidate.has("syncedLyrics") && !bestCandidate.get("syncedLyrics").isJsonNull) {
-                    bestCandidate.get("syncedLyrics").asString
-                } else ""
-                val plainLyrics = if (bestCandidate.has("plainLyrics") && !bestCandidate.get("plainLyrics").isJsonNull) {
-                    bestCandidate.get("plainLyrics").asString
-                } else null
-
-                LrcParser.parse(
-                    lrcContent = syncedLyrics,
-                    trackName = trackName,
-                    artistName = artistName,
-                    durationSeconds = durationSeconds,
-                    plainLyrics = plainLyrics
+                candidate.toSongLyrics(
+                    fallbackTitle = fallbackTitle,
+                    fallbackArtist = fallbackArtist,
+                    durationSeconds = durationSeconds
                 )
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
 
-    private fun parseLrclibResponse(
-        jsonString: String,
-        title: String,
-        artist: String,
+    private fun JsonElement.toSongLyrics(
+        fallbackTitle: String,
+        fallbackArtist: String,
         durationSeconds: Long
-    ): SongLyrics? {
-        return try {
-            val obj = JsonParser.parseString(jsonString).asJsonObject
-            val trackName = obj.get("trackName")?.asString ?: title
-            val artistName = obj.get("artistName")?.asString ?: artist
-            val syncedLyrics = if (obj.has("syncedLyrics") && !obj.get("syncedLyrics").isJsonNull) {
-                obj.get("syncedLyrics").asString
-            } else ""
-            val plainLyrics = if (obj.has("plainLyrics") && !obj.get("plainLyrics").isJsonNull) {
-                obj.get("plainLyrics").asString
-            } else null
+    ): SongLyrics {
+        val obj = asJsonObject
+        val trackName = obj.stringOrNull("trackName") ?: fallbackTitle
+        val artistName = obj.stringOrNull("artistName") ?: fallbackArtist
+        val syncedLyrics = obj.stringOrNull("syncedLyrics").orEmpty()
+        val plainLyrics = obj.stringOrNull("plainLyrics")
 
-            LrcParser.parse(
-                lrcContent = syncedLyrics,
-                trackName = trackName,
-                artistName = artistName,
-                durationSeconds = durationSeconds,
-                plainLyrics = plainLyrics
-            )
-        } catch (e: Exception) {
+        return LrcParser.parse(
+            lrcContent = syncedLyrics,
+            trackName = trackName,
+            artistName = artistName,
+            durationSeconds = durationSeconds,
+            plainLyrics = plainLyrics
+        )
+    }
+
+    private fun JsonElement.hasNonBlank(name: String): Boolean =
+        stringOrNull(name)?.isNotBlank() == true
+
+    private fun JsonElement.stringOrNull(name: String): String? {
+        if (!isJsonObject) return null
+        val value = asJsonObject.get(name) ?: return null
+        return if (value.isJsonNull || !value.isJsonPrimitive || !value.asJsonPrimitive.isString) {
             null
+        } else {
+            value.asString
         }
     }
 
-    private fun sanitizeTitle(title: String): String {
-        return title
-            .replace(Regex("\\(From [^)]+\\)"), "")
-            .replace(Regex("\\[From [^\\]]+\\]"), "")
+    private fun SongLyrics.hasLyrics(): Boolean =
+        isSynced || !plainLyrics.isNullOrBlank()
+
+    private fun sanitizeTitle(title: String): String =
+        title
+            .replace(Regex("\\(From [^)]+\\)", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("\\[From [^\\]]+\\]", RegexOption.IGNORE_CASE), "")
             .replace(Regex("\\(feat\\.[^)]+\\)", RegexOption.IGNORE_CASE), "")
             .replace(Regex("\\[Official[^\\]]*\\]", RegexOption.IGNORE_CASE), "")
             .replace(Regex("\\(Official[^\\]]*\\)", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\(Video[^\\]]*\\)", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\(Audio[^\\]]*\\)", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\(Lyrical[^\\]]*\\)", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("\\((?:Music )?Video[^)]*\\)", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("\\((?:Official )?Audio[^)]*\\)", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("\\(Lyrical[^)]*\\)", RegexOption.IGNORE_CASE), "")
             .replace(Regex("\\(Original Motion Picture Soundtrack\\)", RegexOption.IGNORE_CASE), "")
             .trim()
-    }
 
-    private fun sanitizeArtist(artist: String): String {
-        return artist
-            .split(",", "&", "feat.", "ft.", ";")[0]
-            .trim()
+    private fun sanitizeArtist(artist: String): String =
+        artist.split(",", "&", "feat.", "ft.", ";")[0].trim()
+
+    private companion object {
+        const val USER_AGENT =
+            "AuraMusic/1.0.2 (https://github.com/dev-aman-hear/AuraMusic)"
     }
 }
