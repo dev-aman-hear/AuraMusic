@@ -8,8 +8,8 @@ import java.util.Locale
 /**
  * Builds the public lyricInfo payload consumed by the native OPlus/ColorOS media pipeline.
  *
- * Keep this independent of the optional LSPosed Bridge so compatible firmware can consume
- * the same metadata directly from AuraMusic's existing MediaSession.
+ * This payload is independent of the optional LSPosed Bridge: compatible firmware can consume
+ * it from AuraMusic's existing MediaSession, while Bridge can provide additional rendering.
  */
 object ColorOSLyricPayload {
 
@@ -19,11 +19,10 @@ object ColorOSLyricPayload {
             .filter { it.timeMs >= 0L && it.text.isNotBlank() }
             .sortedBy { it.timeMs }
             .joinToString(separator = "\n", postfix = "\n") { line ->
-                val totalMillis = line.timeMs
-                val totalSeconds = totalMillis / 1000L
+                val totalSeconds = line.timeMs / 1000L
                 val minutes = totalSeconds / 60L
                 val seconds = totalSeconds % 60L
-                val millis = totalMillis % 1000L
+                val millis = line.timeMs % 1000L
                 String.format(Locale.US, "[%02d:%02d.%03d]%s", minutes, seconds, millis, line.text)
             }
     }
@@ -43,6 +42,8 @@ object ColorOSLyricPayload {
             put("source", "com.aman.auramusic-v1")
             put("trackKey", buildTrackKey(song))
             put("noLyric", false)
+            // Do not populate rawLyric for line-timed LRC. The Bridge protocol reserves that
+            // field for enhanced LRC with real word-level timestamps.
         }.toString()
     }
 
