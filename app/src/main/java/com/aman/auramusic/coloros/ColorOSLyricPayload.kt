@@ -24,7 +24,9 @@ object ColorOSLyricPayload {
         return JSONObject().apply {
             put("songName", song.title)
             put("artist", song.artist)
+            put("album", song.album)
             put("songId", song.id.toString())
+            put("trackKey", buildTrackKey(song))
             put("lyric", lrc)
             put("rawLyric", lrc)
         }.toString()

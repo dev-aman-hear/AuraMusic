@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 import kotlinx.coroutines.withContext
-import com.aman.auramusic.coloros.ColorOSLiveLyricsBridge
 import com.aman.auramusic.coloros.ColorOSLyricPayload
 import com.aman.auramusic.data.repository.LyricsRepository
 import com.aman.auramusic.online.player.OnlinePlaybackManager
@@ -44,7 +43,6 @@ class PlaybackService : Service() {
     private lateinit var playerManager: VlcPlayerManager
     private lateinit var notificationManager: PlaybackNotificationManager
     private lateinit var userRepository: UserPreferencesRepository
-    private lateinit var colorOSBridge: ColorOSLiveLyricsBridge
     private lateinit var onlinePlaybackManager: OnlinePlaybackManager
     private val lyricsRepository = LyricsRepository()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -264,7 +262,6 @@ class PlaybackService : Service() {
         playerManager = VlcPlayerManager(this)
         notificationManager = PlaybackNotificationManager(this)
         userRepository = UserPreferencesRepository(this)
-        colorOSBridge = ColorOSLiveLyricsBridge(this)
         // Share the online player with the UI, but keep its lifetime tied to this service.
         onlinePlaybackManager = OnlinePlaybackManagerHolder.get(this)
         onlinePlaybackManager.addListener(onlinePlayerListener)
@@ -326,11 +323,7 @@ class PlaybackService : Service() {
         }
 
         playerManager.addListener(object : VlcPlayerManager.PlayerListener {
-            override fun onProgress(position: Long, duration: Long) {
-                currentSong?.let { song ->
-                    colorOSBridge.onPlaybackStateChanged(song, playerManager.isPlaying(), position)
-                }
-            }
+            override fun onProgress(position: Long, duration: Long) = Unit
 
             override fun onPlaybackState(isPlaying: Boolean) {
                 Log.d("AuraPlaybackDebug", "PlaybackService onPlaybackState: isPlaying=$isPlaying, isTransitioning=${playerManager.isTransitioning}, currentSong=${currentSong?.title}")
@@ -348,7 +341,6 @@ class PlaybackService : Service() {
                             serviceScope.launch {
                                 notificationManager.show(song, false, playerManager.getSessionToken())
                             }
-                            colorOSBridge.onPlaybackStateChanged(song, false, playerManager.position())
                         } else {
                             Log.d("AuraPlaybackDebug", "PlaybackService: Suppressing paused notification during transition")
                         }
@@ -456,8 +448,6 @@ class PlaybackService : Service() {
         PlaybackActionRegistry.onPrevious = onPrevious
         PlaybackActionRegistry.onSeekTo = { pos ->
             currentOnlinePosition = pos
-            val curDisplay = getOnlineDisplaySong() ?: displaySong
-            colorOSBridge.onSeek(curDisplay, pos, isOnlinePlaying)
             if (onSeekTo != null) {
                 onSeekTo.invoke(pos)
             } else {
@@ -465,7 +455,6 @@ class PlaybackService : Service() {
             }
         }
 
-        colorOSBridge.onTrackChanged(displaySong, cachedOnlineLyrics, isPlaying, 0L)
         updateOnlineNotification(song, isPlaying)
 
         serviceScope.launch {
@@ -480,8 +469,6 @@ class PlaybackService : Service() {
         if (!isOnlinePlaybackActive || currentOnlineSong?.id != song.id) return
         cachedOnlineLyrics = lyrics
         val displaySong = getOnlineDisplaySong(song) ?: song.toSong()
-
-        colorOSBridge.onLyricsLoaded(displaySong, lyrics, isPlaying = isOnlinePlaying, positionMs = currentOnlinePosition)
 
         val lyricInfoJson = ColorOSLyricPayload.generateLyricInfoJson(displaySong, lyrics)
 
@@ -526,11 +513,8 @@ class PlaybackService : Service() {
         val displaySong = getOnlineDisplaySong(song) ?: song.toSong()
 
         playerManager.updateSessionPlaybackState(isPlaying, positionMs)
-        colorOSBridge.onPlaybackStateChanged(displaySong, isPlaying, positionMs)
-
         if (songChanged) {
             cachedOnlineLyrics = emptyList()
-            colorOSBridge.onTrackChanged(displaySong, cachedOnlineLyrics, isPlaying, positionMs)
             updateOnlineNotification(song, isPlaying)
 
             serviceScope.launch {
@@ -552,9 +536,8 @@ class PlaybackService : Service() {
             currentOnlineDuration = durationMs
             durationUpdated = true
         }
-        val displaySong = getOnlineDisplaySong() ?: return
+        if (getOnlineDisplaySong() == null) return
         playerManager.updateSessionPlaybackState(isOnlinePlaying, positionMs)
-        colorOSBridge.onPlaybackStateChanged(displaySong, isOnlinePlaying, positionMs)
         if (durationUpdated) {
             currentOnlineSong?.let { updateOnlineNotification(it, isOnlinePlaying) }
         }
@@ -563,9 +546,8 @@ class PlaybackService : Service() {
     fun onOnlineSeek(positionMs: Long) {
         if (!isOnlinePlaybackActive) return
         currentOnlinePosition = positionMs
-        val displaySong = getOnlineDisplaySong() ?: return
+        if (getOnlineDisplaySong() == null) return
         playerManager.updateSessionPlaybackState(isOnlinePlaying, positionMs)
-        colorOSBridge.onSeek(displaySong, positionMs, isOnlinePlaying)
     }
 
     fun startSleepTimer(minutes: Int) {
@@ -612,7 +594,6 @@ class PlaybackService : Service() {
     fun stopOnlinePlayback() {
         if (!isOnlinePlaybackActive) return
         Log.d("AuraPlaybackDebug", "stopOnlinePlayback called")
-        val displaySong = getOnlineDisplaySong() ?: currentOnlineSong?.toSong()
         isOnlinePlaybackActive = false
         currentOnlineSong = null
         currentOnlineDuration = 0L
@@ -621,7 +602,6 @@ class PlaybackService : Service() {
         setupActions()
         stopForeground(STOP_FOREGROUND_REMOVE)
         notificationManager.clear()
-        colorOSBridge.onPlaybackStopped(displaySong)
     }
 
     private fun updateOnlineNotification(
@@ -636,6 +616,14 @@ class PlaybackService : Service() {
 
         // 1. Immediate fast notification to maintain foreground service state without network delay
         val fastArtwork = notificationManager.loadArtworkFast(displaySong)
+        playerManager.setMetadata(
+            displaySong.title,
+            displaySong.artist,
+            displaySong.album,
+            displaySong.duration,
+            fastArtwork,
+            lyricInfoJson = ""
+        )
         val initialNotification = notificationManager.createNotification(
             displaySong,
             isPlaying,
@@ -770,6 +758,14 @@ class PlaybackService : Service() {
         // This guarantees the service is promoted to / kept in foreground instantly without
         // waiting for network I/O or LRCLIB fetching.
         val fastArtwork = notificationManager.loadArtworkFast(song)
+        playerManager.setMetadata(
+            song.title,
+            song.artist,
+            song.album,
+            song.duration,
+            fastArtwork,
+            lyricInfoJson = ""
+        )
         val initialNotification = notificationManager.createNotification(
             song,
             isPlaying,
@@ -801,7 +797,6 @@ class PlaybackService : Service() {
 
             val lyricInfoJson = ColorOSLyricPayload.generateLyricInfoJson(song, lyrics)
             playerManager.setMetadata(song.title, song.artist, song.album, song.duration, artwork ?: fastArtwork, lyricInfoJson)
-            colorOSBridge.onTrackChanged(song, lyrics, isPlaying, playerManager.position())
 
             val finalNotification = notificationManager.createNotification(
                 song,
@@ -834,16 +829,12 @@ class PlaybackService : Service() {
         Log.d("AuraPlaybackDebug", "stopAsForeground called: removeNotification=$removeNotification")
         releaseWakeLock()
         stopForeground(if (removeNotification) STOP_FOREGROUND_REMOVE else STOP_FOREGROUND_DETACH)
-        val activeSong = currentSong ?: currentOnlineSong?.toSong()
-        colorOSBridge.onPlaybackStopped(activeSong)
     }
 
     override fun onDestroy() {
         sleepTimerJob?.cancel()
         sleepTimerJob = null
         Log.d("AuraPlaybackDebug", "PlaybackService onDestroy called")
-        val activeSong = currentSong ?: currentOnlineSong?.toSong()
-        colorOSBridge.onPlaybackStopped(activeSong)
         if (isScreenReceiverRegistered) {
             runCatching { unregisterReceiver(screenReceiver) }
             isScreenReceiverRegistered = false
