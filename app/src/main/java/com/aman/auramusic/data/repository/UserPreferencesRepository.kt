@@ -100,7 +100,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<Preferences>) {
             themeScope = scope,
             themeColorStyle = style,
             rgbModeEnabled = prefs[Keys.rgbModeEnabled] ?: false,
-            lockscreenLyricsEnabled = prefs[Keys.lockscreenLyricsEnabled] ?: true
+            lockscreenLyricsEnabled = prefs[Keys.lockscreenLyricsEnabled] ?: false
         )
     }.distinctUntilChanged()
 

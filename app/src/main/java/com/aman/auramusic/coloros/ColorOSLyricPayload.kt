@@ -38,8 +38,8 @@ object ColorOSLyricPayload {
             put("songId", song.onlineId?.takeIf { it.isNotBlank() } ?: song.id.toString())
             put("lyricType", 0)
             put("lyric", lrc)
-            put("provider", "com.aman.auramusic")
-            put("source", "com.aman.auramusic-v1")
+            put("provider", "com.heytap.music")
+            put("source", "com.heytap.music")
             put("trackKey", buildTrackKey(song))
             put("noLyric", false)
             // Do not populate rawLyric for line-timed LRC. The Bridge protocol reserves that

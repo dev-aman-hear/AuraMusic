@@ -14,16 +14,28 @@ class LyricsRepository(
 ) {
     private val memoryCache = ConcurrentHashMap<String, List<LyricLine>>()
 
-    suspend fun lyricsFor(song: Song): List<LyricLine> = withContext(Dispatchers.IO) {
+    fun getCachedLyrics(song: Song): List<LyricLine> {
         val cacheKey = buildCacheKey(song)
-        memoryCache[cacheKey]?.let { return@withContext it }
+        memoryCache[cacheKey]?.let { return it }
 
-        // 1. Check local .lrc file next to audio file
         val local = lyricsForLocal(song)
         if (local.isNotEmpty()) {
             memoryCache[cacheKey] = local
-            return@withContext local
+            return local
         }
+
+        return emptyList()
+    }
+
+    fun cacheLyrics(song: Song, lyrics: List<LyricLine>) {
+        if (lyrics.isNotEmpty()) {
+            memoryCache[buildCacheKey(song)] = lyrics
+        }
+    }
+
+    suspend fun lyricsFor(song: Song): List<LyricLine> = withContext(Dispatchers.IO) {
+        val cached = getCachedLyrics(song)
+        if (cached.isNotEmpty()) return@withContext cached
 
         // 2. Fallback to online lyrics via LRCLIB
         try {
@@ -35,7 +47,7 @@ class LyricsRepository(
             )
             val converted = onlineLyrics.toLyricLines()
             if (converted.isNotEmpty()) {
-                memoryCache[cacheKey] = converted
+                cacheLyrics(song, converted)
                 return@withContext converted
             }
         } catch (_: Exception) {}

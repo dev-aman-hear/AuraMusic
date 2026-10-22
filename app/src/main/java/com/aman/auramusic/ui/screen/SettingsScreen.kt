@@ -180,19 +180,6 @@ fun SettingsScreen(
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
-                        ToggleRow(
-                    title = "Lockscreen Lyrics & Player",
-                    checked = appSettings.lockscreenLyricsEnabled,
-                    onCheckedChange = { isChecked ->
-                        onLockscreenLyricsChange(isChecked)
-                        if (isChecked && !com.aman.auramusic.lockscreen.LockScreenManager.canDrawOverlays(context)) {
-                            com.aman.auramusic.lockscreen.LockScreenManager.openOverlayPermissionSettings(context)
-                        }
-                    },
-                    subtitle = "Show synced lyrics and music controls on lockscreen (no root required)"
-                )
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
                 Text("Lyric font size", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                         Slider(

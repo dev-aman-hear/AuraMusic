@@ -27,9 +27,6 @@ import com.aman.auramusic.online.model.OnlineSong
 import com.aman.auramusic.online.model.toLyricLines
 import com.aman.auramusic.online.model.toSong
 import com.aman.auramusic.online.util.LastPlayedStore
-import android.app.KeyguardManager
-import com.aman.auramusic.lockscreen.LockScreenManager
-import com.aman.auramusic.lockscreen.LockScreenPlayerActivity
 import kotlinx.coroutines.flow.first
 
 class PlaybackService : Service() {
@@ -113,23 +110,7 @@ class PlaybackService : Service() {
                     }
                 }
                 Intent.ACTION_SCREEN_OFF -> {
-                    Log.d("AuraPlaybackDebug", "Screen turned off, checking lockscreen player trigger")
-                    if (isAnyPlaybackActive()) {
-                        serviceScope.launch {
-                            try {
-                                val settings = userRepository.settingsFlow.first()
-                                if (settings.lockscreenLyricsEnabled) {
-                                    LockScreenManager.showLockScreenIfNeeded(
-                                        context = this@PlaybackService,
-                                        isPlaying = isAnyPlaybackActive(),
-                                        isFeatureEnabled = true
-                                    )
-                                }
-                            } catch (e: Exception) {
-                                Log.e("AuraPlaybackDebug", "Error triggering lockscreen lyrics", e)
-                            }
-                        }
-                    }
+                    Log.d("AuraPlaybackDebug", "Screen turned off")
                 }
             }
         }
@@ -435,12 +416,12 @@ class PlaybackService : Service() {
         isOnlinePlaying = isPlaying
         currentOnlinePosition = 0L
         currentOnlineDuration = (song.durationSeconds * 1000L).coerceAtLeast(0L)
-        cachedOnlineLyrics = emptyList()
 
         // Stop offline player if running
         playerManager.pause()
 
         val displaySong = getOnlineDisplaySong(song) ?: song.toSong()
+        cachedOnlineLyrics = lyricsRepository.getCachedLyrics(displaySong)
 
         setupOnlineActions()
         PlaybackActionRegistry.onPlayPause = onPlayPause
@@ -458,7 +439,11 @@ class PlaybackService : Service() {
         updateOnlineNotification(song, isPlaying)
 
         serviceScope.launch {
-            val lyrics = withContext(Dispatchers.IO) { lyricsRepository.lyricsFor(displaySong) }
+            val lyrics = if (cachedOnlineLyrics.isNotEmpty()) {
+                cachedOnlineLyrics
+            } else {
+                withContext(Dispatchers.IO) { lyricsRepository.lyricsFor(displaySong) }
+            }
             if (lyrics.isNotEmpty() && currentOnlineSong?.id == song.id) {
                 updateOnlineLyrics(song, lyrics)
             }
@@ -469,6 +454,7 @@ class PlaybackService : Service() {
         if (!isOnlinePlaybackActive || currentOnlineSong?.id != song.id) return
         cachedOnlineLyrics = lyrics
         val displaySong = getOnlineDisplaySong(song) ?: song.toSong()
+        lyricsRepository.cacheLyrics(displaySong, lyrics)
 
         val lyricInfoJson = ColorOSLyricPayload.generateLyricInfoJson(displaySong, lyrics)
 
@@ -514,11 +500,15 @@ class PlaybackService : Service() {
 
         playerManager.updateSessionPlaybackState(isPlaying, positionMs)
         if (songChanged) {
-            cachedOnlineLyrics = emptyList()
+            cachedOnlineLyrics = lyricsRepository.getCachedLyrics(displaySong)
             updateOnlineNotification(song, isPlaying)
 
             serviceScope.launch {
-                val lyrics = withContext(Dispatchers.IO) { lyricsRepository.lyricsFor(displaySong) }
+                val lyrics = if (cachedOnlineLyrics.isNotEmpty()) {
+                    cachedOnlineLyrics
+                } else {
+                    withContext(Dispatchers.IO) { lyricsRepository.lyricsFor(displaySong) }
+                }
                 if (lyrics.isNotEmpty() && currentOnlineSong?.id == song.id) {
                     updateOnlineLyrics(song, lyrics)
                 }
@@ -609,6 +599,7 @@ class PlaybackService : Service() {
         isPlaying: Boolean
     ) {
         val displaySong = getOnlineDisplaySong(onlineSong) ?: onlineSong.toSong()
+        val isSameSong = currentOnlineSong?.id == onlineSong.id
         Log.d("AuraPlaybackDebug", "updateOnlineNotification: song=${onlineSong.title}, isPlaying=$isPlaying, isOnlinePlaying=$isOnlinePlaying")
 
         retryJob?.cancel()
@@ -616,13 +607,23 @@ class PlaybackService : Service() {
 
         // 1. Immediate fast notification to maintain foreground service state without network delay
         val fastArtwork = notificationManager.loadArtworkFast(displaySong)
+        val initialLyrics = if (cachedOnlineLyrics.isNotEmpty()) {
+            cachedOnlineLyrics
+        } else {
+            lyricsRepository.getCachedLyrics(displaySong).also { if (it.isNotEmpty()) cachedOnlineLyrics = it }
+        }
+        val initialLyricInfo = when {
+            initialLyrics.isNotEmpty() -> ColorOSLyricPayload.generateLyricInfoJson(displaySong, initialLyrics)
+            isSameSong -> null
+            else -> ""
+        }
         playerManager.setMetadata(
             displaySong.title,
             displaySong.artist,
             displaySong.album,
             displaySong.duration,
             fastArtwork,
-            lyricInfoJson = ""
+            lyricInfoJson = initialLyricInfo
         )
         val initialNotification = notificationManager.createNotification(
             displaySong,
@@ -670,6 +671,15 @@ class PlaybackService : Service() {
             } catch (e: Exception) {
                 Log.e("AuraPlaybackDebug", "updateOnlineNotification: error updating notification", e)
             }
+
+            if (lyricInfoJson.isNotBlank()) {
+                retryJob = launch {
+                    kotlinx.coroutines.delay(800)
+                    if (currentOnlineSong?.id == onlineSong.id) {
+                        playerManager.setMetadata(displaySong.title, displaySong.artist, displaySong.album, displaySong.duration, artwork ?: fastArtwork, lyricInfoJson)
+                    }
+                }
+            }
         }
     }
 
@@ -680,26 +690,15 @@ class PlaybackService : Service() {
         PlaybackActionRegistry.onSeekTo = { playerManager.seekTo(it) }
         PlaybackActionRegistry.onLyricToggle = {
             Log.d("AuraPlaybackDebug", "Lyric action triggered from notification or media session")
-            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
-            val isLocked = keyguardManager?.isKeyguardLocked == true
-            if (isLocked) {
-                val intent = Intent(this@PlaybackService, LockScreenPlayerActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                }
-                startActivity(intent)
-            } else {
-                serviceScope.launch {
-                    val current = userRepository.settingsFlow.first().lockscreenLyricsEnabled
-                    val next = !current
-                    userRepository.setLockscreenLyricsEnabled(next)
-                    playerManager.isLyricActive = next
-                    notificationManager.isLyricActive = next
-                    playerManager.updatePlaybackState()
-                    if (isOnlinePlaybackActive && currentOnlineSong != null) {
-                        updateOnlineNotification(currentOnlineSong!!, isOnlinePlaying)
-                    } else if (currentSong != null) {
-                        startAsForeground(currentSong!!, playerManager.isPlaying())
-                    }
+            serviceScope.launch {
+                val next = !playerManager.isLyricActive
+                playerManager.isLyricActive = next
+                notificationManager.isLyricActive = next
+                playerManager.updatePlaybackState()
+                if (isOnlinePlaybackActive && currentOnlineSong != null) {
+                    updateOnlineNotification(currentOnlineSong!!, isOnlinePlaying)
+                } else if (currentSong != null) {
+                    startAsForeground(currentSong!!, playerManager.isPlaying())
                 }
             }
         }
@@ -749,6 +748,7 @@ class PlaybackService : Service() {
 
     fun startAsForeground(song: Song, isPlaying: Boolean) {
         Log.d("AuraPlaybackDebug", "startAsForeground: song=${song.title}, isPlaying=$isPlaying")
+        val isSameSong = currentSong?.id == song.id
         currentSong = song
 
         retryJob?.cancel()
@@ -758,13 +758,19 @@ class PlaybackService : Service() {
         // This guarantees the service is promoted to / kept in foreground instantly without
         // waiting for network I/O or LRCLIB fetching.
         val fastArtwork = notificationManager.loadArtworkFast(song)
+        val cachedLyrics = lyricsRepository.getCachedLyrics(song)
+        val initialLyricInfo = when {
+            cachedLyrics.isNotEmpty() -> ColorOSLyricPayload.generateLyricInfoJson(song, cachedLyrics)
+            isSameSong -> null
+            else -> ""
+        }
         playerManager.setMetadata(
             song.title,
             song.artist,
             song.album,
             song.duration,
             fastArtwork,
-            lyricInfoJson = ""
+            lyricInfoJson = initialLyricInfo
         )
         val initialNotification = notificationManager.createNotification(
             song,
@@ -787,7 +793,11 @@ class PlaybackService : Service() {
         // 2. Asynchronously load high-resolution artwork, lyrics, and metadata
         notificationJob = serviceScope.launch {
             val artwork = withContext(Dispatchers.IO) { notificationManager.loadArtwork(song) }
-            val lyrics = withContext(Dispatchers.IO) { lyricsRepository.lyricsFor(song) }
+            val lyrics = if (cachedLyrics.isNotEmpty()) {
+                cachedLyrics
+            } else {
+                withContext(Dispatchers.IO) { lyricsRepository.lyricsFor(song) }
+            }
 
             // Guard against stale track if user or queue shifted during background load
             if (currentSong?.id != song.id) {
