@@ -69,7 +69,7 @@ class PlaybackNotificationManager(private val context: Context) {
         val lyricIcon = if (isLyricEnabled) R.drawable.ic_notification_lyric_open else R.drawable.ic_notification_lyric
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.aura_launcher_fg)
             .setContentTitle(song.title)
             .setContentText(song.artist)
             .setLargeIcon(artwork)
