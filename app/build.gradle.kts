@@ -39,9 +39,6 @@ android {
             dimension = "brand"
             applicationId = "com.heytap.music"
             manifestPlaceholders["appName"] = "Aura Music"
-            ndk {
-                abiFilters += listOf("arm64-v8a")
-            }
         }
     }
 
