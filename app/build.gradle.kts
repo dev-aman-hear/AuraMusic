@@ -17,7 +17,7 @@ if (signingPropsFile.exists()) {
 // Set to true to allow ColorOS / Realme UI / OxygenOS SystemUI to recognize AuraMusic
 // as the native stock HeyTap Music player (whitelisted for live lockscreen lyrics & Fluid Cloud).
 // The Kotlin/Java code, namespace, imports, and folder structure remain 100% com.aman.auramusic.
-val useHeyTapIdentity = project.findProperty("useHeyTap")?.toString()?.toBoolean() ?: true
+val useHeyTapIdentity = project.findProperty("useHeyTap")?.toString()?.toBoolean() ?: false
 
 android {
     namespace = "com.aman.auramusic"
@@ -50,14 +50,7 @@ android {
 
     buildTypes {
         debug {
-            if (!useHeyTapIdentity) {
-                applicationIdSuffix = ".debug"
-                versionNameSuffix = "-debug"
-                manifestPlaceholders["appName"] = "Aura Music (Debug)"
-            } else {
-                // Keep exact "com.heytap.music" so ColorOS SystemUI whitelist matches
-                manifestPlaceholders["appName"] = "HeyTap Music (Aura)"
-            }
+            manifestPlaceholders["appName"] = "Aura Music"
         }
 
         release {

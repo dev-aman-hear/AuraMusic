@@ -25,7 +25,7 @@
 
 Aura Music brings device-stored music and supported online music sources into one Android player. This `lyricTesterPro` branch focuses especially on synchronized lyrics and experiments with delivering timed lyric metadata to compatible ColorOS, realme UI, and OPlus system components.
 
-The app uses the `com.aman.auramusic` code namespace. Its normal Aura Music build uses the `com.aman.auramusic` application ID. An optional Gradle property, `useHeyTap=true` (enabled by default in this branch), changes the application ID and display identity to `com.heytap.music` for testing OEM integration. This identity mode is a compatibility experiment, not a guarantee that every ColorOS build will accept the app as the preinstalled HeyTap Music application.
+The app uses the `com.aman.auramusic` code namespace. Its normal Aura Music build uses the `com.aman.auramusic` application ID. An optional Gradle property, `useHeyTap=true` (disabled by default; Aura Music identity is default), changes the application ID and display identity to `com.heytap.music` for testing OEM integration. This identity mode is a compatibility experiment, not a guarantee that every ColorOS build will accept the app as the preinstalled HeyTap Music application.
 
 > **Compatibility note:** Native lock-screen lyric behavior depends on firmware, SystemUI implementation, package identity, privileges, and ROM whitelists. The integration can send lyric metadata through Android media-session metadata, but cannot guarantee that a device will display it. Test on the exact target ROM before relying on this feature.
 
@@ -140,7 +140,7 @@ If the APK filename differs, use the matching file from the output directory.
 
 This branch defines the Gradle property `useHeyTap`.
 
-- **Aura Music identity:** `useHeyTap=false` sets application ID `com.aman.auramusic`, display name `Aura Music`, version name `1.0.6`, and version code `19`.
+- **Aura Music identity (default):** `useHeyTap=false` sets application ID `com.aman.auramusic`, display name `Aura Music`, version name `1.0.6`, and version code `19`.
 - **HeyTap identity experiment:** `useHeyTap=true` sets application ID `com.heytap.music` and uses the separate OEM-style version values defined in Gradle. This may conflict with an installed system app or trigger package/signature restrictions. Use it only on a test device and understand the consequences before installing.
 
 Gradle property examples:

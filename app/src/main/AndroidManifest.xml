@@ -23,9 +23,9 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@drawable/aura_logo"
+        android:icon="@mipmap/ic_launcher"
         android:label="${appName}"
-        android:roundIcon="@drawable/aura_logo"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.AuraMusic">
@@ -37,7 +37,8 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:icon="@drawable/aura_logo"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
             android:screenOrientation="portrait">
 
             <intent-filter>
