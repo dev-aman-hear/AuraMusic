@@ -20,6 +20,7 @@ import okhttp3.WebSocketListener
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
 
 /**
  * Client for AuraMusic's Party Mode protocol.
@@ -45,9 +46,9 @@ class PartyModeRepository(
     fun isConfigured(): Boolean = baseUrl.startsWith("https://", ignoreCase = true)
 
     suspend fun createParty(displayName: String) {
-        requireConfigured()
         mutableState.value = mutableState.value.copy(connecting = true, error = null, status = "Creating party…")
         try {
+            requireConfigured()
             val response = post("/v1/parties", JSONObject().put("displayName", displayName.trim().ifBlank { "AuraMusic listener" }))
             connect(parseSession(response, PartyRole.HOST))
         } catch (e: Exception) {
@@ -57,11 +58,14 @@ class PartyModeRepository(
     }
 
     suspend fun joinParty(pairingCode: String, displayName: String) {
-        requireConfigured()
         val normalizedCode = pairingCode.trim().uppercase().replace(" ", "")
-        require(normalizedCode.length in 4..12) { "Enter a valid pairing code." }
+        if (normalizedCode.length !in 4..12) {
+            mutableState.value = mutableState.value.copy(error = "Enter a valid pairing code.")
+            return
+        }
         mutableState.value = mutableState.value.copy(connecting = true, error = null, status = "Joining party…")
         try {
+            requireConfigured()
             val body = JSONObject()
                 .put("pairingCode", normalizedCode)
                 .put("displayName", displayName.trim().ifBlank { "AuraMusic listener" })
