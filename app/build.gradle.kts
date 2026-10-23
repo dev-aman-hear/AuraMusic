@@ -24,6 +24,7 @@ android {
         targetSdk = 36
         versionCode = 19
         versionName = "1.0.6"
+        buildConfigField("String", "PARTY_API_BASE_URL", "\"${providers.gradleProperty("partyApiBaseUrl").orNull.orEmpty()}\"")
 
         manifestPlaceholders["appName"] = "Aura Music"
     }
