@@ -87,6 +87,7 @@ fun SettingsScreen(
     onRefresh: () -> Unit,
     onBack: () -> Unit,
     onShowAbout: () -> Unit,
+    onOpenPartyMode: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -634,6 +635,12 @@ fun SettingsScreen(
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("Playback", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     ToggleRow(title = "Smart audio focus", checked = appSettings.smartAudioFocus, onCheckedChange = onSmartAudioFocusChange)
+                    SettingsRow(
+                        icon = Icons.Default.Groups,
+                        title = "Party Mode",
+                        subtitle = "Listen together with a pairing code (online songs only)",
+                        onClick = onOpenPartyMode
+                    )
                 }
             }
         }
