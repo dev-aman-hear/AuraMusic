@@ -271,6 +271,10 @@ class PartyModeRepository(
                 )
                 mutableState.value = mutableState.value.copy(requests = mutableState.value.requests.filterNot { it.requestId == request.requestId } + request)
             }
+            "song_request_decision" -> {
+                val decision = if (message.optBoolean("approved")) "Host approved: " else "Host declined: "
+                mutableState.value = mutableState.value.copy(decisionMessage = decision + message.optString("title"))
+            }
             "song_request_removed" -> {
                 val id = message.optString("requestId")
                 mutableState.value = mutableState.value.copy(requests = mutableState.value.requests.filterNot { it.requestId == id })
