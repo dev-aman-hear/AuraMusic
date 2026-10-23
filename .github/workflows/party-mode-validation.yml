@@ -1,0 +1,32 @@
+name: Party Mode validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feature/online-party-mode]
+
+jobs:
+  party-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check server syntax
+        run: node --check party-server/server.js
+      - name: Validate server package metadata
+        run: node -e "const p=require('./party-server/package.json'); if (!p.scripts?.start || !p.dependencies?.ws || !p.dependencies?.express) process.exit(1)"
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Compile Aura and HeyTap debug variants
+        run: ./gradlew :app:compileAuraDebugKotlin :app:compileHeytapDebugKotlin --no-daemon
