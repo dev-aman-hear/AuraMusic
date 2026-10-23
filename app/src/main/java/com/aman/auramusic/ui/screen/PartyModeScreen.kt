@@ -60,6 +60,7 @@ fun PartyModeScreen(
     onBack: () -> Unit,
     onRemotePlayback: (PartyPlayback) -> Unit = {},
     onHostCommand: (String) -> Unit = {},
+    onApprovedSongRequest: (String, String, String) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -69,10 +70,6 @@ fun PartyModeScreen(
     var pairingCode by remember { mutableStateOf("") }
     var requestTitle by remember { mutableStateOf("") }
     var requestArtist by remember { mutableStateOf("") }
-
-    DisposableEffect(repository) {
-        onDispose { repository.close() }
-    }
 
     androidx.compose.runtime.LaunchedEffect(state.playback, state.session?.role) {
         val playback = state.playback
@@ -203,7 +200,10 @@ fun PartyModeScreen(
                                 Text(request.title, fontWeight = FontWeight.SemiBold)
                                 Text(request.artist + " • " + request.source, style = MaterialTheme.typography.bodySmall)
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(onClick = { repository.respondToRequest(request.requestId, true) }) { Text("Approve") }
+                                    Button(onClick = {
+                                        repository.respondToRequest(request.requestId, true)
+                                        onApprovedSongRequest(request.title, request.artist, request.source)
+                                    }) { Text("Approve") }
                                     OutlinedButton(onClick = { repository.respondToRequest(request.requestId, false) }) { Text("Reject") }
                                 }
                             }
