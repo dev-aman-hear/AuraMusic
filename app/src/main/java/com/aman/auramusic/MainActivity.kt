@@ -1545,7 +1545,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         }
                         if (source != null) {
                             val current = onlinePlaybackManager.playbackState.value
-                            val sameSong = current.currentSong?.id == remote.songId || (current.currentSong?.title.equals(remote.title, true) && current.currentSong?.artist.equals(remote.artist, true))
+                            val sameSong = current.currentSong?.source == source && (current.currentSong?.id == remote.songId || (current.currentSong?.title.equals(remote.title, true) && current.currentSong?.artist.equals(remote.artist, true)))
                             if (sameSong) {
                                 if (kotlin.math.abs(current.currentPositionMs - remote.positionMs) > 2500L) onlinePlaybackManager.seekTo(remote.positionMs)
                                 if (remote.isPlaying && !current.isPlaying) onlinePlaybackManager.togglePlayPause()
