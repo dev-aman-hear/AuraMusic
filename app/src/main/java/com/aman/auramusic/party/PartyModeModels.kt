@@ -40,7 +40,8 @@ data class PartyUiState(
     val status: String = "Create a party or join with a code.",
     val playback: PartyPlayback? = null,
     val requests: List<PartySongRequest> = emptyList(),
-    val members: Int = 1
+    val members: Int = 1,
+    val decisionMessage: String? = null
 )
 
 internal fun JSONObject.optNonBlank(key: String): String? =
