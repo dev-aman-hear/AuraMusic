@@ -409,7 +409,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
 
     LaunchedEffect(partyState.session?.role, partyState.connected, onlinePlaybackState.currentSong, onlinePlaybackState.currentPositionMs, onlinePlaybackState.isPlaying) {
         val song = onlinePlaybackState.currentSong
-        if (partyState.connected && partyState.session?.role == PartyRole.HOST && song != null) {
+        if (partyState.connected && partyState.session?.role == PartyRole.HOST && song != null && (song.source == AudioSource.YOUTUBE || song.source == AudioSource.JIOSAAVN)) {
             val position = onlinePlaybackState.currentPositionMs.coerceAtLeast(0L)
             val shouldSend = song.id != lastPartySongId || kotlin.math.abs(position - lastPartySentPosition) >= 2500L || onlinePlaybackState.isPlaying != lastPartySentPlaying
             if (shouldSend) {
