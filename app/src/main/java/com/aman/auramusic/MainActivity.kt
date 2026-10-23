@@ -1509,6 +1509,24 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
             PartyModeScreen(
                 repository = partyRepository,
                 onBack = { showPartyMode = false },
+                onApprovedSongRequest = { title, artist, sourceName ->
+                    partyScope.launch {
+                        val source = when (sourceName.lowercase().replace("_", "").replace(" ", "")) {
+                            "youtube", "youtubemusic" -> AudioSource.YOUTUBE
+                            "jiosaavn" -> AudioSource.JIOSAAVN
+                            else -> null
+                        }
+                        if (source != null) {
+                            val matches = partySongResolver.search(title, source)
+                            val match = matches.firstOrNull { it.title.equals(title, true) && it.artist.equals(artist, true) }
+                                ?: matches.firstOrNull { it.title.equals(title, true) }
+                            if (match != null) {
+                                val resolved = partySongResolver.resolveStream(match)
+                                onlinePlaybackManager.playSong(resolved)
+                            }
+                        }
+                    }
+                },
                 onHostCommand = { command ->
                     when (command) {
                         "play" -> if (!onlinePlaybackManager.playbackState.value.isPlaying) onlinePlaybackManager.togglePlayPause()
@@ -1527,7 +1545,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         }
                         if (source != null) {
                             val current = onlinePlaybackManager.playbackState.value
-                            if (current.currentSong?.id == remote.songId) {
+                            val sameSong = current.currentSong?.id == remote.songId || (current.currentSong?.title.equals(remote.title, true) && current.currentSong?.artist.equals(remote.artist, true))
+                            if (sameSong) {
                                 if (kotlin.math.abs(current.currentPositionMs - remote.positionMs) > 2500L) onlinePlaybackManager.seekTo(remote.positionMs)
                                 if (remote.isPlaying && !current.isPlaying) onlinePlaybackManager.togglePlayPause()
                                 if (!remote.isPlaying && current.isPlaying) onlinePlaybackManager.pause()
@@ -1535,7 +1554,6 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                 val matches = partySongResolver.search(remote.title, source)
                                 val match = matches.firstOrNull { it.id == remote.songId }
                                     ?: matches.firstOrNull { it.title.equals(remote.title, true) && it.artist.equals(remote.artist, true) }
-                                    ?: matches.firstOrNull()
                                 if (match != null) {
                                     val resolved = partySongResolver.resolveStream(match)
                                     onlinePlaybackManager.playSong(resolved, startPositionMs = remote.positionMs)
