@@ -51,22 +51,32 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.aman.auramusic.party.PartyModeRepository
 import com.aman.auramusic.party.PartyRole
+import com.aman.auramusic.party.PartyPlayback
 import kotlinx.coroutines.launch
 
 @Composable
 fun PartyModeScreen(
+    repository: PartyModeRepository,
     onBack: () -> Unit,
+    onRemotePlayback: (PartyPlayback) -> Unit = {},
+    onHostCommand: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val repository = remember { PartyModeRepository() }
     val state by repository.state.collectAsState()
     val scope = rememberCoroutineScope()
     var displayName by remember { mutableStateOf("") }
     var pairingCode by remember { mutableStateOf("") }
+    var requestTitle by remember { mutableStateOf("") }
+    var requestArtist by remember { mutableStateOf("") }
 
     DisposableEffect(repository) {
         onDispose { repository.close() }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(state.playback, state.session?.role) {
+        val playback = state.playback
+        if (state.session?.role == PartyRole.GUEST && playback != null) onRemotePlayback(playback)
     }
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -162,16 +172,27 @@ fun PartyModeScreen(
                             }
                             if (session.role == PartyRole.HOST) {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                    IconButton(onClick = { repository.sendHostCommand("previous") }) { Icon(Icons.Default.SkipPrevious, contentDescription = "Previous") }
-                                    IconButton(onClick = { repository.sendHostCommand(if (playback.isPlaying) "pause" else "play") }) {
+                                    IconButton(onClick = { onHostCommand("previous") }) { Icon(Icons.Default.SkipPrevious, contentDescription = "Previous") }
+                                    IconButton(onClick = { onHostCommand(if (playback.isPlaying) "pause" else "play") }) {
                                         Icon(if (playback.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = "Play or pause")
                                     }
-                                    IconButton(onClick = { repository.sendHostCommand("next") }) { Icon(Icons.Default.SkipNext, contentDescription = "Next") }
+                                    IconButton(onClick = { onHostCommand("next") }) { Icon(Icons.Default.SkipNext, contentDescription = "Next") }
                                 }
                             }
                         }
                         OutlinedButton(onClick = { repository.leaveParty() }, modifier = Modifier.fillMaxWidth()) { Text("Leave Party") }
                     }
+                }
+
+                if (session.role == PartyRole.GUEST) {
+                    Text("Request a song", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    OutlinedTextField(value = requestTitle, onValueChange = { requestTitle = it.take(180) }, modifier = Modifier.fillMaxWidth(), label = { Text("Song title") }, singleLine = true)
+                    OutlinedTextField(value = requestArtist, onValueChange = { requestArtist = it.take(180) }, modifier = Modifier.fillMaxWidth(), label = { Text("Artist") }, singleLine = true)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { repository.requestSong(requestTitle, requestArtist, "YOUTUBE"); requestTitle = ""; requestArtist = "" }, enabled = state.connected && requestTitle.isNotBlank() && requestArtist.isNotBlank(), modifier = Modifier.weight(1f)) { Text("Request YouTube Music") }
+                        OutlinedButton(onClick = { repository.requestSong(requestTitle, requestArtist, "JIOSAAVN"); requestTitle = ""; requestArtist = "" }, enabled = state.connected && requestTitle.isNotBlank() && requestArtist.isNotBlank(), modifier = Modifier.weight(1f)) { Text("Request JioSaavn") }
+                    }
+                    state.decisionMessage?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
 
                 if (session.role == PartyRole.HOST && state.requests.isNotEmpty()) {
