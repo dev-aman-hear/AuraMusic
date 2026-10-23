@@ -72,6 +72,7 @@ import com.aman.auramusic.ui.screen.PlayerScreen
 import com.aman.auramusic.ui.screen.SearchScreen
 import com.aman.auramusic.ui.screen.SearchFilter
 import com.aman.auramusic.ui.screen.SettingsScreen
+import com.aman.auramusic.ui.screen.PartyModeScreen
 import com.aman.auramusic.ui.screen.CollectionDetailScreen
 import com.aman.auramusic.ui.screen.home.ArtistDetailSheet
 import com.aman.auramusic.ui.screen.home.ArtistItem
@@ -406,6 +407,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     }
 
     var showAboutDialog by remember { mutableStateOf(false) }
+    var showPartyMode by remember { mutableStateOf(false) }
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
     var showExportPlaylistDialog by remember { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -805,7 +807,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                     onExportPlaylist = { showExportPlaylistDialog = true },
                                     onRefresh = { musicViewModel.loadSongs(forceRefresh = true) },
                                     onBack = { showSettings = false },
-                                    onShowAbout = { showAboutDialog = true }
+                                    onShowAbout = { showAboutDialog = true },
+                                    onOpenPartyMode = { showPartyMode = true }
                                 )
                             }
                         }
@@ -1475,6 +1478,11 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
             )
         }
 
+
+        if (showPartyMode) {
+            BackHandler { showPartyMode = false }
+            PartyModeScreen(onBack = { showPartyMode = false })
+        }
 
         if (showOnlineDiagnostics) {
             StreamDiagnosticsSheet(
