@@ -271,6 +271,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     var lastPartySongId by remember { mutableStateOf("") }
     var lastPartySentPosition by remember { mutableStateOf(-10_000L) }
     var lastPartySentPlaying by remember { mutableStateOf(false) }
+    var resolvingPartySongKeys by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var partyPlaybackReceivedAtMs by remember { mutableStateOf(0L) }
     var isOnlinePlaybackActive by remember { mutableStateOf(false) }
     var activeOnlineSong by remember { mutableStateOf<OnlineSong?>(null) }
     var showOnlineDiagnostics by remember { mutableStateOf(false) }
@@ -457,63 +459,122 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     // Process incoming playback updates at the app level, not inside PartyModeScreen.
     // This keeps guest playback synchronized while the user browses other screens.
     LaunchedEffect(partyState.playback, partyState.session?.role) {
+        partyPlaybackReceivedAtMs = System.currentTimeMillis()
         val remote = partyState.playback ?: return@LaunchedEffect
         if (partyState.session?.role != PartyRole.GUEST) return@LaunchedEffect
-        Log.d("AuraPartySync", "Guest playback update: songId=${remote.songId}, playing=${remote.isPlaying}, positionMs=${remote.positionMs}")
+
+        val source = when (remote.source.lowercase().replace("_", "").replace(" ", "")) {
+            "youtube", "youtubemusic" -> AudioSource.YOUTUBE
+            "jiosaavn" -> AudioSource.JIOSAAVN
+            else -> null
+        } ?: return@LaunchedEffect
+
+        Log.d(
+            "AuraPartySync",
+            "Guest playback update: songId=${remote.songId}, playing=${remote.isPlaying}, positionMs=${remote.positionMs}"
+        )
+
+        val current = onlinePlaybackManager.playbackState.value
+        val sameSong = current.currentSong?.source == source &&
+            (current.currentSong?.id == remote.songId ||
+                (current.currentSong?.title.equals(remote.title, true) &&
+                    current.currentSong?.artist.equals(remote.artist, true)))
+        val isLocalWifi =
+            partyRepository.state.value.session?.connectionMode == PartyConnectionMode.LOCAL_WIFI
+        val driftThreshold = if (isLocalWifi) 200L else 700L
+
+        if (sameSong) {
+            // Keep the guest's normal player UI in sync even outside the Party screen.
+            isOnlinePlaybackActive = true
+            activeOnlineSong = current.currentSong
+            val drift = current.currentPositionMs - remote.positionMs
+            if (kotlin.math.abs(drift) > driftThreshold) {
+                onlinePlaybackManager.seekTo(remote.positionMs.coerceAtLeast(0L))
+            }
+            if (remote.isPlaying && !current.isPlaying) {
+                onlinePlaybackManager.togglePlayPause()
+            } else if (!remote.isPlaying && current.isPlaying) {
+                onlinePlaybackManager.pause()
+            }
+            return@LaunchedEffect
+        }
+
+        // Position updates arrive repeatedly while a track is being resolved. Deduplicate
+        // resolution by track identity so a slow provider lookup doesn't spawn many requests.
+        val resolveKey = "${source.name}:${remote.songId.ifBlank { remote.title.lowercase() + "|" + remote.artist.lowercase() }}"
+        if (resolveKey in resolvingPartySongKeys) return@LaunchedEffect
+        resolvingPartySongKeys = resolvingPartySongKeys + resolveKey
+
         partyScope.launch {
-                                    val source = when (remote.source.lowercase().replace("_", "").replace(" ", "")) {
-                                        "youtube", "youtubemusic" -> AudioSource.YOUTUBE
-                                        "jiosaavn" -> AudioSource.JIOSAAVN
-                                        else -> null
-                                    }
-                                    if (source != null) {
-                                        val current = onlinePlaybackManager.playbackState.value
-                                        val sameSong = current.currentSong?.source == source && (current.currentSong?.id == remote.songId || (current.currentSong?.title.equals(remote.title, true) && current.currentSong?.artist.equals(remote.artist, true)))
-                                        val isLocalWifi = partyRepository.state.value.session?.connectionMode == PartyConnectionMode.LOCAL_WIFI
-                                        val driftThreshold = if (isLocalWifi) 200L else 700L
-                                        if (sameSong) {
-                                            // A guest must enter online-player mode too, so the normal mini-player
-                                            // and full player controls remain visible outside the Party screen.
-                                            isOnlinePlaybackActive = true
-                                            activeOnlineSong = current.currentSong
-                                            val drift = current.currentPositionMs - remote.positionMs
-                                            if (kotlin.math.abs(drift) > driftThreshold) {
-                                                onlinePlaybackManager.seekTo(remote.positionMs)
-                                            }
-                                            if (remote.isPlaying && !current.isPlaying) onlinePlaybackManager.togglePlayPause()
-                                            if (!remote.isPlaying && current.isPlaying) onlinePlaybackManager.pause()
-                                        } else {
-                                            val resolveStartTime = System.currentTimeMillis()
-                                            val matches = partySongResolver.search(remote.title, source)
-                                            val match = matches.firstOrNull { it.id == remote.songId }
-                                                ?: matches.firstOrNull { it.title.equals(remote.title, true) && it.artist.equals(remote.artist, true) }
-                                                ?: matches.firstOrNull { it.title.equals(remote.title, true) }
-                                            if (match != null) {
-                                                val resolved = partySongResolver.resolveStream(match)
-                                                val elapsedResolvingMs = System.currentTimeMillis() - resolveStartTime
-                                                Log.d("AuraPartySync", "Resolved guest stream in ${elapsedResolvingMs}ms for songId=${remote.songId}")
-                                                val latestPlayback = partyRepository.state.value.playback
-                                                val basePosition = if (latestPlayback != null && (latestPlayback.songId == remote.songId || latestPlayback.title.equals(remote.title, true))) {
-                                                    latestPlayback.positionMs
-                                                } else {
-                                                    remote.positionMs
-                                                }
-                                                val targetPosition = if (remote.isPlaying) basePosition + elapsedResolvingMs else basePosition
-                                                // Activate the shared online-player UI before starting the guest's
-                                                // local stream, otherwise Home can remain without its mini-player.
-                                                isOnlinePlaybackActive = true
-                                                activeOnlineSong = resolved
-                                                playerViewModel.updateOnlinePlaybackState(
-                                                    song = resolved,
-                                                    isPlaying = remote.isPlaying,
-                                                    positionMs = targetPosition,
-                                                    durationMs = resolved.durationSeconds * 1000L
-                                                )
-                                                onlinePlaybackManager.playSong(resolved, startPositionMs = targetPosition)
-                                                if (!remote.isPlaying) onlinePlaybackManager.pause()
-                                            }
-                                        }
-                                    }
+            try {
+                val resolveStartTime = System.currentTimeMillis()
+                val matches = partySongResolver.search(remote.title, source)
+                val match = matches.firstOrNull { it.id == remote.songId }
+                    ?: matches.firstOrNull {
+                        it.title.equals(remote.title, true) && it.artist.equals(remote.artist, true)
+                    }
+                    ?: matches.firstOrNull { it.title.equals(remote.title, true) }
+
+                if (match == null) {
+                    Log.w("AuraPartySync", "No matching guest stream found for songId=${remote.songId}")
+                    return@launch
+                }
+
+                val resolved = partySongResolver.resolveStream(match)
+                val latestState = partyRepository.state.value
+                val latestPlayback = latestState.playback
+                val latestSource = latestPlayback?.source?.lowercase()
+                    ?.replace("_", "")?.replace(" ", "")
+                val latestSourceMatches = when (latestSource) {
+                    "youtube", "youtubemusic" -> AudioSource.YOUTUBE
+                    "jiosaavn" -> AudioSource.JIOSAAVN
+                    else -> null
+                }
+                val latestIsSameTrack = latestPlayback != null &&
+                    latestSourceMatches == source &&
+                    (latestPlayback.songId == remote.songId ||
+                        (latestPlayback.title.equals(remote.title, true) &&
+                            latestPlayback.artist.equals(remote.artist, true)))
+
+                // A newer host track may have arrived while search/stream resolution was in
+                // flight. Never let an old request overwrite the latest requested track.
+                if (latestState.session?.role != PartyRole.GUEST || !latestIsSameTrack) {
+                    Log.d(
+                        "AuraPartySync",
+                        "Discarding stale resolved track songId=${remote.songId}; a newer host state is active"
+                    )
+                    return@launch
+                }
+
+                val elapsedSinceLatestUpdate = (System.currentTimeMillis() - partyPlaybackReceivedAtMs)
+                    .coerceAtLeast(0L)
+                val currentHostPlayback = latestPlayback ?: return@launch
+                val targetPosition = (currentHostPlayback.positionMs +
+                    if (currentHostPlayback.isPlaying) elapsedSinceLatestUpdate else 0L).coerceAtLeast(0L)
+                val elapsedResolvingMs = System.currentTimeMillis() - resolveStartTime
+                Log.d(
+                    "AuraPartySync",
+                    "Resolved guest stream in ${elapsedResolvingMs}ms for songId=${remote.songId}; targetPositionMs=${targetPosition}"
+                )
+
+                // Activate the shared online-player UI before starting the guest's local stream.
+                isOnlinePlaybackActive = true
+                activeOnlineSong = resolved
+                playerViewModel.updateOnlinePlaybackState(
+                    song = resolved,
+                    isPlaying = currentHostPlayback.isPlaying,
+                    positionMs = targetPosition,
+                    durationMs = resolved.durationSeconds * 1000L
+                )
+                onlinePlaybackManager.playSong(resolved, startPositionMs = targetPosition)
+                if (!currentHostPlayback.isPlaying) onlinePlaybackManager.pause()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("AuraPartySync", "Failed to resolve guest stream for songId=${remote.songId}", e)
+            } finally {
+                resolvingPartySongKeys = resolvingPartySongKeys - resolveKey
+            }
         }
     }
 
