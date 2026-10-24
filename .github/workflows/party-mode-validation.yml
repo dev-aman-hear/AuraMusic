@@ -30,12 +30,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # v3 defaults to the removed SDK package "tools" in some configurations.
-      # v4 removes that obsolete default; keep the required packages explicit.
+      # v4 avoids the obsolete SDK package "tools"; required packages stay explicit.
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
       - name: Compile Aura and HeyTap debug variants
-        run: ./gradlew :app:compileAuraDebugKotlin :app:compileHeytapDebugKotlin --no-daemon
+        run: bash ./gradlew :app:compileAuraDebugKotlin :app:compileHeytapDebugKotlin --no-daemon
