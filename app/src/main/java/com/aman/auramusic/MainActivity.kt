@@ -762,6 +762,44 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             onOpenSettings = { showSettings = true },
                             onAddToPlaylist = { songToAddToPlaylist = it },
                             onCreatePlaylist = { showNewPlaylistDialog = true },
+                            onImportYouTubePlaylist = { pastedUrl ->
+                                partyScope.launch {
+                                    try {
+                                        val uri = runCatching { Uri.parse(pastedUrl) }.getOrNull()
+                                        val host = uri?.host.orEmpty().lowercase()
+                                        val playlistId = when {
+                                            host == "youtube.com" || host.endsWith(".youtube.com") ->
+                                                uri?.getQueryParameter("list")
+                                            pastedUrl.matches(Regex("^(PL|UU|LL|RD|OLAK|MPRE|VL|RDCLAK)[A-Za-z0-9_-]{8,}$")) ->
+                                                pastedUrl
+                                            else -> null
+                                        }?.trim()?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{8,}")) }
+
+                                        if (playlistId == null) {
+                                            Toast.makeText(context, "Paste a valid YouTube Music playlist link.", Toast.LENGTH_LONG).show()
+                                            return@launch
+                                        }
+
+                                        Toast.makeText(context, "Fetching YouTube Music playlist…", Toast.LENGTH_SHORT).show()
+                                        val repository = OnlineMusicRepository()
+                                        val playlist = OnlinePlaylist(
+                                            id = playlistId,
+                                            title = "YouTube Music Playlist",
+                                            subtitle = "Imported from YouTube Music",
+                                            source = AudioSource.YOUTUBE
+                                        )
+                                        val tracks = repository.getPlaylistSongs(playlist)
+                                        if (tracks.isEmpty()) {
+                                            Toast.makeText(context, "No tracks found. Check that the playlist is public and try again.", Toast.LENGTH_LONG).show()
+                                        } else {
+                                            musicViewModel.savePlaylist("YouTube Music Playlist", emptyList(), onlineSongs = tracks)
+                                            Toast.makeText(context, "Imported ${tracks.size} songs. You can rename the playlist in Library.", Toast.LENGTH_LONG).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Couldn't import playlist: ${e.message ?: "network or playlist error"}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            },
                             onPlaylistSelected = { selectedPlaylistId = it.id },
                             onPlaylistExport = { playlist ->
                                 pendingExportTarget = ExportTarget.SinglePlaylist(playlist)
