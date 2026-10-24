@@ -22,8 +22,8 @@ android {
         applicationId = "com.aman.auramusic"
         minSdk = 26
         targetSdk = 36
-        versionCode = 19
-        versionName = "1.0.6"
+        versionCode = 20
+        versionName = "1.0.7"
         // Use the deployed AuraMusic Party backend by default; allow local/CI overrides with -PpartyApiBaseUrl=...
         val partyApiBaseUrl = providers.gradleProperty("partyApiBaseUrl").orNull
             ?.trim()

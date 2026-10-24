@@ -86,19 +86,33 @@ function isOnlineSource(value) {
   return ALLOWED_SOURCES.has(safeText(value, 40).toLowerCase());
 }
 
-function createPartyResponse(party, member) {
+function getPublicWsUrl(req = null) {
+  if (PUBLIC_WS_URL.startsWith("wss://")) return PUBLIC_WS_URL;
+  if (process.env.RENDER_EXTERNAL_URL) {
+    return process.env.RENDER_EXTERNAL_URL.replace(/^http:\/\//, "ws://").replace(/^https:\/\//, "wss://").replace(/\/$/, "") + "/ws";
+  }
+  const host = req?.get?.("x-forwarded-host") || req?.get?.("host");
+  if (host && !host.startsWith("localhost") && !host.startsWith("127.0.0.1")) {
+    const proto = req?.get?.("x-forwarded-proto") === "http" ? "ws" : "wss";
+    return `${proto}://${host}/ws`;
+  }
+  return PUBLIC_WS_URL;
+}
+
+function createPartyResponse(party, member, req = null) {
   return {
     partyId: party.id,
     pairingCode: party.code,
     memberToken: member.token,
-    websocketUrl: PUBLIC_WS_URL,
+    websocketUrl: getPublicWsUrl(req),
     expiresAt: new Date(party.expiresAt).toISOString()
   };
 }
 
 app.get("/health", (_req, res) => res.json({ ok: true, service: "auramusic-party", activeParties: parties.size }));
 app.post("/v1/parties", rateLimit, (req, res) => {
-  if (!PUBLIC_WS_URL.startsWith("wss://")) {
+  const wsUrl = getPublicWsUrl(req);
+  if (!wsUrl.startsWith("wss://")) {
     res.status(503).json({ message: "Party service is not configured." });
     return;
   }
@@ -110,11 +124,12 @@ app.post("/v1/parties", rateLimit, (req, res) => {
   };
   parties.set(id, party);
   tokenIndex.set(member.token, { partyId: id, member });
-  res.status(201).json(createPartyResponse(party, member));
+  res.status(201).json(createPartyResponse(party, member, req));
 });
 
 app.post("/v1/parties/join", rateLimit, (req, res) => {
-  if (!PUBLIC_WS_URL.startsWith("wss://")) {
+  const wsUrl = getPublicWsUrl(req);
+  if (!wsUrl.startsWith("wss://")) {
     res.status(503).json({ message: "Party service is not configured." });
     return;
   }
@@ -131,7 +146,7 @@ app.post("/v1/parties/join", rateLimit, (req, res) => {
   const member = createMember("guest", req.body?.displayName);
   party.members.set(member.token, member);
   tokenIndex.set(member.token, { partyId: party.id, member });
-  res.status(201).json(createPartyResponse(party, member));
+  res.status(201).json(createPartyResponse(party, member, req));
   broadcast(party, { type: "member_count", members: memberCount(party) });
 });
 
