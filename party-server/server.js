@@ -233,6 +233,10 @@ wss.on("connection", (socket) => {
           sendJson(socket, { type: "error", message: "Request a supported online song." });
           break;
         }
+        if (party.requests.size >= 50) {
+          sendJson(socket, { type: "error", message: "The song request queue is full. Try again shortly." });
+          break;
+        }
         const requestId = randomBytes(12).toString("hex");
         const request = { requestId, title, artist, source, requester: member.displayName, requesterToken: member.token };
         party.requests.set(requestId, request);
