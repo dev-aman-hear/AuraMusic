@@ -68,6 +68,8 @@ fun PartyModeScreen(
     val scope = rememberCoroutineScope()
     var displayName by remember { mutableStateOf("") }
     var pairingCode by remember { mutableStateOf("") }
+    var localHostAddress by remember { mutableStateOf("") }
+    var localPairingCode by remember { mutableStateOf("") }
     var requestTitle by remember { mutableStateOf("") }
     var requestArtist by remember { mutableStateOf("") }
 
@@ -116,7 +118,12 @@ fun PartyModeScreen(
                     onClick = { scope.launch { repository.createParty(displayName) } },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !state.connecting
-                ) { Text("Create Party") }
+                ) { Text("Create Internet Party") }
+                OutlinedButton(
+                    onClick = { scope.launch { repository.createLocalParty(displayName) } },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.connecting
+                ) { Text("Create Local Wi-Fi Party") }
                 Divider()
                 OutlinedTextField(
                     value = pairingCode,
@@ -130,7 +137,30 @@ fun PartyModeScreen(
                     onClick = { scope.launch { repository.joinParty(pairingCode, displayName) } },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !state.connecting && pairingCode.length >= 4
-                ) { Text("Join Party") }
+                ) { Text("Join Internet Party") }
+                Divider()
+                Text("Join a local Wi-Fi party", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                OutlinedTextField(
+                    value = localHostAddress,
+                    onValueChange = { localHostAddress = it.filter { ch -> ch.isLetterOrDigit() || ch == '.' || ch == ':' }.take(64) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Host local IP address") },
+                    placeholder = { Text("e.g. 192.168.1.10") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = localPairingCode,
+                    onValueChange = { localPairingCode = it.uppercase().filter { ch -> ch.isLetterOrDigit() }.take(12) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Local party code") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters)
+                )
+                OutlinedButton(
+                    onClick = { scope.launch { repository.joinLocalParty(localHostAddress, localPairingCode, displayName) } },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.connecting && localHostAddress.isNotBlank() && localPairingCode.length >= 4
+                ) { Text("Join Local Wi-Fi Party") }
             } else {
                 val session = state.session!!
                 Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
@@ -143,8 +173,18 @@ fun PartyModeScreen(
                             if (state.connected) Icon(Icons.Default.Check, contentDescription = "Connected")
                             else if (state.connecting) CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
                         }
+                        if (session.connectionMode == com.aman.auramusic.party.PartyConnectionMode.LOCAL_WIFI) {
+                            Text("CONNECTION: LOCAL WI-FI", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            if (session.role == PartyRole.HOST && !session.hostAddress.isNullOrBlank()) {
+                                Text("Host IP: " + session.hostAddress + ":" + com.aman.auramusic.party.LocalPartyServer.DEFAULT_PORT, style = MaterialTheme.typography.bodyMedium)
+                            } else if (session.role == PartyRole.GUEST) {
+                                Text("Host IP: " + (session.hostAddress ?: ""), style = MaterialTheme.typography.bodySmall)
+                            }
+                        } else {
+                            Text("CONNECTION: INTERNET", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        }
                         if (session.role == PartyRole.HOST && session.pairingCode.isNotBlank()) {
-                            Text("PAIRING CODE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("PARTY CODE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(session.pairingCode, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                 IconButton(onClick = {
@@ -223,7 +263,7 @@ fun PartyModeScreen(
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                if (repository.isConfigured()) "Secure party backend configured." else "Party Mode is not available until AuraMusic's secure party backend is configured.",
+                if (repository.isConfigured()) "Internet Party is configured. Local Wi-Fi Party works without a public backend." else "Local Wi-Fi Party works without a public backend. Internet Party requires a secure backend URL.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
