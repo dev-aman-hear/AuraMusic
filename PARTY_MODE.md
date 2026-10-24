@@ -6,6 +6,31 @@ Party Mode coordinates online playback between a host and guests across differen
 
 The Android branch contains the Party Mode screen, pairing flow, secure REST/WebSocket client, host playback-event model, and guest song-request controls. It is not usable end-to-end until a compatible backend is deployed and configured. Do not advertise the feature as production-ready before server and multi-device tests pass.
 
+## Connection modes
+
+The Android client now offers two transport choices:
+
+### Local Wi-Fi
+
+- The host starts an embedded WebSocket relay on port 8765 on the host phone.
+- Guests join by entering the host's local IPv4 address and the six-character party code.
+- Devices must be on the same reachable Wi-Fi network or a host hotspot. Router client isolation, VPN routing, or hotspot restrictions can prevent connections.
+- This mode does not require the Internet Party backend. The host must keep AuraMusic running while hosting.
+- Local transport uses a plain `ws://` connection on the LAN. The party code is a lightweight join credential, not end-to-end encryption; use trusted networks only. Do not treat local mode as secure against other people on the same network.
+- Discovery/QR onboarding is not implemented yet; use the host IP shown in the host's Party Mode screen.
+
+### Internet
+
+- Internet parties continue to use the configured HTTPS API and WSS backend.
+- Build with `-PpartyApiBaseUrl=https://your-host.example`.
+- Devices can be on different networks.
+
+Both modes relay playback metadata and party-control messages only. They do not transmit audio bytes, local files, stream URLs, cookies, or provider credentials. Each phone resolves supported YouTube Music/InnerTube or JioSaavn tracks independently and needs its own Internet access to play them.
+
+### Current verification status
+
+Local Wi-Fi support has been added to the source branch, but it must still be compiled and tested on physical Android devices before being considered reliable. Verify host/guest joining, playback synchronization, requests, hotspot behavior, and reconnect handling. The local relay is a minimal LAN implementation; automatic discovery, QR codes, encrypted LAN transport, and robust abuse/rate limiting remain future improvements.
+
 ## Configure the endpoint
 
 Set the secure HTTPS base URL in Gradle properties, for example:
