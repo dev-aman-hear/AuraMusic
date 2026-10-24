@@ -57,7 +57,11 @@ internal class LocalPartyServer(
                 }
                 "playback" -> if (role == "host") {
                     latestPlayback = json.optJSONObject("song")
-                    broadcast(json, this)
+                    broadcast(JSONObject()
+                        .put("type", "party_state")
+                        .put("song", latestPlayback)
+                        .put("members", clients.count { it.role != null })
+                        .put("serverTimeMs", System.currentTimeMillis()), this)
                 }
                 "host_command" -> if (role == "host") broadcast(json, this)
                 "song_request" -> if (role == "guest") {
