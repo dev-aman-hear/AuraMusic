@@ -77,6 +77,7 @@ import com.aman.auramusic.ui.screen.PartyModeScreen
 import com.aman.auramusic.party.PartyModeRepository
 import com.aman.auramusic.party.PartyRole
 import com.aman.auramusic.party.PartyPlayback
+import com.aman.auramusic.party.PartyConnectionMode
 import com.aman.auramusic.ui.screen.CollectionDetailScreen
 import com.aman.auramusic.ui.screen.home.ArtistDetailSheet
 import com.aman.auramusic.ui.screen.home.ArtistItem
@@ -408,16 +409,31 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
         }
     }
 
-    LaunchedEffect(partyState.session?.role, partyState.connected, onlinePlaybackState.currentSong, onlinePlaybackState.currentPositionMs, onlinePlaybackState.isPlaying) {
+    LaunchedEffect(partyState.session?.role, partyState.connected, partyState.session?.connectionMode, onlinePlaybackState.currentSong, onlinePlaybackState.currentPositionMs, onlinePlaybackState.isPlaying) {
         val song = onlinePlaybackState.currentSong
         if (partyState.connected && partyState.session?.role == PartyRole.HOST && song != null && (song.source == AudioSource.YOUTUBE || song.source == AudioSource.JIOSAAVN)) {
             val position = onlinePlaybackState.currentPositionMs.coerceAtLeast(0L)
-            val shouldSend = song.id != lastPartySongId || kotlin.math.abs(position - lastPartySentPosition) >= 2500L || onlinePlaybackState.isPlaying != lastPartySentPlaying
+            val isLocalWifi = partyState.session?.connectionMode == PartyConnectionMode.LOCAL_WIFI
+            val minInterval = if (isLocalWifi) 600L else 2000L
+            val shouldSend = song.id != lastPartySongId || kotlin.math.abs(position - lastPartySentPosition) >= minInterval || onlinePlaybackState.isPlaying != lastPartySentPlaying
             if (shouldSend) {
                 partyRepository.sendPlayback(song.id, song.title, song.artist, song.artworkUrl, song.source.name, position, onlinePlaybackState.isPlaying)
                 lastPartySongId = song.id
                 lastPartySentPosition = position
                 lastPartySentPlaying = onlinePlaybackState.isPlaying
+            }
+        }
+    }
+
+    LaunchedEffect(partyState.hostCommand, partyState.session?.role) {
+        val cmd = partyState.hostCommand ?: return@LaunchedEffect
+        if (partyState.session?.role == PartyRole.GUEST) {
+            when (cmd.command) {
+                "play" -> if (!onlinePlaybackManager.playbackState.value.isPlaying) onlinePlaybackManager.togglePlayPause()
+                "pause" -> if (onlinePlaybackManager.playbackState.value.isPlaying) onlinePlaybackManager.pause()
+                "next" -> onlinePlaybackManager.playNext()
+                "previous" -> onlinePlaybackManager.playPrevious()
+                "seek" -> cmd.positionMs?.let { onlinePlaybackManager.seekTo(it) }
             }
         }
     }
@@ -1547,17 +1563,32 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                         if (source != null) {
                             val current = onlinePlaybackManager.playbackState.value
                             val sameSong = current.currentSong?.source == source && (current.currentSong?.id == remote.songId || (current.currentSong?.title.equals(remote.title, true) && current.currentSong?.artist.equals(remote.artist, true)))
+                            val isLocalWifi = partyRepository.state.value.session?.connectionMode == PartyConnectionMode.LOCAL_WIFI
+                            val driftThreshold = if (isLocalWifi) 350L else 1500L
                             if (sameSong) {
-                                if (kotlin.math.abs(current.currentPositionMs - remote.positionMs) > 2500L) onlinePlaybackManager.seekTo(remote.positionMs)
+                                val drift = current.currentPositionMs - remote.positionMs
+                                if (kotlin.math.abs(drift) > driftThreshold) {
+                                    onlinePlaybackManager.seekTo(remote.positionMs)
+                                }
                                 if (remote.isPlaying && !current.isPlaying) onlinePlaybackManager.togglePlayPause()
                                 if (!remote.isPlaying && current.isPlaying) onlinePlaybackManager.pause()
                             } else {
+                                val resolveStartTime = System.currentTimeMillis()
                                 val matches = partySongResolver.search(remote.title, source)
                                 val match = matches.firstOrNull { it.id == remote.songId }
                                     ?: matches.firstOrNull { it.title.equals(remote.title, true) && it.artist.equals(remote.artist, true) }
+                                    ?: matches.firstOrNull { it.title.equals(remote.title, true) }
                                 if (match != null) {
                                     val resolved = partySongResolver.resolveStream(match)
-                                    onlinePlaybackManager.playSong(resolved, startPositionMs = remote.positionMs)
+                                    val elapsedResolvingMs = System.currentTimeMillis() - resolveStartTime
+                                    val latestPlayback = partyRepository.state.value.playback
+                                    val basePosition = if (latestPlayback != null && (latestPlayback.songId == remote.songId || latestPlayback.title.equals(remote.title, true))) {
+                                        latestPlayback.positionMs
+                                    } else {
+                                        remote.positionMs
+                                    }
+                                    val targetPosition = if (remote.isPlaying) basePosition + elapsedResolvingMs else basePosition
+                                    onlinePlaybackManager.playSong(resolved, startPositionMs = targetPosition)
                                     if (!remote.isPlaying) onlinePlaybackManager.pause()
                                 }
                             }

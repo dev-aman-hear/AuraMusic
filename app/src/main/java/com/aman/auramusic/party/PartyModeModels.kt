@@ -35,6 +35,12 @@ data class PartySongRequest(
     val requester: String = ""
 )
 
+data class PartyHostCommand(
+    val command: String,
+    val positionMs: Long? = null,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
 data class PartyUiState(
     val session: PartySession? = null,
     val connecting: Boolean = false,
@@ -45,7 +51,8 @@ data class PartyUiState(
     val requests: List<PartySongRequest> = emptyList(),
     val members: Int = 1,
     val decisionMessage: String? = null,
-    val discoveredParties: List<DiscoveredParty> = emptyList()
+    val discoveredParties: List<DiscoveredParty> = emptyList(),
+    val hostCommand: PartyHostCommand? = null
 )
 
 internal fun JSONObject.optNonBlank(key: String): String? =

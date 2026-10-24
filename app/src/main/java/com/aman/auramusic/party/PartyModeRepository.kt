@@ -37,6 +37,7 @@ class PartyModeRepository(
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(12, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS)
+        .pingInterval(3, TimeUnit.SECONDS)
         .build(),
     private val context: Context? = null
 ) {
@@ -46,6 +47,28 @@ class PartyModeRepository(
 
     private val repositoryScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     private val discovery = context?.let { LocalPartyDiscovery(it) }
+
+    private val wifiManager = context?.applicationContext?.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+    private var wifiLock: android.net.wifi.WifiManager.WifiLock? = null
+
+    private fun acquireWifiLock() {
+        if (wifiLock == null) {
+            wifiLock = runCatching {
+                wifiManager?.createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "AuraMusic:PartyMode")?.apply {
+                    setReferenceCounted(false)
+                }
+            }.getOrNull()
+        }
+        runCatching { wifiLock?.acquire() }
+    }
+
+    private fun releaseWifiLock() {
+        runCatching {
+            if (wifiLock?.isHeld == true) {
+                wifiLock?.release()
+            }
+        }
+    }
 
     private var socket: WebSocket? = null
     private var latestSession: PartySession? = null
@@ -211,6 +234,7 @@ class PartyModeRepository(
         socket?.close(1000, "User left party")
         socket = null
         discovery?.unregisterParty()
+        releaseWifiLock()
         if (latestSession?.connectionMode == PartyConnectionMode.LOCAL_WIFI && latestSession?.role == PartyRole.HOST) {
             runCatching { localServer?.stop() }
             localServer = null
@@ -227,6 +251,7 @@ class PartyModeRepository(
         socket = null
         discovery?.unregisterParty()
         discovery?.stopDiscovery()
+        releaseWifiLock()
         if (latestSession?.connectionMode == PartyConnectionMode.LOCAL_WIFI && latestSession?.role == PartyRole.HOST) {
             runCatching { localServer?.stop() }
             localServer = null
@@ -296,6 +321,11 @@ class PartyModeRepository(
     private fun connect(session: PartySession) {
         socket?.close(1000, "Replacing party connection")
         latestSession = session
+        if (session.connectionMode == PartyConnectionMode.LOCAL_WIFI) {
+            acquireWifiLock()
+        } else {
+            releaseWifiLock()
+        }
         mutableState.value = mutableState.value.copy(
             session = session,
             connecting = true,
@@ -388,6 +418,13 @@ class PartyModeRepository(
             "song_request_removed" -> {
                 val id = message.optString("requestId")
                 mutableState.value = mutableState.value.copy(requests = mutableState.value.requests.filterNot { it.requestId == id })
+            }
+            "host_command" -> {
+                val command = message.optString("command").trim().lowercase()
+                if (command.isNotBlank()) {
+                    val positionMs = if (message.has("positionMs")) message.optLong("positionMs").coerceAtLeast(0L) else null
+                    mutableState.value = mutableState.value.copy(hostCommand = PartyHostCommand(command, positionMs))
+                }
             }
             "member_count" -> mutableState.value = mutableState.value.copy(members = message.optInt("members", 1).coerceAtLeast(1))
             "error" -> mutableState.value = mutableState.value.copy(error = message.optString("message", "Party server error."))
