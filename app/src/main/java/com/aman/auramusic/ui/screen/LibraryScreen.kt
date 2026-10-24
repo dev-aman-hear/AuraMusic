@@ -107,6 +107,7 @@ fun LibraryScreen(
     onOpenSettings: () -> Unit,
     onAddToPlaylist: (Song) -> Unit,
     onCreatePlaylist: () -> Unit,
+    onImportYouTubePlaylist: (String) -> Unit = {},
     onPlaylistSelected: (Playlist) -> Unit,
     onPlaylistExport: (Playlist) -> Unit,
     onAlbumSelected: (String) -> Unit,
@@ -140,6 +141,8 @@ fun LibraryScreen(
     val isDark = LocalIsDark.current
     var selectedLocalAlbum by remember { mutableStateOf<Pair<String, List<Song>>?>(null) }
     var showAllPlaylists by remember { mutableStateOf(false) }
+    var showImportYouTubePlaylistDialog by rememberSaveable { mutableStateOf(false) }
+    var youtubePlaylistUrl by rememberSaveable { mutableStateOf("") }
 
     val onlineRepository = remember { OnlineMusicRepository() }
     val youtubeArtistRepository = remember(onlineRepository) {
@@ -430,6 +433,39 @@ fun LibraryScreen(
     }
 
     // Drill down to All Playlists Screen
+    if (showImportYouTubePlaylistDialog) {
+        AlertDialog(
+            onDismissRequest = { showImportYouTubePlaylistDialog = false },
+            title = { Text("Import YouTube Music playlist") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Paste a public YouTube or YouTube Music playlist link. AuraMusic will fetch its tracks and add them to Your Playlists.")
+                    OutlinedTextField(
+                        value = youtubePlaylistUrl,
+                        onValueChange = { youtubePlaylistUrl = it },
+                        label = { Text("Playlist URL") },
+                        placeholder = { Text("https://music.youtube.com/playlist?list=...") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = youtubePlaylistUrl.isNotBlank(),
+                    onClick = {
+                        onImportYouTubePlaylist(youtubePlaylistUrl.trim())
+                        youtubePlaylistUrl = ""
+                        showImportYouTubePlaylistDialog = false
+                    }
+                ) { Text("Fetch playlist") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showImportYouTubePlaylistDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     if (showAllPlaylists) {
         AllPlaylistsScreen(
             playlists = playlists,
@@ -1009,6 +1045,21 @@ fun LibraryScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 140.dp)
                     ) {
+                        // Import a public YouTube Music playlist by pasting its URL.
+                        item {
+                            OutlinedButton(
+                                onClick = { showImportYouTubePlaylistDialog = true },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Import YouTube Music playlist")
+                            }
+                        }
+
                         // User Playlists Header with Create button
                         item {
                             Row(
