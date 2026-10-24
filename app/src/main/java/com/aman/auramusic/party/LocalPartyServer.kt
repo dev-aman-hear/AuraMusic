@@ -111,6 +111,11 @@ internal class LocalPartyServer(
                 "playback" -> if (role == "host") {
                     val songObj = json.optJSONObject("song")
                     if (songObj != null) {
+                        val source = songObj.optString("source").trim().lowercase()
+                        if (source !in ALLOWED_SOURCES) {
+                            sendJson(JSONObject().put("type", "error").put("message", "Only supported online songs can be shared."))
+                            return
+                        }
                         // Sanitize song payload: strictly control metadata only, no stream URLs or credentials
                         val sanitizedSong = JSONObject()
                             .put("songId", songObj.optString("songId").take(128))
@@ -135,8 +140,8 @@ internal class LocalPartyServer(
                 }
 
                 "host_command" -> if (role == "host") {
-                    val command = json.optString("command").take(32)
-                    if (command.isNotBlank()) {
+                    val command = json.optString("command").trim().lowercase()
+                    if (command in ALLOWED_HOST_COMMANDS) {
                         val payload = JSONObject().put("type", "host_command").put("command", command)
                         if (json.has("positionMs")) {
                             payload.put("positionMs", json.optLong("positionMs").coerceAtLeast(0L))
@@ -166,7 +171,8 @@ internal class LocalPartyServer(
                         return
                     }
 
-                    val requestId = json.optString("requestId").ifBlank { randomId() }
+                    // Generate IDs on the host relay; never trust client-supplied IDs.
+                    val requestId = randomId()
                     pendingRequests[requestId] = title
                     val sanitized = JSONObject()
                         .put("type", "song_request")
@@ -180,8 +186,8 @@ internal class LocalPartyServer(
                 }
 
                 "song_request_response" -> if (role == "host") {
-                    val requestId = json.optString("requestId")
-                    val title = pendingRequests.remove(requestId).orEmpty()
+                    val requestId = json.optString("requestId").take(64)
+                    val title = pendingRequests.remove(requestId) ?: return
                     val approved = json.optBoolean("approved")
 
                     // Broadcast decision so requesting guest sees feedback
@@ -261,6 +267,8 @@ internal class LocalPartyServer(
         const val MAX_PENDING_REQUESTS = 50
         const val MAX_PAYLOAD_CHARS = 32768
         const val RATE_LIMIT_REQUEST_WINDOW_MS = 1200L
+        private val ALLOWED_SOURCES = setOf("youtube", "youtube_music", "youtubemusic", "youtube music", "jiosaavn", "jio saavn", "jiosaavn 320k")
+        private val ALLOWED_HOST_COMMANDS = setOf("play", "pause", "next", "previous", "seek")
 
         internal fun scoreInterface(name: String): Int {
             val n = name.lowercase()
