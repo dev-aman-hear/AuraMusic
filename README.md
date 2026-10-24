@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/dev-aman-hear/AuraMusic/tree/lyricTesterPro"><img src="https://img.shields.io/badge/Branch-lyricTesterPro-blue?style=flat-square" alt="lyricTesterPro branch" /></a>
-  <img src="https://img.shields.io/badge/Version-1.0.6-informational?style=flat-square" alt="Version 1.0.6" />
+  <a href="https://github.com/dev-aman-hear/AuraMusic/tree/feature/online-party-mode"><img src="https://img.shields.io/badge/Branch-feature%2Fonline--party--mode-blue?style=flat-square" alt="lyricTesterPro branch" /></a>
+  <img src="https://img.shields.io/badge/Version-1.0.7-informational?style=flat-square" alt="Version 1.0.6" />
   <img src="https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-success?style=flat-square" alt="Android 8.0 and newer" />
   <img src="https://img.shields.io/badge/Kotlin-2.0.21-blueviolet?style=flat-square" alt="Kotlin 2.0.21" />
   <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=flat-square" alt="Jetpack Compose" />
@@ -23,7 +23,7 @@
 
 ## Overview
 
-Aura Music brings device-stored music and supported online music sources into one Android player. This `lyricTesterPro` branch focuses especially on synchronized lyrics and experiments with delivering timed lyric metadata to compatible ColorOS, realme UI, and OPlus system components.
+Aura Music brings device-stored music and supported online music sources into one Android player. This `feature/online-party-mode` branch builds on Aura Music playback and lyric support and adds Party Mode for synchronizing supported online songs between a host and guests.
 
 The app uses the `com.aman.auramusic` code namespace. Its normal Aura Music build uses the `com.aman.auramusic` application ID. An optional Gradle property, `useHeyTap=true` (disabled by default; Aura Music identity is default), changes the application ID and display identity to `com.heytap.music` for testing OEM integration. This identity mode is a compatibility experiment, not a guarantee that every ColorOS build will accept the app as the preinstalled HeyTap Music application.
 
@@ -66,6 +66,22 @@ Line-timed LRC is not sent as `rawLyric`; that field is reserved for word-timed 
 - The service manages local and online playback paths and updates track metadata.
 - A wake lock is used while playback is active; normal background execution is still subject to Android and OEM battery-management policies.
 
+### Party Mode (online songs only)
+
+Party Mode lets a host share playback state with guests. It supports supported YouTube Music/InnerTube and JioSaavn tracks; each device resolves and plays the song independently.
+
+- **Local Wi-Fi:** The host runs an embedded WebSocket relay on port `8765`. Guests can discover nearby parties using Android NSD/mDNS or enter the host's local IPv4 address and party code manually. Devices must be on the same reachable Wi-Fi network or hotspot.
+- **Internet:** Uses an HTTPS REST API and WSS WebSocket backend. The default build endpoint is configured in Gradle; override it with `-PpartyApiBaseUrl=https://your-host.example` when building.
+- **Playback controls:** Host playback metadata and play/pause/next/previous/seek commands are relayed to guests. Guests can submit song requests for host approval.
+- **No audio relay:** Party Mode sends playback metadata and control messages only. It does not transmit audio bytes, local files, stream URLs, cookies, or provider credentials. Every device needs its own network access and compatible access to the song source.
+- **Background behavior:** Keep Aura Music running on the host during a local party. Android and OEM battery/network policies may affect long-running connections.
+
+**Security note:** Internet mode must use HTTPS/WSS. Local Wi-Fi mode uses a plain `ws://` connection and a party code; it is not end-to-end encrypted. Use local mode only on trusted networks.
+
+**Verification status:** GitHub Actions successfully compiled the Aura and HeyTap debug variants and validated the party-server syntax/package metadata on the current branch. This is not a substitute for end-to-end tests on physical devices. Before relying on Party Mode, test pairing, host playback changes, background navigation, song requests, network interruption/reconnection, and both online providers. Do not consider it production-verified until these checks pass.
+
+See [PARTY_MODE.md](PARTY_MODE.md) for the protocol, backend contract, configuration, and acceptance-test checklist.
+
 ### Interface and personalization
 - Jetpack Compose-based interface.
 - Monochrome light/dark styling with optional accent-border behavior where implemented.
@@ -77,10 +93,10 @@ Line-timed LRC is not sent as `rawLyric`; that field is reserved for word-timed 
 - Online services and lyric providers may receive search metadata needed to resolve a track or find lyrics.
 - This README does not claim that every piece of state is backed up or synchronized between devices.
 
-## Version 1.0.6
+## Version 1.0.7
 
-- Application version name: `1.0.6`
-- Application version code: `19` for the normal Aura Music package.
+- Application version name: `1.0.7`
+- Application version code: `20` for the normal Aura Music package.
 - Namespace: `com.aman.auramusic`
 - Normal application ID: `com.aman.auramusic`
 - Minimum Android version: Android 8.0 (API 26)
@@ -100,7 +116,7 @@ The optional HeyTap identity build retains its separately configured versioning 
 ### Clone this branch
 
 ```bash
-git clone --branch lyricTesterPro --single-branch https://github.com/dev-aman-hear/AuraMusic.git
+git clone --branch feature/online-party-mode --single-branch https://github.com/dev-aman-hear/AuraMusic.git
 cd AuraMusic
 ```
 
@@ -140,7 +156,7 @@ If the APK filename differs, use the matching file from the output directory.
 
 This branch defines the Gradle property `useHeyTap`.
 
-- **Aura Music identity (default):** `useHeyTap=false` sets application ID `com.aman.auramusic`, display name `Aura Music`, version name `1.0.6`, and version code `19`.
+- **Aura Music identity (default):** `useHeyTap=false` sets application ID `com.aman.auramusic`, display name `Aura Music`, version name `1.0.7`, and version code `20`.
 - **HeyTap identity experiment:** `useHeyTap=true` sets application ID `com.heytap.music` and uses the separate OEM-style version values defined in Gradle. This may conflict with an installed system app or trigger package/signature restrictions. Use it only on a test device and understand the consequences before installing.
 
 Gradle property examples:
@@ -221,5 +237,5 @@ Please remove personal information, access tokens, signing credentials, and priv
 ---
 
 <p align="center">
-  <sub>Aura Music · lyricTesterPro · Version 1.0.6</sub>
+  <sub>Aura Music · Party Mode · Version 1.0.7</sub>
 </p>
