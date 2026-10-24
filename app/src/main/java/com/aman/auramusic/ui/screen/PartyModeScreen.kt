@@ -56,7 +56,6 @@ import androidx.compose.ui.unit.dp
 import com.aman.auramusic.party.LocalPartyServer
 import com.aman.auramusic.party.PartyConnectionMode
 import com.aman.auramusic.party.PartyModeRepository
-import com.aman.auramusic.party.PartyPlayback
 import com.aman.auramusic.party.PartyRole
 import kotlinx.coroutines.launch
 
@@ -64,7 +63,6 @@ import kotlinx.coroutines.launch
 fun PartyModeScreen(
     repository: PartyModeRepository,
     onBack: () -> Unit,
-    onRemotePlayback: (PartyPlayback) -> Unit = {},
     onHostCommand: (String) -> Unit = {},
     onApprovedSongRequest: (String, String, String) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
@@ -91,11 +89,6 @@ fun PartyModeScreen(
         onDispose {
             repository.stopLocalDiscovery()
         }
-    }
-
-    LaunchedEffect(state.playback, state.session?.role) {
-        val playback = state.playback
-        if (state.session?.role == PartyRole.GUEST && playback != null) onRemotePlayback(playback)
     }
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
