@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/dev-aman-hear/AuraMusic/tree/feature/online-party-mode"><img src="https://img.shields.io/badge/Branch-feature%2Fonline--party--mode-blue?style=flat-square" alt="lyricTesterPro branch" /></a>
-  <img src="https://img.shields.io/badge/Version-1.0.7-informational?style=flat-square" alt="Version 1.0.6" />
+  <a href="https://github.com/dev-aman-hear/AuraMusic/tree/feature/online-party-mode"><img src="https://img.shields.io/badge/Branch-Party%20Mode-blue?style=flat-square" alt="Party Mode branch" /></a>
+  <img src="https://img.shields.io/badge/Version-1.0.7-informational?style=flat-square" alt="Version 1.0.7" />
   <img src="https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-success?style=flat-square" alt="Android 8.0 and newer" />
   <img src="https://img.shields.io/badge/Kotlin-2.0.21-blueviolet?style=flat-square" alt="Kotlin 2.0.21" />
   <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=flat-square" alt="Jetpack Compose" />
