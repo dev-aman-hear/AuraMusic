@@ -430,7 +430,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
         if (song.source == AudioSource.YOUTUBE || song.source == AudioSource.JIOSAAVN) {
             val position = onlinePlaybackState.currentPositionMs.coerceAtLeast(0L)
             val isLocalWifi = partyState.session?.connectionMode == PartyConnectionMode.LOCAL_WIFI
-            val minInterval = if (isLocalWifi) 600L else 2000L
+            val minInterval = if (isLocalWifi) 300L else 1000L
             val shouldSend = song.id != lastPartySongId || kotlin.math.abs(position - lastPartySentPosition) >= minInterval || onlinePlaybackState.isPlaying != lastPartySentPlaying
             if (shouldSend) {
                 partyRepository.sendPlayback(song.id, song.title, song.artist, song.artworkUrl, song.source.name, position, onlinePlaybackState.isPlaying)
@@ -1618,7 +1618,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             val current = onlinePlaybackManager.playbackState.value
                             val sameSong = current.currentSong?.source == source && (current.currentSong?.id == remote.songId || (current.currentSong?.title.equals(remote.title, true) && current.currentSong?.artist.equals(remote.artist, true)))
                             val isLocalWifi = partyRepository.state.value.session?.connectionMode == PartyConnectionMode.LOCAL_WIFI
-                            val driftThreshold = if (isLocalWifi) 350L else 1500L
+                            val driftThreshold = if (isLocalWifi) 200L else 700L
                             if (sameSong) {
                                 // A guest must enter online-player mode too, so the normal mini-player
                                 // and full player controls remain visible outside the Party screen.
