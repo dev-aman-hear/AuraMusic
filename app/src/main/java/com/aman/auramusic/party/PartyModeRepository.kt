@@ -39,6 +39,7 @@ class PartyModeRepository(
 
     private var socket: WebSocket? = null
     private var latestSession: PartySession? = null
+    private var localServer: LocalPartyServer? = null
 
     private val baseUrl: String
         get() = BuildConfig.PARTY_API_BASE_URL.trim().trimEnd('/')
@@ -55,6 +56,54 @@ class PartyModeRepository(
             if (e is CancellationException) throw e
             mutableState.value = mutableState.value.copy(connecting = false, error = e.message ?: "Could not create party.")
         }
+    }
+
+    suspend fun createLocalParty(displayName: String) {
+        mutableState.value = mutableState.value.copy(connecting = true, error = null, status = "Starting local Wi-Fi party…")
+        try {
+            localServer?.stop()
+            val code = LocalPartyServer.newPairingCode()
+            val hostToken = LocalPartyServer.newHostToken()
+            val server = LocalPartyServer(code, hostToken)
+            server.start()
+            localServer = server
+            val address = LocalPartyServer.localIpv4Address()
+            val session = PartySession(
+                partyId = "local-$code",
+                pairingCode = code,
+                memberToken = hostToken,
+                role = PartyRole.HOST,
+                websocketUrl = "ws://127.0.0.1:${LocalPartyServer.DEFAULT_PORT}",
+                connectionMode = PartyConnectionMode.LOCAL_WIFI,
+                hostAddress = address
+            )
+            connect(session)
+            mutableState.value = mutableState.value.copy(status = if (address != null) "Local party started. Share the IP, port, and code with guests." else "Local party started. Find the host IP in Wi-Fi settings.")
+        } catch (e: Exception) {
+            localServer?.stop()
+            localServer = null
+            mutableState.value = mutableState.value.copy(connecting = false, connected = false, error = e.message ?: "Could not start local Wi-Fi party.")
+        }
+    }
+
+    suspend fun joinLocalParty(hostAddress: String, pairingCode: String, displayName: String) {
+        val address = hostAddress.trim().removePrefix("ws://").removePrefix("http://").substringBefore(':').trim()
+        val code = pairingCode.trim().uppercase().replace(" ", "")
+        if (address.isBlank() || code.length !in 4..12) {
+            mutableState.value = mutableState.value.copy(error = "Enter the host's local IP address and valid party code.")
+            return
+        }
+        mutableState.value = mutableState.value.copy(connecting = true, error = null, status = "Joining local Wi-Fi party…")
+        val session = PartySession(
+            partyId = "local-$code",
+            pairingCode = code,
+            memberToken = code,
+            role = PartyRole.GUEST,
+            websocketUrl = "ws://$address:${LocalPartyServer.DEFAULT_PORT}",
+            connectionMode = PartyConnectionMode.LOCAL_WIFI,
+            hostAddress = address
+        )
+        connect(session)
     }
 
     suspend fun joinParty(pairingCode: String, displayName: String) {
@@ -121,6 +170,10 @@ class PartyModeRepository(
         runCatching { send(JSONObject().put("type", "leave")) }
         socket?.close(1000, "User left party")
         socket = null
+        if (latestSession?.connectionMode == PartyConnectionMode.LOCAL_WIFI && latestSession?.role == PartyRole.HOST) {
+            runCatching { localServer?.stop() }
+            localServer = null
+        }
         latestSession = null
         mutableState.value = PartyUiState(status = "You left the party.")
     }
@@ -128,6 +181,10 @@ class PartyModeRepository(
     fun close() {
         socket?.close(1000, "Party screen closed")
         socket = null
+        if (latestSession?.connectionMode == PartyConnectionMode.LOCAL_WIFI && latestSession?.role == PartyRole.HOST) {
+            runCatching { localServer?.stop() }
+            localServer = null
+        }
         latestSession = null
     }
 
@@ -181,7 +238,11 @@ class PartyModeRepository(
             expiresAt = json.optNonBlank("expiresAt")
         )
         val wsScheme = session.websocketUrl.substringBefore(':').lowercase()
-        require(wsScheme == "wss") { "Party Mode requires a secure WSS connection." }
+        if (session.connectionMode == PartyConnectionMode.INTERNET) {
+            require(wsScheme == "wss") { "Internet Party Mode requires a secure WSS connection." }
+        } else {
+            require(wsScheme == "ws" || wsScheme == "wss") { "Invalid local party address." }
+        }
         return session
     }
 
@@ -193,7 +254,7 @@ class PartyModeRepository(
             connecting = true,
             connected = false,
             error = null,
-            status = "Connecting securely…",
+            status = if (session.connectionMode == PartyConnectionMode.LOCAL_WIFI) "Connecting over local Wi-Fi…" else "Connecting securely over the Internet…",
             requests = emptyList()
         )
         val request = Request.Builder().url(session.websocketUrl).build()
@@ -207,7 +268,9 @@ class PartyModeRepository(
                 mutableState.value = mutableState.value.copy(
                     connecting = false,
                     connected = true,
-                    status = if (session.role == PartyRole.HOST) "Party is live. Share the code with friends." else "Connected. Waiting for the host's music."
+                    status = if (session.connectionMode == PartyConnectionMode.LOCAL_WIFI) {
+                        if (session.role == PartyRole.HOST) "Local Wi-Fi party is live." else "Connected over local Wi-Fi."
+                    } else if (session.role == PartyRole.HOST) "Party is live. Share the code with friends." else "Connected. Waiting for the host's music."
                 )
             }
 
