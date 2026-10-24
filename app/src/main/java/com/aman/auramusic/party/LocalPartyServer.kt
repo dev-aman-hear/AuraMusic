@@ -118,6 +118,10 @@ internal class LocalPartyServer(
         fun localIpv4Address(): String? = runCatching {
             NetworkInterface.getNetworkInterfaces().toList()
                 .filter { it.isUp && !it.isLoopback }
+                .sortedByDescending { iface ->
+                    val name = iface.name.lowercase()
+                    name.contains("wlan") || name.contains("wifi") || name.startsWith("ap") || name.contains("p2p")
+                }
                 .flatMap { it.inetAddresses.toList() }
                 .filterIsInstance<Inet4Address>()
                 .firstOrNull { !it.isLoopbackAddress && it.hostAddress?.startsWith("169.254.") != true }
