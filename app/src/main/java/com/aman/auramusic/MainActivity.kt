@@ -1582,6 +1582,10 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                             val isLocalWifi = partyRepository.state.value.session?.connectionMode == PartyConnectionMode.LOCAL_WIFI
                             val driftThreshold = if (isLocalWifi) 350L else 1500L
                             if (sameSong) {
+                                // A guest must enter online-player mode too, so the normal mini-player
+                                // and full player controls remain visible outside the Party screen.
+                                isOnlinePlaybackActive = true
+                                activeOnlineSong = current.currentSong
                                 val drift = current.currentPositionMs - remote.positionMs
                                 if (kotlin.math.abs(drift) > driftThreshold) {
                                     onlinePlaybackManager.seekTo(remote.positionMs)
@@ -1604,6 +1608,16 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                         remote.positionMs
                                     }
                                     val targetPosition = if (remote.isPlaying) basePosition + elapsedResolvingMs else basePosition
+                                    // Activate the shared online-player UI before starting the guest's
+                                    // local stream, otherwise Home can remain without its mini-player.
+                                    isOnlinePlaybackActive = true
+                                    activeOnlineSong = resolved
+                                    playerViewModel.updateOnlinePlaybackState(
+                                        song = resolved,
+                                        isPlaying = remote.isPlaying,
+                                        positionMs = targetPosition,
+                                        durationMs = resolved.durationSeconds * 1000L
+                                    )
                                     onlinePlaybackManager.playSong(resolved, startPositionMs = targetPosition)
                                     if (!remote.isPlaying) onlinePlaybackManager.pause()
                                 }
