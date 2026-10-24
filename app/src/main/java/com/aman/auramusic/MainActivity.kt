@@ -410,8 +410,24 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     }
 
     LaunchedEffect(partyState.session?.role, partyState.connected, partyState.session?.connectionMode, onlinePlaybackState.currentSong, onlinePlaybackState.currentPositionMs, onlinePlaybackState.isPlaying) {
+        val isHostInParty = partyState.connected && partyState.session?.role == PartyRole.HOST
         val song = onlinePlaybackState.currentSong
-        if (partyState.connected && partyState.session?.role == PartyRole.HOST && song != null && (song.source == AudioSource.YOUTUBE || song.source == AudioSource.JIOSAAVN)) {
+
+        if (!isHostInParty) return@LaunchedEffect
+
+        // If the host stops/clears the current song, there is no song payload to broadcast.
+        // Send an explicit pause command so guests do not continue playing their last track.
+        if (song == null) {
+            if (lastPartySongId.isNotBlank() && lastPartySentPlaying) {
+                partyRepository.sendHostCommand("pause")
+            }
+            lastPartySongId = ""
+            lastPartySentPosition = -10_000L
+            lastPartySentPlaying = false
+            return@LaunchedEffect
+        }
+
+        if (song.source == AudioSource.YOUTUBE || song.source == AudioSource.JIOSAAVN) {
             val position = onlinePlaybackState.currentPositionMs.coerceAtLeast(0L)
             val isLocalWifi = partyState.session?.connectionMode == PartyConnectionMode.LOCAL_WIFI
             val minInterval = if (isLocalWifi) 600L else 2000L
