@@ -24,7 +24,12 @@ android {
         targetSdk = 36
         versionCode = 19
         versionName = "1.0.6"
-        buildConfigField("String", "PARTY_API_BASE_URL", "\"${providers.gradleProperty("partyApiBaseUrl").orNull.orEmpty()}\"")
+        // Use the deployed AuraMusic Party backend by default; allow local/CI overrides with -PpartyApiBaseUrl=...
+        val partyApiBaseUrl = providers.gradleProperty("partyApiBaseUrl").orNull
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?: "https://auramusic-party-server.onrender.com"
+        buildConfigField("String", "PARTY_API_BASE_URL", "\"$partyApiBaseUrl\"")
 
         manifestPlaceholders["appName"] = "Aura Music"
     }
