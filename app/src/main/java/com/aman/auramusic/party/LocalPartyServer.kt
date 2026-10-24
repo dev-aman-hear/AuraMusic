@@ -6,11 +6,14 @@ import org.json.JSONObject
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.security.SecureRandom
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 
 /**
  * Small LAN-only relay for Party Mode. It forwards control metadata, never audio.
  * Guests authenticate with the one-time party code; the host uses a random private token.
+ * Does not transmit audio, stream URLs, cookies, or credentials.
  */
 internal class LocalPartyServer(
     private val pairingCode: String,
@@ -20,67 +23,186 @@ internal class LocalPartyServer(
     private val clients = CopyOnWriteArraySet<ClientSocket>()
     @Volatile private var host: ClientSocket? = null
     @Volatile private var latestPlayback: JSONObject? = null
-    private val pendingRequests = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val pendingRequests = ConcurrentHashMap<String, String>()
 
     override fun openWebSocket(handshakeRequest: NanoHTTPD.IHTTPSession): WebSocket =
-        ClientSocket(this, handshakeRequest)
+        ClientSocket(handshakeRequest)
 
-    private inner class ClientSocket(server: NanoWSD, request: NanoHTTPD.IHTTPSession) :
-        WebSocket(server, request) {
+    override fun stop() {
+        for (client in clients) {
+            runCatching {
+                client.close(WebSocketFrame.CloseCode.NormalClosure, "Party host stopped server", false)
+            }
+        }
+        clients.clear()
+        host = null
+        latestPlayback = null
+        pendingRequests.clear()
+        super.stop()
+    }
+
+    private inner class ClientSocket(request: NanoHTTPD.IHTTPSession) :
+        WebSocket(request) {
         @Volatile var role: String? = null
+        @Volatile private var lastRequestTimestampMs: Long = 0L
 
         override fun onOpen() {
+            if (clients.size >= MAX_CLIENTS) {
+                runCatching { close(WebSocketFrame.CloseCode.PolicyViolation, "Party is full", false) }
+                return
+            }
             clients.add(this)
         }
 
         override fun onMessage(message: WebSocketFrame) {
-            val json = runCatching { JSONObject(message.textPayload) }.getOrNull() ?: run {
-                close(WebSocketFrame.CloseCode.ProtocolError, "Invalid JSON", false)
+            val text = runCatching { message.textPayload }.getOrNull()
+            if (text == null || text.length > MAX_PAYLOAD_CHARS) {
+                close(WebSocketFrame.CloseCode.MessageTooBig, "Payload exceeds size limit", false)
                 return
             }
-            when (json.optString("type")) {
+
+            val json = runCatching { JSONObject(text) }.getOrNull() ?: run {
+                close(WebSocketFrame.CloseCode.ProtocolError, "Invalid JSON payload", false)
+                return
+            }
+
+            val messageType = json.optString("type")
+            if (role == null && messageType != "authenticate") {
+                close(WebSocketFrame.CloseCode.PolicyViolation, "Must authenticate before sending messages", false)
+                return
+            }
+
+            when (messageType) {
                 "authenticate" -> {
                     if (role != null) return
-                    val token = json.optString("memberToken")
-                    role = when {
-                        token.isNotBlank() && token == hostToken && host == null -> "host"
-                        token.isNotBlank() && token == pairingCode -> "guest"
-                        else -> null
-                    }
-                    if (role == null) {
+                    val token = json.optString("memberToken").trim()
+
+                    if (token == hostToken) {
+                        // Allow host reconnection from another socket or dropped connection
+                        val prevHost = host
+                        if (prevHost != null && prevHost !== this) {
+                            runCatching {
+                                prevHost.close(WebSocketFrame.CloseCode.NormalClosure, "Host reconnected from another session", false)
+                            }
+                            clients.remove(prevHost)
+                        }
+                        host = this
+                        role = "host"
+                    } else if (token == pairingCode) {
+                        role = "guest"
+                    } else {
                         close(WebSocketFrame.CloseCode.PolicyViolation, "Invalid party credentials", false)
                         return
                     }
-                    if (role == "host") host = this
-                    latestPlayback?.let { sendJson(JSONObject().put("type", "party_state").put("song", it).put("members", clients.count { c -> c.role != null }).put("serverTimeMs", System.currentTimeMillis())) }
+
+                    // Send current playback state to the newly connected/reconnected member
+                    latestPlayback?.let {
+                        sendJson(
+                            JSONObject()
+                                .put("type", "party_state")
+                                .put("song", it)
+                                .put("members", clients.count { c -> c.role != null })
+                                .put("serverTimeMs", System.currentTimeMillis())
+                        )
+                    }
                     broadcast(JSONObject().put("type", "member_count").put("members", clients.count { it.role != null }))
                 }
+
                 "playback" -> if (role == "host") {
-                    latestPlayback = json.optJSONObject("song")
-                    broadcast(JSONObject()
-                        .put("type", "party_state")
-                        .put("song", latestPlayback)
-                        .put("members", clients.count { it.role != null })
-                        .put("serverTimeMs", System.currentTimeMillis()), this)
+                    val songObj = json.optJSONObject("song")
+                    if (songObj != null) {
+                        // Sanitize song payload: strictly control metadata only, no stream URLs or credentials
+                        val sanitizedSong = JSONObject()
+                            .put("songId", songObj.optString("songId").take(128))
+                            .put("title", songObj.optString("title").take(128))
+                            .put("artist", songObj.optString("artist").take(128))
+                            .put("artworkUrl", songObj.optString("artworkUrl").take(512))
+                            .put("source", songObj.optString("source").take(32))
+                            .put("positionMs", songObj.optLong("positionMs", 0L).coerceAtLeast(0L))
+                            .put("isPlaying", songObj.optBoolean("isPlaying", false))
+                            .put("sentAtMs", System.currentTimeMillis())
+
+                        latestPlayback = sanitizedSong
+                        broadcast(
+                            JSONObject()
+                                .put("type", "party_state")
+                                .put("song", sanitizedSong)
+                                .put("members", clients.count { it.role != null })
+                                .put("serverTimeMs", System.currentTimeMillis()),
+                            except = this
+                        )
+                    }
                 }
-                "host_command" -> if (role == "host") broadcast(json, this)
+
+                "host_command" -> if (role == "host") {
+                    val command = json.optString("command").take(32)
+                    if (command.isNotBlank()) {
+                        val payload = JSONObject().put("type", "host_command").put("command", command)
+                        if (json.has("positionMs")) {
+                            payload.put("positionMs", json.optLong("positionMs").coerceAtLeast(0L))
+                        }
+                        broadcast(payload, except = this)
+                    }
+                }
+
                 "song_request" -> if (role == "guest") {
+                    val now = System.currentTimeMillis()
+                    if (now - lastRequestTimestampMs < RATE_LIMIT_REQUEST_WINDOW_MS) {
+                        sendJson(JSONObject().put("type", "error").put("message", "Please wait a moment before requesting another song."))
+                        return
+                    }
+                    lastRequestTimestampMs = now
+
+                    if (pendingRequests.size >= MAX_PENDING_REQUESTS) {
+                        sendJson(JSONObject().put("type", "error").put("message", "The song request queue is full. Try again shortly."))
+                        return
+                    }
+
+                    val title = json.optString("title").trim().take(128)
+                    val artist = json.optString("artist").trim().take(128)
+                    val source = json.optString("source").trim().take(32)
+                    if (title.isBlank()) {
+                        sendJson(JSONObject().put("type", "error").put("message", "Song title cannot be blank."))
+                        return
+                    }
+
                     val requestId = json.optString("requestId").ifBlank { randomId() }
-                    json.put("requestId", requestId)
-                    json.put("requester", "Guest")
-                    pendingRequests[requestId] = json.optString("title")
-                    host?.sendJson(json)
+                    pendingRequests[requestId] = title
+                    val sanitized = JSONObject()
+                        .put("type", "song_request")
+                        .put("requestId", requestId)
+                        .put("title", title)
+                        .put("artist", artist)
+                        .put("source", source)
+                        .put("requester", json.optString("requester").trim().take(32).ifBlank { "Guest" })
+
+                    host?.sendJson(sanitized)
                 }
+
                 "song_request_response" -> if (role == "host") {
                     val requestId = json.optString("requestId")
                     val title = pendingRequests.remove(requestId).orEmpty()
-                    broadcast(JSONObject()
-                        .put("type", "song_request_decision")
-                        .put("requestId", requestId)
-                        .put("title", title)
-                        .put("approved", json.optBoolean("approved")), this)
+                    val approved = json.optBoolean("approved")
+
+                    // Broadcast decision so requesting guest sees feedback
+                    broadcast(
+                        JSONObject()
+                            .put("type", "song_request_decision")
+                            .put("requestId", requestId)
+                            .put("title", title)
+                            .put("approved", approved)
+                    )
+
+                    // Also broadcast removal so host and guests remove request from pending list
+                    broadcast(
+                        JSONObject()
+                            .put("type", "song_request_removed")
+                            .put("requestId", requestId)
+                    )
                 }
-                "leave" -> close(WebSocketFrame.CloseCode.Normal, "Member left", false)
+
+                "leave" -> close(WebSocketFrame.CloseCode.NormalClosure, "Member left", false)
+
                 else -> if (role != null) {
                     sendJson(JSONObject().put("type", "error").put("message", "Unsupported or unauthorized message."))
                 }
@@ -89,24 +211,45 @@ internal class LocalPartyServer(
 
         override fun onClose(code: WebSocketFrame.CloseCode, reason: String, initiatedByRemote: Boolean) {
             clients.remove(this)
-            if (host === this) host = null
-            broadcast(JSONObject().put("type", "member_count").put("members", clients.count { it.role != null }))
+            val wasHost = (host === this)
+            if (wasHost) {
+                host = null
+                // Notify guests that host disconnected
+                broadcast(JSONObject().put("type", "error").put("message", "Party host disconnected."))
+            }
+            if (role != null) {
+                broadcast(JSONObject().put("type", "member_count").put("members", clients.count { it.role != null }))
+            }
         }
 
         override fun onPong(pong: WebSocketFrame) = Unit
 
         override fun onException(exception: java.io.IOException) {
             clients.remove(this)
-            if (host === this) host = null
+            if (host === this) {
+                host = null
+                broadcast(JSONObject().put("type", "error").put("message", "Party host disconnected."))
+            }
+            if (role != null) {
+                broadcast(JSONObject().put("type", "member_count").put("members", clients.count { it.role != null }))
+            }
         }
 
         fun sendJson(json: JSONObject) {
-            runCatching { send(json.toString()) }
+            runCatching {
+                if (isOpen) {
+                    send(json.toString())
+                }
+            }
         }
     }
 
     private fun broadcast(json: JSONObject, except: ClientSocket? = null) {
-        clients.filter { it.role != null && it !== except }.forEach { it.sendJson(json) }
+        for (client in clients) {
+            if (client.role != null && client !== except) {
+                client.sendJson(json)
+            }
+        }
     }
 
     override fun serveHttp(session: NanoHTTPD.IHTTPSession): NanoHTTPD.Response =
@@ -114,18 +257,53 @@ internal class LocalPartyServer(
 
     companion object {
         const val DEFAULT_PORT = 8765
+        const val MAX_CLIENTS = 32
+        const val MAX_PENDING_REQUESTS = 50
+        const val MAX_PAYLOAD_CHARS = 32768
+        const val RATE_LIMIT_REQUEST_WINDOW_MS = 1200L
+
+        internal fun scoreInterface(name: String): Int {
+            val n = name.lowercase()
+            return when {
+                n.startsWith("wlan") || n.startsWith("wifi") -> 100
+                n.startsWith("ap") || n.contains("softap") || n.startsWith("swlan") -> 90
+                n.contains("p2p") -> 70
+                n.startsWith("eth") -> 50
+                n.startsWith("rndis") || n.startsWith("usb") -> 40
+                n.startsWith("rmnet") || n.startsWith("ccmni") || n.startsWith("pdp") -> -50
+                n.startsWith("tun") || n.startsWith("tap") || n.startsWith("ppp") -> -100
+                else -> 10
+            }
+        }
+
+        internal fun scoreAddress(addr: Inet4Address, ifaceName: String): Int {
+            val host = addr.hostAddress ?: return -10000
+            if (addr.isLoopbackAddress || host.startsWith("127.") || host.startsWith("169.254.")) {
+                return -10000
+            }
+            val ifScore = scoreInterface(ifaceName)
+            var score = ifScore * 10
+            if (addr.isSiteLocalAddress) score += 50
+            if (host == "192.168.43.1") score += 30 // Typical Android hotspot IP
+            return score
+        }
+
+        internal fun selectBestLocalIpv4(interfaces: List<NetworkInterface>): String? {
+            return interfaces
+                .filter { runCatching { it.isUp && !it.isLoopback }.getOrDefault(false) }
+                .flatMap { iface ->
+                    iface.inetAddresses.toList()
+                        .filterIsInstance<Inet4Address>()
+                        .map { addr -> addr to scoreAddress(addr, iface.name) }
+                }
+                .filter { it.second > -500 }
+                .maxByOrNull { it.second }
+                ?.first?.hostAddress
+        }
 
         fun localIpv4Address(): String? = runCatching {
-            NetworkInterface.getNetworkInterfaces().toList()
-                .filter { it.isUp && !it.isLoopback }
-                .sortedByDescending { iface ->
-                    val name = iface.name.lowercase()
-                    name.contains("wlan") || name.contains("wifi") || name.startsWith("ap") || name.contains("p2p")
-                }
-                .flatMap { it.inetAddresses.toList() }
-                .filterIsInstance<Inet4Address>()
-                .firstOrNull { !it.isLoopbackAddress && it.hostAddress?.startsWith("169.254.") != true }
-                ?.hostAddress
+            val ifaces = Collections.list(NetworkInterface.getNetworkInterfaces())
+            selectBestLocalIpv4(ifaces)
         }.getOrNull()
 
         fun newPairingCode(): String {

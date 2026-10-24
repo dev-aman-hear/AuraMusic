@@ -30,8 +30,4 @@ app/release/
 app/build/
 .idea/
 .kotlin/
-.vscode/
-
-#test files 
-app/src/test/
-/app/src/test/
+.vscode/

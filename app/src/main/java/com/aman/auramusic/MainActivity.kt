@@ -263,7 +263,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
 
     val onlinePlaybackManager = OnlinePlaybackManagerHolder.get(context)
     val onlinePlaybackState by onlinePlaybackManager.playbackState.collectAsStateWithLifecycle()
-    val partyRepository = remember { PartyModeRepository() }
+    val partyRepository = remember { PartyModeRepository(context = context.applicationContext) }
     val partyState by partyRepository.state.collectAsStateWithLifecycle()
     val partyScope = rememberCoroutineScope()
     val partySongResolver = remember { OnlineMusicRepository() }

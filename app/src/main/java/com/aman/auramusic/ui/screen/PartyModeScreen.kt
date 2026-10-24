@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -22,11 +24,12 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,9 +53,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.aman.auramusic.party.LocalPartyServer
+import com.aman.auramusic.party.PartyConnectionMode
 import com.aman.auramusic.party.PartyModeRepository
-import com.aman.auramusic.party.PartyRole
 import com.aman.auramusic.party.PartyPlayback
+import com.aman.auramusic.party.PartyRole
 import kotlinx.coroutines.launch
 
 @Composable
@@ -73,14 +79,31 @@ fun PartyModeScreen(
     var requestTitle by remember { mutableStateOf("") }
     var requestArtist by remember { mutableStateOf("") }
 
-    androidx.compose.runtime.LaunchedEffect(state.playback, state.session?.role) {
+    LaunchedEffect(state.session) {
+        if (state.session == null) {
+            repository.startLocalDiscovery()
+        } else {
+            repository.stopLocalDiscovery()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            repository.stopLocalDiscovery()
+        }
+    }
+
+    LaunchedEffect(state.playback, state.session?.role) {
         val playback = state.playback
         if (state.session?.role == PartyRole.GUEST && playback != null) onRemotePlayback(playback)
     }
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -124,7 +147,9 @@ fun PartyModeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !state.connecting
                 ) { Text("Create Local Wi-Fi Party") }
-                Divider()
+
+                HorizontalDivider()
+
                 OutlinedTextField(
                     value = pairingCode,
                     onValueChange = { pairingCode = it.uppercase().filter { c -> c.isLetterOrDigit() }.take(12) },
@@ -138,8 +163,57 @@ fun PartyModeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !state.connecting && pairingCode.length >= 4
                 ) { Text("Join Internet Party") }
-                Divider()
-                Text("Join a local Wi-Fi party", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+
+                HorizontalDivider()
+
+                Text("Local Wi-Fi Parties", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+
+                if (state.discoveredParties.isNotEmpty()) {
+                    Text("Discovered nearby (tap to join):", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    state.discoveredParties.forEach { party ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(Icons.Default.Wifi, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        party.displayName.ifBlank { "Local Party" },
+                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Text(
+                                        "${party.hostAddress}:${party.port} • Code: ${party.pairingCode}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Button(
+                                    onClick = {
+                                        localHostAddress = party.hostAddress
+                                        localPairingCode = party.pairingCode
+                                        scope.launch {
+                                            repository.joinLocalParty(party.hostAddress, party.pairingCode, displayName)
+                                        }
+                                    },
+                                    enabled = !state.connecting
+                                ) {
+                                    Text("Join")
+                                }
+                            }
+                        }
+                    }
+                    Text("Or enter address manually:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
                 OutlinedTextField(
                     value = localHostAddress,
                     onValueChange = { localHostAddress = it.filter { ch -> ch.isLetterOrDigit() || ch == '.' || ch == ':' }.take(64) },
@@ -173,10 +247,10 @@ fun PartyModeScreen(
                             if (state.connected) Icon(Icons.Default.Check, contentDescription = "Connected")
                             else if (state.connecting) CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
                         }
-                        if (session.connectionMode == com.aman.auramusic.party.PartyConnectionMode.LOCAL_WIFI) {
+                        if (session.connectionMode == PartyConnectionMode.LOCAL_WIFI) {
                             Text("CONNECTION: LOCAL WI-FI", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                             if (session.role == PartyRole.HOST && !session.hostAddress.isNullOrBlank()) {
-                                Text("Host IP: " + session.hostAddress + ":" + com.aman.auramusic.party.LocalPartyServer.DEFAULT_PORT, style = MaterialTheme.typography.bodyMedium)
+                                Text("Host IP: " + session.hostAddress + ":" + LocalPartyServer.DEFAULT_PORT, style = MaterialTheme.typography.bodyMedium)
                             } else if (session.role == PartyRole.GUEST) {
                                 Text("Host IP: " + (session.hostAddress ?: ""), style = MaterialTheme.typography.bodySmall)
                             }
@@ -199,7 +273,7 @@ fun PartyModeScreen(
                             Text("  " + state.members + if (state.members == 1) " listener" else " listeners")
                         }
                         state.playback?.let { playback ->
-                            Divider()
+                            HorizontalDivider()
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(34.dp))
                                 Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
@@ -223,8 +297,8 @@ fun PartyModeScreen(
 
                 if (session.role == PartyRole.GUEST) {
                     Text("Request a song", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    OutlinedTextField(value = requestTitle, onValueChange = { requestTitle = it.take(180) }, modifier = Modifier.fillMaxWidth(), label = { Text("Song title") }, singleLine = true)
-                    OutlinedTextField(value = requestArtist, onValueChange = { requestArtist = it.take(180) }, modifier = Modifier.fillMaxWidth(), label = { Text("Artist") }, singleLine = true)
+                    OutlinedTextField(value = requestTitle, onValueChange = { requestTitle = it.take(128) }, modifier = Modifier.fillMaxWidth(), label = { Text("Song title") }, singleLine = true)
+                    OutlinedTextField(value = requestArtist, onValueChange = { requestArtist = it.take(128) }, modifier = Modifier.fillMaxWidth(), label = { Text("Artist") }, singleLine = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { repository.requestSong(requestTitle, requestArtist, "YOUTUBE"); requestTitle = ""; requestArtist = "" }, enabled = state.connected && requestTitle.isNotBlank() && requestArtist.isNotBlank(), modifier = Modifier.weight(1f)) { Text("Request YouTube Music") }
                         OutlinedButton(onClick = { repository.requestSong(requestTitle, requestArtist, "JIOSAAVN"); requestTitle = ""; requestArtist = "" }, enabled = state.connected && requestTitle.isNotBlank() && requestArtist.isNotBlank(), modifier = Modifier.weight(1f)) { Text("Request JioSaavn") }

@@ -1,13 +1,18 @@
 package com.aman.auramusic.party
 
+import android.content.Context
 import com.aman.auramusic.BuildConfig
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
@@ -24,27 +29,50 @@ import kotlin.coroutines.resume
 
 /**
  * Client for AuraMusic's Party Mode protocol.
- * Configure -PpartyApiBaseUrl=https://your-host.example when building the app.
+ * Configure -PpartyApiBaseUrl=https://your-host.example when building the app for Internet Party Mode.
+ * Local Wi-Fi Party works without an external backend.
  * The backend must implement the protocol documented in PARTY_MODE.md.
  */
 class PartyModeRepository(
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(12, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS)
-        .build()
+        .build(),
+    private val context: Context? = null
 ) {
     private val jsonType = "application/json; charset=utf-8".toMediaType()
     private val mutableState = MutableStateFlow(PartyUiState())
     val state: StateFlow<PartyUiState> = mutableState.asStateFlow()
 
+    private val repositoryScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+    private val discovery = context?.let { LocalPartyDiscovery(it) }
+
     private var socket: WebSocket? = null
     private var latestSession: PartySession? = null
     private var localServer: LocalPartyServer? = null
+
+    init {
+        discovery?.let { disc ->
+            repositoryScope.launch {
+                disc.discoveredParties.collect { parties ->
+                    mutableState.value = mutableState.value.copy(discoveredParties = parties)
+                }
+            }
+        }
+    }
 
     private val baseUrl: String
         get() = BuildConfig.PARTY_API_BASE_URL.trim().trimEnd('/')
 
     fun isConfigured(): Boolean = baseUrl.startsWith("https://", ignoreCase = true)
+
+    fun startLocalDiscovery() {
+        discovery?.startDiscovery()
+    }
+
+    fun stopLocalDiscovery() {
+        discovery?.stopDiscovery()
+    }
 
     suspend fun createParty(displayName: String) {
         mutableState.value = mutableState.value.copy(connecting = true, error = null, status = "Creating party…")
@@ -62,12 +90,18 @@ class PartyModeRepository(
         mutableState.value = mutableState.value.copy(connecting = true, error = null, status = "Starting local Wi-Fi party…")
         try {
             localServer?.stop()
+            discovery?.unregisterParty()
+
             val code = LocalPartyServer.newPairingCode()
             val hostToken = LocalPartyServer.newHostToken()
             val server = LocalPartyServer(code, hostToken)
             server.start()
             localServer = server
+
             val address = LocalPartyServer.localIpv4Address()
+            val hostDisplay = displayName.trim().ifBlank { "AuraMusic Host" }
+            discovery?.registerParty(code, hostDisplay, LocalPartyServer.DEFAULT_PORT)
+
             val session = PartySession(
                 partyId = "local-$code",
                 pairingCode = code,
@@ -78,10 +112,13 @@ class PartyModeRepository(
                 hostAddress = address
             )
             connect(session)
-            mutableState.value = mutableState.value.copy(status = if (address != null) "Local party started. Share the IP, port, and code with guests." else "Local party started. Find the host IP in Wi-Fi settings.")
+            mutableState.value = mutableState.value.copy(
+                status = if (address != null) "Local party started. Share the IP, port, and code with guests." else "Local party started. Find the host IP in Wi-Fi settings."
+            )
         } catch (e: Exception) {
             localServer?.stop()
             localServer = null
+            discovery?.unregisterParty()
             mutableState.value = mutableState.value.copy(connecting = false, connected = false, error = e.message ?: "Could not start local Wi-Fi party.")
         }
     }
@@ -153,6 +190,9 @@ class PartyModeRepository(
     fun respondToRequest(requestId: String, approved: Boolean) {
         val session = latestSession ?: return
         if (session.role != PartyRole.HOST) return
+        mutableState.value = mutableState.value.copy(
+            requests = mutableState.value.requests.filterNot { it.requestId == requestId }
+        )
         send(JSONObject().put("type", "song_request_response")
             .put("requestId", requestId)
             .put("approved", approved))
@@ -170,22 +210,29 @@ class PartyModeRepository(
         runCatching { send(JSONObject().put("type", "leave")) }
         socket?.close(1000, "User left party")
         socket = null
+        discovery?.unregisterParty()
         if (latestSession?.connectionMode == PartyConnectionMode.LOCAL_WIFI && latestSession?.role == PartyRole.HOST) {
             runCatching { localServer?.stop() }
             localServer = null
         }
         latestSession = null
-        mutableState.value = PartyUiState(status = "You left the party.")
+        mutableState.value = PartyUiState(
+            status = "You left the party.",
+            discoveredParties = mutableState.value.discoveredParties
+        )
     }
 
     fun close() {
         socket?.close(1000, "Party screen closed")
         socket = null
+        discovery?.unregisterParty()
+        discovery?.stopDiscovery()
         if (latestSession?.connectionMode == PartyConnectionMode.LOCAL_WIFI && latestSession?.role == PartyRole.HOST) {
             runCatching { localServer?.stop() }
             localServer = null
         }
         latestSession = null
+        repositoryScope.cancel()
     }
 
     private fun requireConfigured() {
@@ -228,7 +275,7 @@ class PartyModeRepository(
         }
     }
 
-    private fun parseSession(json: JSONObject, role: PartyRole): PartySession {
+    internal fun parseSession(json: JSONObject, role: PartyRole): PartySession {
         val session = PartySession(
             partyId = json.optNonBlank("partyId") ?: throw IOException("Server response is missing partyId."),
             pairingCode = json.optNonBlank("pairingCode") ?: "",
@@ -301,7 +348,7 @@ class PartyModeRepository(
         socket?.send(payload.toString())
     }
 
-    private fun handleServerMessage(raw: String) {
+    internal fun handleServerMessage(raw: String) {
         val message = runCatching { JSONObject(raw) }.getOrNull() ?: return
         when (message.optString("type")) {
             "party_state" -> {

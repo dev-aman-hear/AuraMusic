@@ -17,7 +17,9 @@ The Android client now offers two transport choices:
 - Devices must be on the same reachable Wi-Fi network or a host hotspot. Router client isolation, VPN routing, or hotspot restrictions can prevent connections.
 - This mode does not require the Internet Party backend. The host must keep AuraMusic running while hosting.
 - Local transport uses a plain `ws://` connection on the LAN. The party code is a lightweight join credential, not end-to-end encryption; use trusted networks only. Do not treat local mode as secure against other people on the same network.
-- Discovery/QR onboarding is not implemented yet; use the host IP shown in the host's Party Mode screen.
+- Automatic discovery uses Android Network Service Discovery (NSD / mDNS, service type `_auramusic-party._tcp.`). When a host starts a party on the local network, guests running AuraMusic on the same Wi-Fi discover it automatically and can tap "Join" to connect.
+- Manual IP and party code entry is retained as a robust fallback in case mDNS/multicast is filtered or unsupported by the network router.
+- Includes rate limiting (cooldown per request, queue cap) and sanitization against abuse.
 
 ### Internet
 
