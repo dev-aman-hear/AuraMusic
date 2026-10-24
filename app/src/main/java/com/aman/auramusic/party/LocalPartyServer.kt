@@ -106,7 +106,7 @@ internal class LocalPartyServer(
     }
 
     override fun serveHttp(session: NanoHTTPD.IHTTPSession): NanoHTTPD.Response =
-        newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND, "text/plain", "Party Mode WebSocket only")
+        NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND, "text/plain", "Party Mode WebSocket only")
 
     companion object {
         const val DEFAULT_PORT = 8765
