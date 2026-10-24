@@ -3,6 +3,7 @@ package com.aman.auramusic.party
 import org.json.JSONObject
 
 enum class PartyRole { HOST, GUEST }
+enum class PartyConnectionMode { INTERNET, LOCAL_WIFI }
 
 data class PartySession(
     val partyId: String,
@@ -10,7 +11,9 @@ data class PartySession(
     val memberToken: String,
     val role: PartyRole,
     val websocketUrl: String,
-    val expiresAt: String? = null
+    val expiresAt: String? = null,
+    val connectionMode: PartyConnectionMode = PartyConnectionMode.INTERNET,
+    val hostAddress: String? = null
 )
 
 data class PartyPlayback(
