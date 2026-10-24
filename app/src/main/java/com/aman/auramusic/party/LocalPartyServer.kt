@@ -20,6 +20,7 @@ internal class LocalPartyServer(
     private val clients = CopyOnWriteArraySet<ClientSocket>()
     @Volatile private var host: ClientSocket? = null
     @Volatile private var latestPlayback: JSONObject? = null
+    private val pendingRequests = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     override fun openWebSocket(handshakeRequest: NanoHTTPD.IHTTPSession): WebSocket =
         ClientSocket(this, handshakeRequest)
@@ -60,11 +61,21 @@ internal class LocalPartyServer(
                 }
                 "host_command" -> if (role == "host") broadcast(json, this)
                 "song_request" -> if (role == "guest") {
-                    json.put("requestId", json.optString("requestId").ifBlank { randomId() })
+                    val requestId = json.optString("requestId").ifBlank { randomId() }
+                    json.put("requestId", requestId)
                     json.put("requester", "Guest")
+                    pendingRequests[requestId] = json.optString("title")
                     host?.sendJson(json)
                 }
-                "song_request_response" -> if (role == "host") broadcast(json, this)
+                "song_request_response" -> if (role == "host") {
+                    val requestId = json.optString("requestId")
+                    val title = pendingRequests.remove(requestId).orEmpty()
+                    broadcast(JSONObject()
+                        .put("type", "song_request_decision")
+                        .put("requestId", requestId)
+                        .put("title", title)
+                        .put("approved", json.optBoolean("approved")), this)
+                }
                 "leave" -> close(WebSocketFrame.CloseCode.Normal, "Member left", false)
                 else -> if (role != null) {
                     sendJson(JSONObject().put("type", "error").put("message", "Unsupported or unauthorized message."))
