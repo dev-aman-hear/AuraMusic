@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -76,7 +77,6 @@ import com.aman.auramusic.ui.screen.SettingsScreen
 import com.aman.auramusic.ui.screen.PartyModeScreen
 import com.aman.auramusic.party.PartyModeRepository
 import com.aman.auramusic.party.PartyRole
-import com.aman.auramusic.party.PartyPlayback
 import com.aman.auramusic.party.PartyConnectionMode
 import com.aman.auramusic.ui.screen.CollectionDetailScreen
 import com.aman.auramusic.ui.screen.home.ArtistDetailSheet
@@ -459,6 +459,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
     LaunchedEffect(partyState.playback, partyState.session?.role) {
         val remote = partyState.playback ?: return@LaunchedEffect
         if (partyState.session?.role != PartyRole.GUEST) return@LaunchedEffect
+        Log.d("AuraPartySync", "Guest playback update: songId=${remote.songId}, playing=${remote.isPlaying}, positionMs=${remote.positionMs}")
         partyScope.launch {
                                     val source = when (remote.source.lowercase().replace("_", "").replace(" ", "")) {
                                         "youtube", "youtubemusic" -> AudioSource.YOUTUBE
@@ -490,6 +491,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                             if (match != null) {
                                                 val resolved = partySongResolver.resolveStream(match)
                                                 val elapsedResolvingMs = System.currentTimeMillis() - resolveStartTime
+                                                Log.d("AuraPartySync", "Resolved guest stream in ${elapsedResolvingMs}ms for songId=${remote.songId}")
                                                 val latestPlayback = partyRepository.state.value.playback
                                                 val basePosition = if (latestPlayback != null && (latestPlayback.songId == remote.songId || latestPlayback.title.equals(remote.title, true))) {
                                                     latestPlayback.positionMs
