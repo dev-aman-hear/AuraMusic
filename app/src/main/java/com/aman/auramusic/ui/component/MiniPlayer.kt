@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -63,6 +65,8 @@ fun MiniPlayer(
     onPrevious: () -> Unit = {},
     compact: Boolean = false,
     appSettings: AppSettings? = null,
+    onPartyMode: () -> Unit = {},
+    onOutputPicker: () -> Unit = {},
 ) {
     val progress = if (duration > 0) position.toFloat() / duration.toFloat() else 0f
     val context = LocalContext.current
@@ -179,6 +183,14 @@ fun MiniPlayer(
                             tint = iconTint,
                             modifier = Modifier.size(14.dp)
                         )
+                    }
+                }
+                if (compact) {
+                    IconButton(onClick = onPartyMode, modifier = Modifier.size(26.dp)) {
+                        Icon(Icons.Default.Groups, contentDescription = "Open Party Mode", tint = iconTint, modifier = Modifier.size(16.dp))
+                    }
+                    IconButton(onClick = onOutputPicker, modifier = Modifier.size(26.dp)) {
+                        Icon(Icons.Default.Speaker, contentDescription = "Choose audio output", tint = iconTint, modifier = Modifier.size(16.dp))
                     }
                 }
                 IconButton(
