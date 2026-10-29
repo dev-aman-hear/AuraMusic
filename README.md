@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/dev-aman-hear/AuraMusic/tree/feature/online-party-mode"><img src="https://img.shields.io/badge/Branch-Party%20Mode-blue?style=flat-square" alt="Party Mode branch" /></a>
-  <img src="https://img.shields.io/badge/Version-1.0.7-informational?style=flat-square" alt="Version 1.0.7" />
+  <img src="https://img.shields.io/badge/Version-1.0.8-informational?style=flat-square" alt="Version 1.0.8" />
   <img src="https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-success?style=flat-square" alt="Android 8.0 and newer" />
   <img src="https://img.shields.io/badge/Kotlin-2.0.21-blueviolet?style=flat-square" alt="Kotlin 2.0.21" />
   <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=flat-square" alt="Jetpack Compose" />
@@ -93,10 +93,10 @@ See [PARTY_MODE.md](PARTY_MODE.md) for the protocol, backend contract, configura
 - Online services and lyric providers may receive search metadata needed to resolve a track or find lyrics.
 - This README does not claim that every piece of state is backed up or synchronized between devices.
 
-## Version 1.0.7
+## Version 1.0.8
 
-- Application version name: `1.0.7`
-- Application version code: `20` for the normal Aura Music package.
+- Application version name: `1.0.8`
+- Application version code: `21` for the normal Aura Music package.
 - Namespace: `com.aman.auramusic`
 - Normal application ID: `com.aman.auramusic`
 - Minimum Android version: Android 8.0 (API 26)
@@ -156,7 +156,7 @@ If the APK filename differs, use the matching file from the output directory.
 
 This branch defines the Gradle property `useHeyTap`.
 
-- **Aura Music identity (default):** `useHeyTap=false` sets application ID `com.aman.auramusic`, display name `Aura Music`, version name `1.0.7`, and version code `20`.
+- **Aura Music identity (default):** `useHeyTap=false` sets application ID `com.aman.auramusic`, display name `Aura Music`, version name `1.0.8`, and version code `21`.
 - **HeyTap identity experiment:** `useHeyTap=true` sets application ID `com.heytap.music` and uses the separate OEM-style version values defined in Gradle. This may conflict with an installed system app or trigger package/signature restrictions. Use it only on a test device and understand the consequences before installing.
 
 Gradle property examples:
@@ -237,5 +237,5 @@ Please remove personal information, access tokens, signing credentials, and priv
 ---
 
 <p align="center">
-  <sub>Aura Music · Party Mode · Version 1.0.7</sub>
+  <sub>Aura Music · Party Mode · Version 1.0.8</sub>
 </p>

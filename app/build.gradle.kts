@@ -22,8 +22,8 @@ android {
         applicationId = "com.aman.auramusic"
         minSdk = 26
         targetSdk = 36
-        versionCode = 20
-        versionName = "1.0.7"
+        versionCode = 21
+        versionName = "1.0.8"
         // Use the deployed AuraMusic Party backend by default; allow local/CI overrides with -PpartyApiBaseUrl=...
         val partyApiBaseUrl = providers.gradleProperty("partyApiBaseUrl").orNull
             ?.trim()
@@ -45,6 +45,16 @@ android {
             dimension = "brand"
             applicationId = "com.heytap.music"
             manifestPlaceholders["appName"] = "Aura Music"
+        }
+        create("qqmusic") {
+            dimension = "brand"
+            applicationId = "com.tencent.qqmusic"
+            manifestPlaceholders["appName"] = "QQ Music"
+        }
+        create("kugou") {
+            dimension = "brand"
+            applicationId = "com.kugou.android"
+            manifestPlaceholders["appName"] = "Kugou Music"
         }
     }
 
@@ -123,6 +133,8 @@ dependencies {
     implementation("org.nanohttpd:nanohttpd-websocket:2.3.1")
     implementation("com.pierfrancescosoffritti.androidyoutubeplayer:core:13.0.0")
     implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     // Navigation & Storage

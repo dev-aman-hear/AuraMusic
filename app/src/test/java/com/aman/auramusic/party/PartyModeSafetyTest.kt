@@ -137,4 +137,58 @@ class PartyModeSafetyTest {
         repo.handleServerMessage(errMsg.toString())
         assertEquals("Something went wrong", repo.state.value.error)
     }
+
+    @Test
+    fun partyPlaybackSyncPolicyNormalizesProvidersAndCompensatesPosition() {
+        assertEquals("YOUTUBE", PartyPlaybackSyncPolicy.normalizeSource("YouTube Music"))
+        assertEquals("YOUTUBE", PartyPlaybackSyncPolicy.normalizeSource("YOUTUBE"))
+        assertEquals("JIOSAAVN", PartyPlaybackSyncPolicy.normalizeSource("JioSaavn"))
+        assertNull(PartyPlaybackSyncPolicy.normalizeSource("unknown-provider"))
+
+        assertTrue(
+            PartyPlaybackSyncPolicy.sameTrack(
+                currentSource = "YOUTUBE",
+                currentId = "track-1",
+                currentTitle = "A Song",
+                currentArtist = "An Artist",
+                remoteSource = "YOUTUBE",
+                remoteId = "track-1",
+                remoteTitle = "Different display title",
+                remoteArtist = "Different display artist"
+            )
+        )
+        assertFalse(
+            PartyPlaybackSyncPolicy.sameTrack(
+                currentSource = "YOUTUBE",
+                currentId = "track-1",
+                currentTitle = "A Song",
+                currentArtist = "An Artist",
+                remoteSource = "JIOSAAVN",
+                remoteId = "track-1",
+                remoteTitle = "A Song",
+                remoteArtist = "An Artist"
+            )
+        )
+
+        assertEquals(7_500L, PartyPlaybackSyncPolicy.targetPosition(5_000L, true, 2_500L))
+        assertEquals(5_000L, PartyPlaybackSyncPolicy.targetPosition(5_000L, false, 2_500L))
+        assertEquals(0L, PartyPlaybackSyncPolicy.targetPosition(-100L, false, -1L))
+    }
+
+    @Test
+    fun partyPlaybackResolveKeyIsStableAndIncludesProvider() {
+        assertEquals(
+            PartyPlaybackSyncPolicy.resolveKey("YOUTUBE", "id-1", "Title", "Artist"),
+            PartyPlaybackSyncPolicy.resolveKey("YOUTUBE", "id-1", "Other Title", "Other Artist")
+        )
+        assertTrue(
+            PartyPlaybackSyncPolicy.resolveKey("YOUTUBE", "id-1", "Title", "Artist") !=
+                PartyPlaybackSyncPolicy.resolveKey("JIOSAAVN", "id-1", "Title", "Artist")
+        )
+        assertEquals(
+            PartyPlaybackSyncPolicy.resolveKey("YOUTUBE", "", "Title", "Artist"),
+            PartyPlaybackSyncPolicy.resolveKey("YOUTUBE", "", " title ", " artist ")
+        )
+    }
+
 }

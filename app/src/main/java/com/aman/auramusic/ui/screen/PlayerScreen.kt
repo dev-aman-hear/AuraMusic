@@ -14,10 +14,15 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.animation.core.Animatable
@@ -620,74 +625,15 @@ private fun PlayerHeader(
                                 modifier = Modifier.size(18.dp)
                             )
                         }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(if (isFavorite) "Remove from Favorites" else "Add to Favorites", fontWeight = FontWeight.SemiBold, color = playerColors.textPrimary) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                    contentDescription = null,
-                                    tint = if (isFavorite) playerColors.dialogAccent else if (playerColors.isDynamic) playerColors.buttonIconTint.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
-                            onClick = { onFavoriteToggle(); showMenu = false }
+                        PlayerOptionsMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            onAddToPlaylist = { onAddToPlaylist(); showMenu = false },
+                            onShowSleepTimer = { onShowSleepTimer(); showMenu = false },
+                            onOpenDiagnostics = onOpenDiagnostics?.let { action -> { action(); showMenu = false } },
+                            playerColors = playerColors
                         )
-                        DropdownMenuItem(
-                            text = { Text("Add to Playlist", fontWeight = FontWeight.SemiBold, color = playerColors.textPrimary) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
-                                    contentDescription = null,
-                                    tint = if (playerColors.isDynamic) playerColors.buttonIconTint.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
-                            onClick = { onAddToPlaylist(); showMenu = false }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Add to Queue", fontWeight = FontWeight.SemiBold, color = playerColors.textPrimary) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                                    contentDescription = null,
-                                    tint = if (playerColors.isDynamic) playerColors.buttonIconTint.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
-                            onClick = { onAddToQueue(); showMenu = false }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Sleep Timer", fontWeight = FontWeight.SemiBold, color = playerColors.textPrimary) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Bedtime,
-                                    contentDescription = null,
-                                    tint = if (playerColors.isDynamic) playerColors.buttonIconTint.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
-                            onClick = { onShowSleepTimer(); showMenu = false }
-                        )
-                        if (onOpenDiagnostics != null) {
-                            DropdownMenuItem(
-                                text = { Text("Stream Quality", fontWeight = FontWeight.SemiBold, color = playerColors.textPrimary) },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.HighQuality,
-                                        contentDescription = null,
-                                        tint = if (playerColors.isDynamic) playerColors.buttonIconTint.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                onClick = { onOpenDiagnostics(); showMenu = false }
-                            )
-                        }
                     }
-                }
             }
         }
     } else {
@@ -779,7 +725,10 @@ private fun NowPlayingPage(
                         .size(44.dp)
                         .clip(CircleShape)
                         .background(playerColors.buttonSurface, CircleShape)
-                        .border(androidx.compose.foundation.BorderStroke(1.dp, playerColors.buttonBorder), CircleShape)
+                        .border(
+                            BorderStroke(1.dp, playerColors.buttonBorder),
+                            CircleShape
+                        )
                         .clickable { showMenu = true },
                     contentAlignment = Alignment.Center
                 ) {
@@ -790,73 +739,258 @@ private fun NowPlayingPage(
                         modifier = Modifier.size(22.dp)
                     )
                 }
-                DropdownMenu(
+                PlayerOptionsMenu(
                     expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(if (isFavorite) "Remove from Favorites" else "Add to Favorites", fontWeight = FontWeight.SemiBold, color = playerColors.textPrimary) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = null,
-                                tint = if (isFavorite) playerColors.dialogAccent else if (playerColors.isDynamic) playerColors.buttonIconTint.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        onClick = { onFavoriteToggle(); showMenu = false }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Add to Playlist", fontWeight = FontWeight.SemiBold, color = playerColors.textPrimary) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
-                                contentDescription = null,
-                                tint = if (playerColors.isDynamic) playerColors.buttonIconTint.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        onClick = { onAddToPlaylist(); showMenu = false }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Add to Queue", fontWeight = FontWeight.SemiBold, color = playerColors.textPrimary) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                                contentDescription = null,
-                                tint = if (playerColors.isDynamic) playerColors.buttonIconTint.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        onClick = { onAddToQueue(); showMenu = false }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Sleep Timer", fontWeight = FontWeight.SemiBold, color = playerColors.textPrimary) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Bedtime,
-                                contentDescription = null,
-                                tint = if (playerColors.isDynamic) playerColors.buttonIconTint.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        onClick = { onShowSleepTimer(); showMenu = false }
-                    )
-                    if (onOpenDiagnostics != null) {
-                        DropdownMenuItem(
-                            text = { Text("Stream Quality", fontWeight = FontWeight.SemiBold, color = playerColors.textPrimary) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.HighQuality,
-                                    contentDescription = null,
-                                    tint = if (playerColors.isDynamic) playerColors.buttonIconTint.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
-                            onClick = { onOpenDiagnostics(); showMenu = false }
-                        )
-                    }
+                    onDismissRequest = { showMenu = false },
+                    onAddToPlaylist = { onAddToPlaylist(); showMenu = false },
+                    onShowSleepTimer = { onShowSleepTimer(); showMenu = false },
+                    onOpenDiagnostics = onOpenDiagnostics?.let { action -> { action(); showMenu = false } },
+                    playerColors = playerColors
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerOptionsMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    onAddToPlaylist: () -> Unit,
+    onShowSleepTimer: () -> Unit,
+    onOpenDiagnostics: (() -> Unit)?,
+    playerColors: PlayerColorScheme,
+    modifier: Modifier = Modifier
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        offset = DpOffset(x = 0.dp, y = 6.dp),
+        shape = RoundedCornerShape(24.dp),
+        containerColor = if (playerColors.isDark) {
+            playerColors.dialogSurface.copy(alpha = 0.94f)
+        } else {
+            Color(0xFFFFFFFF)
+        },
+        shadowElevation = 0.dp,
+        tonalElevation = 0.dp,
+        border = BorderStroke(
+            width = 1.dp,
+            color = playerColors.buttonBorder
+        ),
+        modifier = modifier.widthIn(min = 236.dp, max = 268.dp)
+    ) {
+        var contentVisible by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            contentVisible = true
+        }
+
+        val scale by animateFloatAsState(
+            targetValue = if (contentVisible) 1f else 0.92f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "menuSpringScale"
+        )
+        val alpha by animateFloatAsState(
+            targetValue = if (contentVisible) 1f else 0.3f,
+            animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
+            label = "menuSpringAlpha"
+        )
+
+        Column(
+            modifier = Modifier
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    this.alpha = alpha
                 }
+                .padding(vertical = 6.dp)
+        ) {
+            // Header label
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(playerColors.textSecondary.copy(alpha = 0.5f))
+                    )
+                    Text(
+                        text = "QUICK ACTIONS",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                        color = playerColors.textSecondary.copy(alpha = 0.8f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // 1. Add to Playlist
+            PlayerMenuPillItem(
+                title = "Add to Playlist",
+                subtitle = "Save to custom list",
+                icon = Icons.AutoMirrored.Filled.PlaylistAdd,
+                iconTint = playerColors.dialogAccent,
+                iconBadgeColor = if (playerColors.isDark) {
+                    playerColors.dialogAccent.copy(alpha = 0.16f)
+                } else {
+                    playerColors.dialogAccent.copy(alpha = 0.10f)
+                },
+                onClick = onAddToPlaylist,
+                playerColors = playerColors
+            )
+
+            // Soft Divider
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                    .height(0.8.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                playerColors.buttonBorder.copy(alpha = 0.35f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+
+            // 4. Sleep Timer
+            PlayerMenuPillItem(
+                title = "Sleep Timer",
+                subtitle = "Auto stop playback",
+                icon = Icons.Default.Bedtime,
+                iconTint = if (playerColors.isDark) Color(0xFFB39DDB) else Color(0xFF7E57C2),
+                iconBadgeColor = if (playerColors.isDark) {
+                    Color(0xFFB39DDB).copy(alpha = 0.16f)
+                } else {
+                    Color(0xFF7E57C2).copy(alpha = 0.10f)
+                },
+                onClick = onShowSleepTimer,
+                playerColors = playerColors
+            )
+
+            // 5. Stream Quality (Diagnostics)
+            if (onOpenDiagnostics != null) {
+                PlayerMenuPillItem(
+                    title = "Stream Quality",
+                    subtitle = "Audio stats & bitrate",
+                    icon = Icons.Default.HighQuality,
+                    iconTint = if (playerColors.isDark) Color(0xFF80DEEA) else Color(0xFF0097A7),
+                    iconBadgeColor = if (playerColors.isDark) {
+                        Color(0xFF80DEEA).copy(alpha = 0.16f)
+                    } else {
+                        Color(0xFF0097A7).copy(alpha = 0.10f)
+                    },
+                    onClick = onOpenDiagnostics,
+                    playerColors = playerColors
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerMenuPillItem(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    iconTint: Color,
+    iconBadgeColor: Color,
+    isActive: Boolean = false,
+    onClick: () -> Unit,
+    playerColors: PlayerColorScheme
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = if (isActive) {
+            if (playerColors.isDark) Color(0xFFFF3366).copy(alpha = 0.12f)
+            else Color(0xFFFF3366).copy(alpha = 0.08f)
+        } else {
+            Color.Transparent
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon Badge container
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(iconBadgeColor)
+                    .then(
+                        if (isActive) Modifier.border(0.5.dp, iconTint.copy(alpha = 0.4f), RoundedCornerShape(11.dp))
+                        else if (playerColors.isDark) Modifier.border(0.5.dp, playerColors.buttonBorder.copy(alpha = 0.25f), RoundedCornerShape(11.dp))
+                        else Modifier
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
+                    color = if (isActive) {
+                        if (playerColors.isDark) Color.White else Color(0xFFFF3366)
+                    } else {
+                        playerColors.textPrimary
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = playerColors.textSecondary.copy(alpha = 0.72f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (isActive) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .clip(CircleShape)
+                        .background(iconTint)
+                )
             }
         }
     }

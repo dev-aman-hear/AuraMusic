@@ -29,6 +29,19 @@ The Android client now offers two transport choices:
 
 Both modes relay playback metadata and party-control messages only. They do not transmit audio bytes, local files, stream URLs, cookies, or provider credentials. Each phone resolves supported YouTube Music/InnerTube or JioSaavn tracks independently and needs its own Internet access to play them.
 
+### Experimental reliability work on `test/party-sync-reliability`
+
+This test branch adapts several useful patterns from larger listen-together implementations without copying another app's architecture wholesale:
+
+- **Idempotent playback state:** Party Mode applies an explicit play/pause target rather than toggling blindly on repeated snapshots.
+- **Deduplicated resolution:** only one stream lookup/resolution runs per guest track identity at a time.
+- **Stale-result rejection:** a resolved stream is discarded if the host has changed tracks or the guest has left the session while it was resolving.
+- **Position compensation:** guest startup accounts for time elapsed since the latest host update, while paused snapshots keep their position fixed.
+- **Testable policy:** provider normalization, track matching, stable resolution keys, and position compensation are extracted into pure helpers with unit tests.
+- **Clearer party UI:** connection mode, role, listener count, invite code, current playback, song requests, and errors have distinct visual hierarchy.
+
+Queue revision numbers, authoritative queue snapshots, clock-offset estimation, reconnect restoration, and next-track preloading remain follow-up work. They require coordinated protocol/backend changes or additional device testing; this branch does not claim to have completed them.
+
 ### Current verification status
 
 Local Wi-Fi support has been added to the source branch, but it must still be compiled and tested on physical Android devices before being considered reliable. Verify host/guest joining, playback synchronization, requests, hotspot behavior, and reconnect handling. The local relay is a minimal LAN implementation; automatic discovery, QR codes, encrypted LAN transport, and robust abuse/rate limiting remain future improvements.

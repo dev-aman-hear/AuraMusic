@@ -57,3 +57,50 @@ data class PartyUiState(
 
 internal fun JSONObject.optNonBlank(key: String): String? =
     optString(key).takeIf { it.isNotBlank() && it != "null" }
+
+
+/**
+ * Pure helpers for deciding whether an incoming host update matches a local track
+ * and for compensating for time spent resolving a guest stream.
+ *
+ * Kept free of Android/Compose dependencies so the policy can be unit-tested.
+ */
+internal object PartyPlaybackSyncPolicy {
+    fun normalizeSource(source: String): String? = when (
+        source.trim().lowercase().replace("_", "").replace(" ", "")
+    ) {
+        "youtube", "youtubemusic" -> "YOUTUBE"
+        "jiosaavn" -> "JIOSAAVN"
+        else -> null
+    }
+
+    fun resolveKey(source: String, songId: String, title: String, artist: String): String {
+        val identity = songId.trim().ifBlank {
+            "${title.trim().lowercase()}|${artist.trim().lowercase()}"
+        }
+        return "${source.uppercase()}:$identity"
+    }
+
+    fun sameTrack(
+        currentSource: String?,
+        currentId: String?,
+        currentTitle: String?,
+        currentArtist: String?,
+        remoteSource: String,
+        remoteId: String,
+        remoteTitle: String,
+        remoteArtist: String
+    ): Boolean {
+        if (currentSource != remoteSource) return false
+        if (!currentId.isNullOrBlank() && remoteId.isNotBlank() && currentId == remoteId) return true
+        return !currentTitle.isNullOrBlank() &&
+            !currentArtist.isNullOrBlank() &&
+            currentTitle.equals(remoteTitle, ignoreCase = true) &&
+            currentArtist.equals(remoteArtist, ignoreCase = true)
+    }
+
+    fun targetPosition(positionMs: Long, isPlaying: Boolean, elapsedSinceUpdateMs: Long): Long {
+        val elapsed = if (isPlaying) elapsedSinceUpdateMs.coerceAtLeast(0L) else 0L
+        return (positionMs.coerceAtLeast(0L) + elapsed).coerceAtLeast(0L)
+    }
+}

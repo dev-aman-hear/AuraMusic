@@ -580,6 +580,30 @@ class OnlinePlaybackManager(
         }
     }
 
+    /**
+     * Applies an explicit playback state. Unlike togglePlayPause(), this is idempotent
+     * and safe to call for repeated Party Mode snapshots.
+     */
+    fun setPlaying(shouldPlay: Boolean) {
+        if (shouldPlay) {
+            val song = _playbackState.value.currentSong
+            if (song != null && !hasStartedPlaybackForCurrentSong) {
+                val targetPos = _playbackState.value.currentPositionMs.takeIf { it > 0L }
+                    ?: LastPlayedStore.getLastPosition(context)
+                playSong(song, _playbackState.value.queue, targetPos)
+                return
+            }
+            if (isUsingIFramePlayer) {
+                youTubeIFramePlayer.play()
+            } else if (!exoPlayer.isPlaying) {
+                if (exoPlayer.playbackState == Player.STATE_ENDED) exoPlayer.seekTo(0L)
+                exoPlayer.play()
+            }
+        } else {
+            pause()
+        }
+    }
+
     fun pause() {
         Log.d("AuraPlaybackDebug", "OnlinePlaybackManager.pause() called")
         isTransitioning = false
