@@ -151,8 +151,8 @@ fun PartyModeScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -163,7 +163,7 @@ fun PartyModeScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Party Mode", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("Party Mode", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(
                         "Listen together, in sync",
                         style = MaterialTheme.typography.bodyMedium,
@@ -177,7 +177,7 @@ fun PartyModeScreen(
                     Icon(
                         Icons.Default.Groups,
                         contentDescription = "Party Mode",
-                        modifier = Modifier.padding(12.dp).size(25.dp)
+                        modifier = Modifier.padding(10.dp).size(22.dp)
                     )
                 }
             }
@@ -185,12 +185,12 @@ fun PartyModeScreen(
             if (state.session == null) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface) {
