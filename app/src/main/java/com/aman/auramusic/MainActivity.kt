@@ -2,6 +2,7 @@ package com.aman.auramusic
 
 import android.Manifest
 import android.content.Intent
+import android.provider.Settings
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -37,6 +38,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -599,6 +602,7 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
 
     var showAboutDialog by remember { mutableStateOf(false) }
     var showPartyMode by remember { mutableStateOf(false) }
+    var showOutputPicker by remember { mutableStateOf(false) }
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
     var showExportPlaylistDialog by remember { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -1394,6 +1398,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                                 onOpen = { showPlayer = true },
                                                 compact = true,
                                                 appSettings = appSettings,
+                                                onPartyMode = { showPartyMode = true },
+                                                onOutputPicker = { showOutputPicker = true },
                                             )
                                         } else {
                                             localMiniSong?.let { song ->
@@ -1408,6 +1414,8 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
                                                     onOpen = { showPlayer = true },
                                                     compact = true,
                                                     appSettings = appSettings,
+                                                    onPartyMode = { showPartyMode = true },
+                                                    onOutputPicker = { showOutputPicker = true },
                                                 )
                                             }
                                         }
@@ -1707,6 +1715,43 @@ fun MusicScreen(musicViewModel: MusicViewModel) {
             )
         }
 
+
+        if (showOutputPicker) {
+            AlertDialog(
+                onDismissRequest = { showOutputPicker = false },
+                title = { androidx.compose.material3.Text("Audio output") },
+                text = {
+                    Column {
+                        androidx.compose.material3.Text("This phone", style = MaterialTheme.typography.titleMedium)
+                        androidx.compose.material3.Text(
+                            "Audio plays through the phone or the route currently selected by Android.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        androidx.compose.foundation.layout.Spacer(Modifier.height(12.dp))
+                        androidx.compose.material3.Text("Bluetooth and other supported routes are managed by Android.")
+                        androidx.compose.material3.Text(
+                            "Party Mode synchronizes playback between AuraMusic listeners; it is not an audio output route.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showOutputPicker = false
+                        runCatching { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }
+                            .onFailure { Toast.makeText(context, "Unable to open Bluetooth settings", Toast.LENGTH_SHORT).show() }
+                    }) { androidx.compose.material3.Text("Bluetooth settings") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showOutputPicker = false
+                        showPartyMode = true
+                    }) { androidx.compose.material3.Text("Party Mode") }
+                }
+            )
+        }
 
         if (showPartyMode) {
             BackHandler { showPartyMode = false }
