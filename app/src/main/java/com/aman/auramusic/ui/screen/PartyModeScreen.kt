@@ -98,6 +98,10 @@ fun PartyModeScreen(
     var showQrDialog by remember { mutableStateOf(false) }
 
     fun handleScannedCode(raw: String) {
+        if (state.connecting) {
+            Toast.makeText(context, "Already connecting to a party…", Toast.LENGTH_SHORT).show()
+            return
+        }
         val parsed = PartyQrHelper.parsePartyQr(raw)
         if (parsed != null) {
             when (parsed) {
@@ -206,8 +210,8 @@ fun PartyModeScreen(
                                 onClick = {
                                     val options = ScanOptions().apply {
                                         setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                                        setPrompt("Scan party QR code")
-                                        setBeepEnabled(true)
+                                        setPrompt("Align the party QR code inside the frame")
+                                        setBeepEnabled(false)
                                         setOrientationLocked(false)
                                     }
                                     cameraScannerLauncher.launch(options)
@@ -216,7 +220,7 @@ fun PartyModeScreen(
                             ) {
                                 Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Scan QR")
+                                Text("Scan QR code")
                             }
                             OutlinedButton(
                                 onClick = { galleryPickerLauncher.launch("image/*") }
